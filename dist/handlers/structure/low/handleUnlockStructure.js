@@ -1,0 +1,125 @@
+"use strict";
+/**
+ * UnlockStructure Handler - Unlock ABAP Structure
+ *
+ * Uses AdtClient.unlockStructure from @mcp-abap-adt/adt-clients.
+ * Low-level handler: single method call.
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleUnlockStructure = handleUnlockStructure;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+exports.TOOL_DEFINITION = {
+    name: 'UnlockStructureLow',
+    available_in: ['onprem', 'cloud'],
+    description: '[low-level] Unlock an ABAP structure after modification. Must use the same session_id and lock_handle from LockStructure operation.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            structure_name: {
+                type: 'string',
+                description: 'Structure name (e.g., Z_MY_PROGRAM).',
+            },
+            lock_handle: {
+                type: 'string',
+                description: 'Lock handle from LockStructure operation.',
+            },
+            session_id: {
+                type: 'string',
+                description: 'Session ID from LockStructure operation. Must be the same as used in LockStructure.',
+            },
+            session_state: {
+                type: 'object',
+                description: 'Session state from LockStructure (cookies, csrf_token, cookie_store). Required if session_id is provided.',
+                properties: {
+                    cookies: { type: 'string' },
+                    csrf_token: { type: 'string' },
+                    cookie_store: { type: 'object' },
+                },
+            },
+        },
+        required: ['structure_name', 'lock_handle', 'session_id'],
+    },
+};
+/**
+ * Main handler for UnlockStructure MCP tool
+ *
+ * Uses AdtClient.unlockStructure - low-level single method call
+ */
+async function handleUnlockStructure(context, args) {
+    const { connection, logger } = context;
+    try {
+        const { structure_name, lock_handle, session_id, session_state } = args;
+        // Validation
+        if (!structure_name || !lock_handle || !session_id) {
+            return (0, utils_1.return_error)(new Error('structure_name, lock_handle, and session_id are required'));
+        }
+        const client = (0, clients_1.createAdtClient)(connection);
+        // Restore session state if provided
+        if (session_state) {
+            await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
+        }
+        else {
+            // Ensure connection is established
+        }
+        const structureName = structure_name.toUpperCase();
+        logger?.info(`Starting structure unlock: ${structureName} (session: ${session_id.substring(0, 8)}...)`);
+        try {
+            // Unlock structure
+            const unlockState = await client
+                .getStructure()
+                .unlock({ structureName: structureName }, lock_handle);
+            const unlockResult = unlockState.unlockResult;
+            if (!unlockResult) {
+                throw new Error(`Unlock did not return a response for structure ${structureName}`);
+            }
+            // Get updated session state after unlock
+            logger?.info(`✅ UnlockStructure completed: ${structureName}`);
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    structure_name: structureName,
+                    session_id: session_id,
+                    session_state: null, // Session state management is now handled by auth-broker,
+                    message: `Structure ${structureName} unlocked successfully.`,
+                }, null, 2),
+            });
+        }
+        catch (error) {
+            logger?.error(`Error unlocking structure ${structureName}:`, error);
+            // Parse error message
+            let errorMessage = `Failed to unlock structure: ${error.message || String(error)}`;
+            if (error.response?.status === 404) {
+                errorMessage = `Structure ${structureName} not found.`;
+            }
+            else if (error.response?.status === 400) {
+                errorMessage = `Invalid lock handle or session. Make sure you're using the same session_id and lock_handle from LockStructure.`;
+            }
+            else if (error.response?.data &&
+                typeof error.response.data === 'string') {
+                try {
+                    const { XMLParser } = require('fast-xml-parser');
+                    const parser = new XMLParser({
+                        ignoreAttributes: false,
+                        attributeNamePrefix: '@_',
+                    });
+                    const errorData = parser.parse(error.response.data);
+                    const errorMsg = errorData['exc:exception']?.message?.['#text'] ||
+                        errorData['exc:exception']?.message;
+                    if (errorMsg) {
+                        errorMessage = `SAP Error: ${errorMsg}`;
+                    }
+                }
+                catch (_parseError) {
+                    // Ignore parse errors
+                }
+            }
+            return (0, utils_1.return_error)(new Error(errorMessage));
+        }
+    }
+    catch (error) {
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleUnlockStructure.js.map

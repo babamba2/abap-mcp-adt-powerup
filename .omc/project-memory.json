@@ -1,0 +1,553 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775775582852,
+  "projectRoot": "C:\\Users\\pssps\\Documents\\Claude\\Projects\\ABAP MCP\\mcp-abap-adt",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=20.0.0",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      },
+      {
+        "name": "C/C++",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Makefile"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "5.1.0",
+        "category": "backend"
+      },
+      {
+        "name": "jest",
+        "version": "30.2.0",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 20.0.0"
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "test:init": "node -e \"const fs=require('fs'),s='tests/test-config.yaml',t=s+'.template';if(fs.existsSync(s)){console.log(s+' already exists, skipping (use test:reinit to overwrite)')}else{fs.copyFileSync(t,s);console.log('Created '+s+' — edit lines marked CHANGE')}\"",
+      "test:reinit": "node -e \"const fs=require('fs'),s='tests/test-config.yaml',t=s+'.template';fs.copyFileSync(t,s);console.log('Recreated '+s+' from template')\"",
+      "test": "jest --passWithNoTests",
+      "test:integration": "jest --testPathPatterns=integration --runInBand --passWithNoTests --forceExit",
+      "test:high": "jest --testPathPatterns='integration.*High' --runInBand --passWithNoTests --forceExit",
+      "test:low": "jest --testPathPatterns='integration.*Low' --runInBand --passWithNoTests --forceExit",
+      "test:check": "npx tsc --noEmit -p tsconfig.test.json",
+      "shared:setup": "jest --testPathPatterns='admin/shared-deps/setup' --testPathIgnorePatterns='[]' --runInBand --passWithNoTests",
+      "shared:teardown": "jest --testPathPatterns='admin/shared-deps/teardown' --testPathIgnorePatterns='[]' --runInBand --passWithNoTests",
+      "shared:check": "jest --testPathPatterns='admin/shared-deps/check' --testPathIgnorePatterns='[]' --passWithNoTests",
+      "lint": "npx biome check --write src",
+      "lint:check": "npx biome check src",
+      "format": "npx biome format --write src",
+      "build": "npx biome check --write --diagnostic-level=error src && npx tsc -p tsconfig.json",
+      "build:fast": "npx tsc -p tsconfig.json",
+      "check-todos": "node tools/check-todos.js",
+      "start": "node ./bin/mcp-abap-adt.js",
+      "start:http": "node ./bin/mcp-abap-adt.js --transport=http",
+      "start:sse": "node ./bin/mcp-abap-adt.js --transport=sse",
+      "dev": "npm run build && npx @modelcontextprotocol/inspector node ./dist/server/launcher.js --transport=stdio",
+      "dev:http": "npm run build && node ./tools/dev-http-v2.js",
+      "dev:sse": "npm run build && node ./tools/dev-sse-v2.js",
+      "kill-ports": "lsof -ti:3000,3001,4000,4001,5000,6274,6277 | xargs -r kill -9 2>/dev/null || true",
+      "auth": "npx sap-abap-auth auth",
+      "clean": "make clean",
+      "chrono": "./tools/version-stats.sh",
+      "smoke:mcp:crud": "node ./tools/mcp-crud-smoke.js",
+      "smoke:mcp:matrix": "node ./tools/mcp-crud-matrix.js",
+      "docs:tools": "node ./tools/generate-tools-docs.js",
+      "prepublishOnly": "npm run build",
+      "package": "npm pack",
+      "package:build": "npm run build && npm pack",
+      "docker:pack": "npm pack && mkdir -p docker/packages && mv *.tgz docker/packages/",
+      "docker:build": "cd docker && docker-compose build",
+      "docker:build:package": "npm run docker:pack && cd docker && docker-compose -f docker-compose.package.yml build",
+      "docker:build:headerless": "cd docker && docker-compose -f docker-compose.headerless.yml build",
+      "docker:up": "cd docker && docker-compose up -d",
+      "docker:up:package": "npm run docker:pack && cd docker && docker-compose -f docker-compose.package.yml up -d",
+      "docker:up:headerless": "cd docker && docker-compose -f docker-compose.headerless.yml up -d",
+      "docker:down": "cd docker && docker-compose down",
+      "docker:down:package": "cd docker && docker-compose -f docker-compose.package.yml down",
+      "docker:down:headerless": "cd docker && docker-compose -f docker-compose.headerless.yml down",
+      "docker:logs": "cd docker && docker-compose logs -f",
+      "docker:logs:package": "cd docker && docker-compose -f docker-compose.package.yml logs -f",
+      "docker:logs:headerless": "cd docker && docker-compose -f docker-compose.headerless.yml logs -f",
+      "docker:rebuild": "npm run docker:down && npm run docker:build && npm run docker:up",
+      "docker:rebuild:package": "npm run docker:down:package && npm run docker:build:package && npm run docker:up:package",
+      "docker:rebuild:headerless": "npm run docker:down:headerless && npm run docker:build:headerless && npm run docker:up:headerless",
+      "prepare": "husky"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "bin",
+      "docs",
+      "src",
+      "tests"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "bin": {
+      "path": "bin",
+      "purpose": "Executable scripts",
+      "fileCount": 1,
+      "lastAccessed": 1775775582770,
+      "keyFiles": [
+        "mcp-abap-adt.js"
+      ]
+    },
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1775775582782,
+      "keyFiles": [
+        "index.js"
+      ]
+    },
+    "docker": {
+      "path": "docker",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1775775582783,
+      "keyFiles": [
+        "docker-compose.headerless.yml",
+        "docker-compose.inspect.yml",
+        "docker-compose.package.yml",
+        "docker-compose.yml",
+        "Dockerfile"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 3,
+      "lastAccessed": 1775775582783,
+      "keyFiles": [
+        "adt-discovery.xml",
+        "discovery.json",
+        "README.md"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1775775582783,
+      "keyFiles": []
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 2,
+      "lastAccessed": 1775775582784,
+      "keyFiles": [
+        "README.md",
+        "test-config.yaml.template"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 19,
+      "lastAccessed": 1775775582784,
+      "keyFiles": [
+        "bulk-update-interface-handlers.sh",
+        "check-exports.js",
+        "check-todos.js",
+        "debug-runtime-explorer.js",
+        "dev-http-v2.js"
+      ]
+    },
+    "dist\\lib": {
+      "path": "dist\\lib",
+      "purpose": "Library code",
+      "fileCount": 48,
+      "lastAccessed": 1775775582785,
+      "keyFiles": [
+        "checkRunParser.d.ts",
+        "checkRunParser.d.ts.map",
+        "checkRunParser.js"
+      ]
+    },
+    "dist\\utils": {
+      "path": "dist\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 8,
+      "lastAccessed": 1775775582786,
+      "keyFiles": [
+        "StdioLogger.d.ts",
+        "StdioLogger.d.ts.map",
+        "StdioLogger.js"
+      ]
+    },
+    "src\\lib": {
+      "path": "src\\lib",
+      "purpose": "Library code",
+      "fileCount": 12,
+      "lastAccessed": 1775775582786,
+      "keyFiles": [
+        "checkRunParser.ts",
+        "clients.ts",
+        "config.ts"
+      ]
+    },
+    "src\\utils": {
+      "path": "src\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 2,
+      "lastAccessed": 1775775582787,
+      "keyFiles": [
+        "StdioLogger.ts",
+        "transportValidation.ts"
+      ]
+    },
+    "src\\__tests__": {
+      "path": "src\\__tests__",
+      "purpose": "Test files",
+      "fileCount": 4,
+      "lastAccessed": 1775775582788,
+      "keyFiles": [
+        "compactRouter.test.ts",
+        "handlers.test.ts",
+        "index.test.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\lib\\handlers\\groups\\LowLevelHandlersGroup.ts",
+      "accessCount": 39,
+      "lastAccessed": 1775783863668,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\groups\\HighLevelHandlersGroup.ts",
+      "accessCount": 25,
+      "lastAccessed": 1775793341618,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\include\\high\\handleUpdateInclude.ts",
+      "accessCount": 22,
+      "lastAccessed": 1775794051135,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 21,
+      "lastAccessed": 1775794057813,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\include\\high\\handleDeleteInclude.ts",
+      "accessCount": 17,
+      "lastAccessed": 1775794909463,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\groups\\ReadOnlyHandlersGroup.ts",
+      "accessCount": 14,
+      "lastAccessed": 1775783867089,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\utils.ts",
+      "accessCount": 13,
+      "lastAccessed": 1775786838154,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\readonly\\handleGetGuiStatusList.ts",
+      "accessCount": 11,
+      "lastAccessed": 1775785781055,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\include\\readonly\\handleGetInclude.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775783397717,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\readonly\\handleGetScreensList.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775785783839,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib",
+      "accessCount": 8,
+      "lastAccessed": 1775789373226,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\include\\readonly\\handleGetIncludesList.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775783397856,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleGetScreen.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775788871517,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\low\\handleLockProgram.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775777466300,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 6,
+      "lastAccessed": 1775786287718,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\readonly\\handleReadGuiStatus.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775788643792,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\readonly\\handleReadScreen.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775788862557,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleCreateScreen.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775794063341,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleUpdateScreen.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775794064484,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleActivateGuiStatus.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775794069404,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleCreateGuiStatus.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775788714900,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleDeleteGuiStatus.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775788765754,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\high\\handleUpdateProgram.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775792220072,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleActivateScreen.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775794065626,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers",
+      "accessCount": 4,
+      "lastAccessed": 1775786341038,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleLockGuiStatus.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788671741,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleUpdateGuiStatus.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788724934,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleUnlockGuiStatus.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788754977,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleLockScreen.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788888243,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleUnlockScreen.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788907031,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleCreateScreen.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788921008,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleUpdateScreen.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788931808,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleDeleteScreen.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775788947075,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\low\\handleUpdateProgram.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775776750118,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\high\\handleCreateProgram.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775793255846,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\readonly\\handleReadProgram.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775776776160,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\include",
+      "accessCount": 2,
+      "lastAccessed": 1775785400548,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\interfaces.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775787280888,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\include\\readonly",
+      "accessCount": 2,
+      "lastAccessed": 1775793525866,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\program\\low\\handleCreateProgram.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775775985074,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\class\\high\\handleCreateClass.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775775985140,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\class\\low\\handleCreateClass.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775775985608,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\base\\BaseHandlerGroup.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775776000197,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\groups\\index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775776000328,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\interfaces.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775776004182,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\class\\low\\handleLockClass.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775776010529,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\compact\\high\\compactSchemas.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775776764566,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\program\\low",
+      "accessCount": 1,
+      "lastAccessed": 1775776935756,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\program\\readonly",
+      "accessCount": 1,
+      "lastAccessed": 1775776965553,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\program\\high",
+      "accessCount": 1,
+      "lastAccessed": 1775776966099,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

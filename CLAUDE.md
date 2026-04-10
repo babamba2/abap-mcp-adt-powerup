@@ -1,5 +1,33 @@
 # MCP ABAP ADT - Development Guide
 
+## Workflow Rules
+
+### [1] Show diff on ABAP source updates (mandatory)
+
+Before calling any Update* tool that changes ABAP source code — programs, includes, classes, interfaces, function modules, CDS views, metadata extensions (DDLX), behavior definitions/implementations, unit tests, screens, GUI statuses — you **must**:
+
+1. Read the **current** source first (e.g. `GetProgram`, `GetInclude`, `GetClass`, `GetView`, `GetMetadataExtension`, `ReadScreen`, `ReadGuiStatus`).
+2. Display the **Before / After diff** to the user, highlighting only the changed sections. Use fenced code blocks labeled `**Before**` / `**After**` following the Notion page style.
+3. Only proceed with the Update after the diff is visible in the response.
+
+This applies even for "small" edits — the user must see what will change before it lands on SAP.
+
+### [2] Notion logging after task completion (mandatory)
+
+After any task that creates, updates, or deletes ABAP objects on SAP is fully verified, append an entry to the **Team2↔Team3 Code History** database:
+
+- URL: `https://www.notion.so/15d8dd48364147099fa6ba1bd0f471e5?v=e403e481a51742a49d25c1ed44cdd3d0`
+- Conform to the existing entry format. Required columns:
+  - `Title` — `[Team name or module] <short summary>`
+  - `Team` — `Team2:blue` | `Team3:red` | `Both:purple`
+  - `Action` — `Code Created:green` | `QA Review:yellow` | `Bug Fix:red` | `Warning Fix:orange` | `Approved:green`
+  - `Program` — target ABAP object(s) or TS handler paths
+  - `Description`, `Issues`, `Resolution`, `Version`, `Date`
+- Page **body** must include **Before / After code blocks** for every substantive change (use fenced code blocks). This is non-negotiable — entries without before/after are incomplete.
+- Include an "활성화 정보" or "Activation info" table when changes were activated on SAP (object / method / transport / result).
+
+Use `mcp__claude_ai_Notion__notion-create-pages` to create the entry and target the database via `collection://93762f92-598b-434e-bfc1-fa685a892ef2`.
+
 ## Testing
 
 ### Integration Tests

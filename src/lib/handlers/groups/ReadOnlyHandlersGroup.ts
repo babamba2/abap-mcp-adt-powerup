@@ -38,6 +38,15 @@ import {
   handleReadFunctionModule,
   TOOL_DEFINITION as ReadFunctionModule_Tool,
 } from '../../../handlers/function_module/readonly/handleReadFunctionModule';
+// Import readonly handlers - GUI Status
+import {
+  TOOL_DEFINITION as GetGuiStatusList_Tool,
+  handleGetGuiStatusList,
+} from '../../../handlers/gui_status/readonly/handleGetGuiStatusList';
+import {
+  handleReadGuiStatus,
+  TOOL_DEFINITION as ReadGuiStatus_Tool,
+} from '../../../handlers/gui_status/readonly/handleReadGuiStatus';
 import {
   TOOL_DEFINITION as GetInclude_Tool,
   handleGetInclude,
@@ -70,6 +79,15 @@ import {
   handleReadProgram,
   TOOL_DEFINITION as ReadProgram_Tool,
 } from '../../../handlers/program/readonly/handleReadProgram';
+// Import readonly handlers - Screen (Dynpro)
+import {
+  TOOL_DEFINITION as GetScreensList_Tool,
+  handleGetScreensList,
+} from '../../../handlers/screen/readonly/handleGetScreensList';
+import {
+  handleReadScreen,
+  TOOL_DEFINITION as ReadScreen_Tool,
+} from '../../../handlers/screen/readonly/handleReadScreen';
 import {
   handleReadServiceBinding,
   TOOL_DEFINITION as ReadServiceBinding_Tool,
@@ -224,6 +242,24 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: ReadServiceBinding_Tool,
         handler: (args: any) => handleReadServiceBinding(this.context, args),
+      },
+      // Screen (Dynpro) readonly handlers
+      {
+        toolDefinition: ReadScreen_Tool,
+        handler: (args: any) => handleReadScreen(this.context, args),
+      },
+      {
+        toolDefinition: GetScreensList_Tool,
+        handler: (args: any) => handleGetScreensList(this.context, args),
+      },
+      // GUI Status readonly handlers
+      {
+        toolDefinition: ReadGuiStatus_Tool,
+        handler: (args: any) => handleReadGuiStatus(this.context, args),
+      },
+      {
+        toolDefinition: GetGuiStatusList_Tool,
+        handler: (args: any) => handleGetGuiStatusList(this.context, args),
       },
     ];
   }

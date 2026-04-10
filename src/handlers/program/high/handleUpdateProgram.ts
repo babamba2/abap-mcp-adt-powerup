@@ -82,24 +82,6 @@ export async function handleUpdateProgram(
     `Starting program source update: ${programName} (activate=${args.activate === true})`,
   );
 
-  // Connection setup
-  try {
-    // Get connection from session context (set by ProtocolHandler)
-    // Connection is managed and cached per session, with proper token refresh via AuthBroker
-    logger?.debug(
-      `Created separate connection for handler call: ${programName}`,
-    );
-  } catch (connectionError: any) {
-    const errorMessage =
-      connectionError instanceof Error
-        ? connectionError.message
-        : String(connectionError);
-    logger?.error(`Failed to create connection: ${errorMessage}`);
-    return return_error(
-      new Error(`Failed to create connection: ${errorMessage}`),
-    );
-  }
-
   try {
     const client = createAdtClient(connection);
     const shouldActivate = args.activate === true; // Default to false if not specified
@@ -116,7 +98,6 @@ export async function handleUpdateProgram(
 
       // Check new code BEFORE update
       logger?.debug(`Checking new source code before update: ${programName}`);
-      let checkNewCodePassed = false;
       try {
         await safeCheckOperation(
           () =>
@@ -128,14 +109,12 @@ export async function handleUpdateProgram(
             debug: (message: string) => logger?.debug(message),
           },
         );
-        checkNewCodePassed = true;
         logger?.debug(`New code check passed: ${programName}`);
       } catch (checkError: any) {
         if ((checkError as any).isAlreadyChecked) {
           logger?.debug(
             `Program ${programName} was already checked - continuing`,
           );
-          checkNewCodePassed = true;
         } else {
           logger?.error(
             `New code check failed: ${programName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`,
@@ -146,21 +125,17 @@ export async function handleUpdateProgram(
         }
       }
 
-      // Update (only if check passed)
-      if (checkNewCodePassed) {
-        logger?.debug(`Updating program source code: ${programName}`);
-        await client.getProgram().update(
-          {
-            programName,
-            sourceCode: args.source_code,
-            transportRequest: args.transport_request,
-          },
-          { lockHandle },
-        );
-        logger?.info(`Program source code updated: ${programName}`);
-      } else {
-        logger?.warn(`Skipping update - new code check failed: ${programName}`);
-      }
+      // Update
+      logger?.debug(`Updating program source code: ${programName}`);
+      await client.getProgram().update(
+        {
+          programName,
+          sourceCode: args.source_code,
+          transportRequest: args.transport_request,
+        },
+        { lockHandle },
+      );
+      logger?.info(`Program source code updated: ${programName}`);
     } finally {
       if (lockHandle) {
         try {

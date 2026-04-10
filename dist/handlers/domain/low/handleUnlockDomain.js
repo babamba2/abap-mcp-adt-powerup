@@ -1,0 +1,133 @@
+"use strict";
+/**
+ * UnlockDomain Handler - Unlock ABAP Domain
+ *
+ * Uses AdtClient.unlockDomain from @mcp-abap-adt/adt-clients.
+ * Low-level handler: single method call.
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleUnlockDomain = handleUnlockDomain;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+exports.TOOL_DEFINITION = {
+    name: 'UnlockDomainLow',
+    available_in: ['onprem', 'cloud'],
+    description: '[low-level] Unlock an ABAP domain after modification. Must use the same session_id and lock_handle from LockDomain operation.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            domain_name: {
+                type: 'string',
+                description: 'Domain name (e.g., Z_MY_PROGRAM).',
+            },
+            lock_handle: {
+                type: 'string',
+                description: 'Lock handle from LockDomain operation.',
+            },
+            session_id: {
+                type: 'string',
+                description: 'Session ID from LockDomain operation. Must be the same as used in LockDomain.',
+            },
+            session_state: {
+                type: 'object',
+                description: 'Session state from LockDomain (cookies, csrf_token, cookie_store). Required if session_id is provided.',
+                properties: {
+                    cookies: { type: 'string' },
+                    csrf_token: { type: 'string' },
+                    cookie_store: { type: 'object' },
+                },
+            },
+        },
+        required: ['domain_name', 'lock_handle', 'session_id'],
+    },
+};
+/**
+ * Main handler for UnlockDomain MCP tool
+ *
+ * Uses AdtClient.unlockDomain - low-level single method call
+ */
+async function handleUnlockDomain(context, args) {
+    const { connection, logger } = context;
+    try {
+        const { domain_name, lock_handle, session_id, session_state } = args;
+        // Validation
+        if (!domain_name || !lock_handle || !session_id) {
+            return (0, utils_1.return_error)(new Error('domain_name, lock_handle, and session_id are required'));
+        }
+        const client = (0, clients_1.createAdtClient)(connection);
+        const domainName = domain_name.toUpperCase();
+        logger?.info(`Starting unlock for ${domainName}; lock_handle=${lock_handle}; session=${session_id.substring(0, 8)}...; session_state=${session_state ? 'provided' : 'none'}`);
+        // Restore session state if provided
+        if (session_state) {
+            logger?.info(`Restoring session state from lock: cookies=${session_state.cookies?.length || 0}, csrf=${session_state.csrf_token?.length || 0}, store_keys=${session_state.cookie_store ? Object.keys(session_state.cookie_store).length : 0}`);
+            // CRITICAL: Use restoreSessionInConnection to properly restore session
+            // This will set sessionId in connection and enable stateful session mode
+            await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
+            // Verify session was restored
+            logger?.info(`Session state restored (conn session ${connection.getSessionId()})`);
+        }
+        else {
+            logger?.warn('No session state provided (may fail if domain is locked)');
+            // Ensure connection is established
+        }
+        logger?.info(`Starting domain unlock: ${domainName} (session: ${session_id.substring(0, 8)}...)`);
+        try {
+            // Unlock domain
+            logger?.debug(`Calling client.getDomain().unlock({ domainName: ${domainName} }, ${lock_handle})`);
+            const unlockState = await client
+                .getDomain()
+                .unlock({ domainName }, lock_handle);
+            const unlockResult = unlockState.unlockResult;
+            if (!unlockResult) {
+                throw new Error(`Unlock did not return a response for domain ${domainName}`);
+            }
+            // Session state management is now handled by auth-broker
+            logger?.info(`✅ UnlockDomain completed: ${domainName}`);
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    domain_name: domainName,
+                    session_id: session_id,
+                    session_state: null, // Session state management is now handled by auth-broker,
+                    message: `Domain ${domainName} unlocked successfully.`,
+                }, null, 2),
+            });
+        }
+        catch (error) {
+            logger?.error(`Error unlocking domain ${domainName}: ${error?.message || error}`);
+            // Parse error message
+            let errorMessage = `Failed to unlock domain: ${error.message || String(error)}`;
+            if (error.response?.status === 404) {
+                errorMessage = `Domain ${domainName} not found.`;
+            }
+            else if (error.response?.status === 400) {
+                errorMessage = `Invalid lock handle or session. Make sure you're using the same session_id and lock_handle from LockDomain.`;
+            }
+            else if (error.response?.data &&
+                typeof error.response.data === 'string') {
+                try {
+                    const { XMLParser } = require('fast-xml-parser');
+                    const parser = new XMLParser({
+                        ignoreAttributes: false,
+                        attributeNamePrefix: '@_',
+                    });
+                    const errorData = parser.parse(error.response.data);
+                    const errorMsg = errorData['exc:exception']?.message?.['#text'] ||
+                        errorData['exc:exception']?.message;
+                    if (errorMsg) {
+                        errorMessage = `SAP Error: ${errorMsg}`;
+                    }
+                }
+                catch (_parseError) {
+                    // Ignore parse errors
+                }
+            }
+            return (0, utils_1.return_error)(new Error(errorMessage));
+        }
+    }
+    catch (error) {
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleUnlockDomain.js.map

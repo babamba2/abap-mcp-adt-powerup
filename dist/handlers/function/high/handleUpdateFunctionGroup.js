@@ -1,0 +1,154 @@
+"use strict";
+/**
+ * UpdateFunctionGroup Handler - Update Existing ABAP Function Group Metadata
+ *
+ * Function groups are containers for function modules and don't have source code to update.
+ * This handler updates function group metadata (description).
+ *
+ * Uses low-level updateFunctionGroup function from @mcp-abap-adt/adt-clients.
+ * Session and lock management handled internally
+import { AbapConnection } from '@mcp-abap-adt/connection';.
+ *
+ * Workflow: lock -> get current -> update metadata -> unlock
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleUpdateFunctionGroup = handleUpdateFunctionGroup;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+exports.TOOL_DEFINITION = {
+    name: 'UpdateFunctionGroup',
+    available_in: ['onprem', 'cloud', 'legacy'],
+    description: "Update metadata (description) of an existing ABAP function group. Function groups are containers for function modules and don't have source code to update directly. Uses stateful session with proper lock/unlock mechanism.",
+    inputSchema: {
+        type: 'object',
+        properties: {
+            function_group_name: {
+                type: 'string',
+                description: 'Function group name (e.g., ZTEST_FG_001). Must exist in the system.',
+            },
+            description: {
+                type: 'string',
+                description: 'New description for the function group.',
+            },
+            transport_request: {
+                type: 'string',
+                description: 'Transport request number (e.g., E19K905635). Optional if object is local or already in transport.',
+            },
+        },
+        required: ['function_group_name', 'description'],
+    },
+};
+/**
+ * Main handler for UpdateFunctionGroup MCP tool
+ *
+ * Uses low-level updateFunctionGroup function
+ * Session and lock management handled internally
+ */
+async function handleUpdateFunctionGroup(context, args) {
+    const { connection, logger } = context;
+    try {
+        const { function_group_name, description, transport_request } = args;
+        // Validation
+        if (!function_group_name || !description) {
+            return (0, utils_1.return_error)(new Error('function_group_name and description are required'));
+        }
+        // Get connection from session context (set by ProtocolHandler)
+        // Connection is managed and cached per session, with proper token refresh via AuthBroker
+        const functionGroupName = function_group_name.toUpperCase();
+        logger?.info(`Starting function group metadata update: ${functionGroupName}`);
+        try {
+            // Use AdtClient for lock/unlock
+            const crudClient = (0, clients_1.createAdtClient)(connection);
+            let lockHandle;
+            try {
+                // Lock function group
+                lockHandle = await crudClient
+                    .getFunctionGroup()
+                    .lock({ functionGroupName });
+                if (!lockHandle) {
+                    throw new Error('Failed to acquire lock handle');
+                }
+                // Small delay to ensure lock is fully established
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                // Get current XML using AdtClient (same connection, same session as lock)
+                // This ensures we use the same session that was used for locking
+                const readState = await crudClient
+                    .getFunctionGroup()
+                    .read({ functionGroupName });
+                const currentResponse = readState?.readResult;
+                if (!currentResponse) {
+                    throw new Error('Failed to get current function group data');
+                }
+                const currentXml = typeof currentResponse.data === 'string'
+                    ? currentResponse.data
+                    : JSON.stringify(currentResponse.data);
+                // Update description in XML (limit to 40 characters - SAP requirement)
+                const limitedDescription = description.length > 40 ? description.substring(0, 40) : description;
+                const updatedXml = currentXml.replace(/adtcore:description="[^"]*"/, `adtcore:description="${limitedDescription.replace(/"/g, '&quot;')}"`);
+                // Update metadata via PUT
+                const encodedName = (0, utils_1.encodeSapObjectName)(functionGroupName);
+                const url = `/sap/bc/adt/functions/groups/${encodedName}?lockHandle=${lockHandle}${transport_request ? `&corrNr=${transport_request}` : ''}`;
+                const _updateResponse = await connection.makeAdtRequest({
+                    url,
+                    method: 'PUT',
+                    timeout: 30000, // 30 seconds default timeout
+                    data: updatedXml,
+                    headers: {
+                        'Content-Type': 'application/vnd.sap.adt.functions.groups.v3+xml; charset=utf-8',
+                        Accept: 'application/vnd.sap.adt.functions.groups.v3+xml',
+                    },
+                });
+            }
+            finally {
+                // Always unlock if we got a lock handle
+                if (lockHandle) {
+                    try {
+                        await crudClient
+                            .getFunctionGroup()
+                            .unlock({ functionGroupName }, lockHandle);
+                    }
+                    catch (unlockError) {
+                        logger?.warn(`Failed to unlock function group ${functionGroupName}: ${unlockError?.message || unlockError}`);
+                    }
+                }
+            }
+            logger?.info(`✅ UpdateFunctionGroup completed successfully: ${functionGroupName}`);
+            // Return success result
+            const result = {
+                success: true,
+                function_group_name: functionGroupName,
+                description: description,
+                transport_request: transport_request || 'local',
+                message: `Function group ${functionGroupName} metadata updated successfully`,
+                uri: `/sap/bc/adt/functions/groups/${(0, utils_1.encodeSapObjectName)(functionGroupName)}`,
+                steps_completed: ['lock', 'get_current', 'update_metadata', 'unlock'],
+            };
+            return (0, utils_1.return_response)({
+                data: JSON.stringify(result, null, 2),
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+        }
+        catch (error) {
+            logger?.error(`Error updating function group metadata ${functionGroupName}: ${error?.message || error}`);
+            // Check if function group not found
+            if (error.message?.includes('not found') ||
+                error.response?.status === 404) {
+                return (0, utils_1.return_error)(new Error(`Function group ${functionGroupName} not found.`));
+            }
+            const errorMessage = error.response?.data
+                ? typeof error.response.data === 'string'
+                    ? error.response.data
+                    : JSON.stringify(error.response.data)
+                : error.message || String(error);
+            return (0, utils_1.return_error)(new Error(`Failed to update function group: ${errorMessage}`));
+        }
+    }
+    catch (error) {
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleUpdateFunctionGroup.js.map

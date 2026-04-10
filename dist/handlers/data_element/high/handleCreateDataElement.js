@@ -1,0 +1,256 @@
+"use strict";
+/**
+ * CreateDataElement Handler - ABAP Data Element Creation via ADT API
+ *
+ * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Session and lock management handled internally by builder.
+ *
+ * Workflow: create -> activate -> verify
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleCreateDataElement = handleCreateDataElement;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+const transportValidation_js_1 = require("../../../utils/transportValidation.js");
+exports.TOOL_DEFINITION = {
+    name: 'CreateDataElement',
+    available_in: ['onprem', 'cloud'],
+    description: 'Create a new ABAP data element in SAP system with all required steps: create, activate, and verify.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            data_element_name: {
+                type: 'string',
+                description: 'Data element name (e.g., ZZ_E_TEST_001). Must follow SAP naming conventions.',
+            },
+            description: {
+                type: 'string',
+                description: 'Data element description. If not provided, data_element_name will be used.',
+            },
+            package_name: {
+                type: 'string',
+                description: 'Package name (e.g., ZOK_LOCAL, $TMP for local objects)',
+            },
+            transport_request: {
+                type: 'string',
+                description: 'Transport request number (e.g., E19K905635). Required for transportable packages.',
+            },
+            data_type: {
+                type: 'string',
+                description: "Data type (e.g., CHAR, NUMC) or domain name when type_kind is 'domain'.",
+                default: 'CHAR',
+            },
+            length: {
+                type: 'number',
+                description: 'Data type length. Usually inherited from domain.',
+                default: 100,
+            },
+            decimals: {
+                type: 'number',
+                description: 'Decimal places. Usually inherited from domain.',
+                default: 0,
+            },
+            short_label: {
+                type: 'string',
+                description: 'Short field label (max 10 chars). Applied during update step after creation.',
+            },
+            medium_label: {
+                type: 'string',
+                description: 'Medium field label (max 20 chars). Applied during update step after creation.',
+            },
+            long_label: {
+                type: 'string',
+                description: 'Long field label (max 40 chars). Applied during update step after creation.',
+            },
+            heading_label: {
+                type: 'string',
+                description: 'Heading field label (max 55 chars). Applied during update step after creation.',
+            },
+            type_kind: {
+                type: 'string',
+                description: "Type kind: 'domain' (default), 'predefinedAbapType', 'refToPredefinedAbapType', 'refToDictionaryType', 'refToClifType'. If not specified, defaults to 'domain'.",
+                enum: [
+                    'domain',
+                    'predefinedAbapType',
+                    'refToPredefinedAbapType',
+                    'refToDictionaryType',
+                    'refToClifType',
+                ],
+                default: 'domain',
+            },
+            type_name: {
+                type: 'string',
+                description: "Type name: domain name (when type_kind is 'domain'), data element name (when type_kind is 'refToDictionaryType'), or class name (when type_kind is 'refToClifType')",
+            },
+            search_help: {
+                type: 'string',
+                description: 'Search help name. Applied during update step after creation.',
+            },
+            search_help_parameter: {
+                type: 'string',
+                description: 'Search help parameter. Applied during update step after creation.',
+            },
+            set_get_parameter: {
+                type: 'string',
+                description: 'Set/Get parameter ID. Applied during update step after creation.',
+            },
+        },
+        required: ['data_element_name', 'package_name'],
+    },
+};
+/**
+ * Main handler for CreateDataElement MCP tool
+ *
+ * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Session and lock management handled internally by builder
+ */
+async function handleCreateDataElement(context, args) {
+    const { connection, logger } = context;
+    try {
+        // Validate required parameters
+        if (!args?.data_element_name) {
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'Data element name is required');
+        }
+        if (!args?.package_name) {
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'Package name is required');
+        }
+        // Validate transport_request: required for non-$TMP packages
+        (0, transportValidation_js_1.validateTransportRequest)(args.package_name, args.transport_request);
+        const typedArgs = args;
+        // Get connection from session context (set by ProtocolHandler)
+        // Connection is managed and cached per session, with proper token refresh via AuthBroker
+        const dataElementName = typedArgs.data_element_name.toUpperCase();
+        logger?.info(`Starting data element creation: ${dataElementName}`);
+        let lockHandle;
+        const client = (0, clients_1.createAdtClient)(connection);
+        try {
+            const shouldActivate = typedArgs.activate !== false; // Default to true if not specified
+            // Validate
+            await client.getDataElement().validate({
+                dataElementName,
+                packageName: typedArgs.package_name,
+                description: typedArgs.description || dataElementName,
+            });
+            // Determine typeKind - default to 'domain' if not specified
+            const typeKind = typedArgs.type_kind || 'domain';
+            // Create
+            const createState = await client.getDataElement().create({
+                dataElementName,
+                description: typedArgs.description || dataElementName,
+                packageName: typedArgs.package_name,
+                typeKind: typeKind,
+                dataType: typedArgs.data_type,
+                typeName: typedArgs.type_name,
+                length: typedArgs.length,
+                decimals: typedArgs.decimals,
+                transportRequest: typedArgs.transport_request,
+            });
+            // Lock
+            lockHandle = await client.getDataElement().lock({ dataElementName });
+            // Update with properties
+            const updateConfig = {
+                dataElementName,
+                packageName: typedArgs.package_name,
+                description: typedArgs.description || dataElementName,
+                dataType: typedArgs.data_type || 'CHAR',
+                length: typedArgs.length || 100,
+                decimals: typedArgs.decimals || 0,
+                shortLabel: typedArgs.short_label,
+                mediumLabel: typedArgs.medium_label,
+                longLabel: typedArgs.long_label,
+                headingLabel: typedArgs.heading_label,
+                typeKind: typeKind,
+                typeName: typedArgs.type_name,
+                searchHelp: typedArgs.search_help,
+                searchHelpParameter: typedArgs.search_help_parameter,
+                setGetParameter: typedArgs.set_get_parameter,
+                transportRequest: typedArgs.transport_request,
+            };
+            await client
+                .getDataElement()
+                .update(updateConfig, { lockHandle: lockHandle });
+            // Check
+            try {
+                await (0, utils_1.safeCheckOperation)(() => client.getDataElement().check({ dataElementName }), dataElementName, {
+                    debug: (message) => logger?.debug(message),
+                });
+            }
+            catch (checkError) {
+                // If error was marked as "already checked", continue silently
+                if (!checkError.isAlreadyChecked) {
+                    // Real check error - rethrow
+                    throw checkError;
+                }
+            }
+            // Unlock
+            await client.getDataElement().unlock({ dataElementName }, lockHandle);
+            // Activate if requested
+            if (shouldActivate) {
+                await client.getDataElement().activate({ dataElementName });
+            }
+            // Get data element details from create result (createDataElement already does verification)
+            const createResult = createState.createResult;
+            let dataElementDetails = null;
+            if (createResult?.data &&
+                typeof createResult.data === 'object' &&
+                'data_element_details' in createResult.data) {
+                dataElementDetails = createResult.data.data_element_details;
+            }
+            // Extract version and other details from response
+            const version = createResult?.data &&
+                typeof createResult.data === 'object' &&
+                'version' in createResult.data
+                ? createResult.data.version
+                : 'unknown';
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    data_element_name: dataElementName,
+                    package: typedArgs.package_name,
+                    transport_request: typedArgs.transport_request,
+                    data_type: typedArgs.data_type || null,
+                    status: 'active',
+                    version: version,
+                    message: `Data element ${dataElementName} created and activated successfully`,
+                    data_element_details: dataElementDetails,
+                }, null, 2),
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+        }
+        catch (error) {
+            // Try to unlock if lock was acquired
+            if (lockHandle) {
+                try {
+                    await client.getDataElement().unlock({ dataElementName }, lockHandle);
+                    logger?.debug(`Unlocked data element ${dataElementName} after error`);
+                }
+                catch (_unlockError) {
+                    // Ignore unlock errors
+                }
+            }
+            logger?.error(`Error creating data element ${dataElementName}: ${error?.message || error}`);
+            // Check if data element already exists
+            if (error.message?.includes('already exists') ||
+                error.response?.data?.includes('ExceptionResourceAlreadyExists')) {
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `Data element ${dataElementName} already exists. Please delete it first or use a different name.`);
+            }
+            const errorMessage = error.response?.data
+                ? typeof error.response.data === 'string'
+                    ? error.response.data
+                    : JSON.stringify(error.response.data)
+                : error.message || String(error);
+            throw new utils_1.McpError(utils_1.ErrorCode.InternalError, `Failed to create data element ${dataElementName}: ${errorMessage}`);
+        }
+    }
+    catch (error) {
+        if (error instanceof utils_1.McpError) {
+            throw error;
+        }
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleCreateDataElement.js.map

@@ -5,6 +5,7 @@
  * Low-level handler: single method call.
  */
 
+import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
@@ -117,21 +118,13 @@ export async function handleUpdateProgram(
 
     try {
       // Update program with source code
-      const updateState = await client
+      await client
         .getProgram()
         .update(
           { programName: programName, sourceCode: source_code },
           { lockHandle: lock_handle },
         );
-      const updateResult = updateState.updateResult;
-
-      if (!updateResult) {
-        throw new Error(
-          `Update did not return a response for program ${programName}`,
-        );
-      }
-
-      // Get updated session state after update
+      // updateResult may be null for successful updates (program PUT returns 204 No Content)
 
       logger?.info(`✅ UpdateProgram completed: ${programName}`);
 
@@ -165,7 +158,6 @@ export async function handleUpdateProgram(
         typeof error.response.data === 'string'
       ) {
         try {
-          const { XMLParser } = require('fast-xml-parser');
           const parser = new XMLParser({
             ignoreAttributes: false,
             attributeNamePrefix: '@_',

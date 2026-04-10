@@ -1,0 +1,245 @@
+"use strict";
+/**
+ * CreateDomain Handler - ABAP Domain Creation via ADT API
+ *
+ * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Session and lock management handled internally by builder.
+ *
+ * Workflow: create -> check -> unlock -> (activate)
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleCreateDomain = handleCreateDomain;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+const transportValidation_1 = require("../../../utils/transportValidation");
+exports.TOOL_DEFINITION = {
+    name: 'CreateDomain',
+    available_in: ['onprem', 'cloud'],
+    description: 'Create a new ABAP domain in SAP system with all required steps: lock, create, check, unlock, activate, and verify.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            domain_name: {
+                type: 'string',
+                description: 'Domain name (e.g., ZZ_TEST_0001). Must follow SAP naming conventions.',
+            },
+            description: {
+                type: 'string',
+                description: '(optional) Domain description. If not provided, domain_name will be used.',
+            },
+            package_name: {
+                type: 'string',
+                description: '(optional) Package name (e.g., ZOK_LOCAL, $TMP for local objects)',
+            },
+            transport_request: {
+                type: 'string',
+                description: '(optional) Transport request number (e.g., E19K905635). Required for transportable packages.',
+            },
+            datatype: {
+                type: 'string',
+                description: '(optional) Data type: CHAR, NUMC, DATS, TIMS, DEC, INT1, INT2, INT4, INT8, CURR, QUAN, etc.',
+                default: 'CHAR',
+            },
+            length: {
+                type: 'number',
+                description: '(optional) Field length (max depends on datatype)',
+                default: 100,
+            },
+            decimals: {
+                type: 'number',
+                description: '(optional) Decimal places (for DEC, CURR, QUAN types)',
+                default: 0,
+            },
+            conversion_exit: {
+                type: 'string',
+                description: '(optional) Conversion exit routine name (without CONVERSION_EXIT_ prefix)',
+            },
+            lowercase: {
+                type: 'boolean',
+                description: '(optional) Allow lowercase input',
+                default: false,
+            },
+            sign_exists: {
+                type: 'boolean',
+                description: '(optional) Field has sign (+/-)',
+                default: false,
+            },
+            value_table: {
+                type: 'string',
+                description: '(optional) Value table name for foreign key relationship',
+            },
+            activate: {
+                type: 'boolean',
+                description: '(optional) Activate domain after creation (default: true)',
+                default: true,
+            },
+            fixed_values: {
+                type: 'array',
+                description: '(optional) Array of fixed values for domain value range',
+                items: {
+                    type: 'object',
+                    properties: {
+                        low: {
+                            type: 'string',
+                            description: "Fixed value (e.g., '001', 'A')",
+                        },
+                        text: {
+                            type: 'string',
+                            description: 'Description text for the fixed value',
+                        },
+                    },
+                    required: ['low', 'text'],
+                },
+            },
+        },
+        required: ['domain_name'],
+    },
+};
+/**
+ * Main handler for CreateDomain MCP tool
+ *
+ * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Session and lock management handled internally by builder
+ */
+async function handleCreateDomain(context, args) {
+    const { connection, logger } = context;
+    try {
+        // Validate required parameters
+        if (!args?.domain_name) {
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'Domain name is required');
+        }
+        if (!args?.package_name) {
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'Package name is required');
+        }
+        // Validate transport_request: required for non-$TMP, non-ZLOCAL packages
+        (0, transportValidation_1.validateTransportRequest)(args.package_name, args.transport_request, args.super_package);
+        const typedArgs = args;
+        const domainName = typedArgs.domain_name.toUpperCase();
+        logger?.info(`Starting domain creation: ${domainName}`);
+        let lockHandle;
+        const client = (0, clients_1.createAdtClient)(connection);
+        try {
+            const shouldActivate = typedArgs.activate !== false; // Default to true if not specified
+            // Validate
+            await client.getDomain().validate({
+                domainName,
+                packageName: typedArgs.package_name,
+                description: typedArgs.description || domainName,
+            });
+            // Create
+            const createState = await client.getDomain().create({
+                domainName,
+                description: typedArgs.description || domainName,
+                packageName: typedArgs.package_name,
+                transportRequest: typedArgs.transport_request,
+            });
+            // Lock
+            lockHandle = await client.getDomain().lock({ domainName });
+            // Update with properties
+            await client.getDomain().update({
+                domainName,
+                packageName: typedArgs.package_name,
+                description: typedArgs.description || domainName,
+                datatype: typedArgs.datatype || 'CHAR',
+                length: typedArgs.length || 100,
+                decimals: typedArgs.decimals || 0,
+                conversion_exit: typedArgs.conversion_exit,
+                lowercase: typedArgs.lowercase || false,
+                sign_exists: typedArgs.sign_exists || false,
+                value_table: typedArgs.value_table,
+                fixed_values: typedArgs.fixed_values,
+                transportRequest: typedArgs.transport_request,
+            }, { lockHandle });
+            // Check
+            try {
+                await (0, utils_1.safeCheckOperation)(() => client.getDomain().check({ domainName }), domainName, {
+                    debug: (message) => logger?.debug(message),
+                });
+            }
+            catch (checkError) {
+                // If error was marked as "already checked", continue silently
+                if (checkError.isAlreadyChecked) {
+                    logger?.debug(`Domain ${domainName} was already checked - continuing`);
+                }
+                else {
+                    // Real check error - rethrow
+                    throw checkError;
+                }
+            }
+            // Unlock
+            await client.getDomain().unlock({ domainName }, lockHandle);
+            // Activate if requested
+            if (shouldActivate) {
+                await client.getDomain().activate({ domainName });
+            }
+            else {
+                logger?.debug(`Skipping activation for: ${domainName}`);
+            }
+            // Get domain details from create result (createDomain already does verification)
+            const createResult = createState.createResult;
+            let domainDetails = null;
+            if (createResult?.data &&
+                typeof createResult.data === 'object' &&
+                'domain_details' in createResult.data) {
+                domainDetails = createResult.data.domain_details;
+            }
+            logger?.info(`✅ CreateDomain completed: ${domainName}`);
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    domain_name: domainName,
+                    package: typedArgs.package_name,
+                    transport_request: typedArgs.transport_request,
+                    status: shouldActivate ? 'active' : 'inactive',
+                    message: `Domain ${domainName} created${shouldActivate ? ' and activated' : ''} successfully`,
+                    domain_details: domainDetails,
+                }),
+            });
+        }
+        catch (error) {
+            // Try to unlock if lock was acquired
+            if (lockHandle) {
+                try {
+                    await client.getDomain().unlock({ domainName }, lockHandle);
+                    logger?.debug(`Unlocked domain ${domainName} after error`);
+                }
+                catch (_unlockError) {
+                    // Ignore unlock errors
+                }
+            }
+            logger?.error(`Error creating domain ${domainName}: ${error?.message || error}`);
+            // Check if domain already exists
+            if (error.message?.includes('already exists') ||
+                error.response?.data?.includes('ExceptionResourceAlreadyExists')) {
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `Domain ${domainName} already exists. Please delete it first or use a different name.`);
+            }
+            // Safely extract error message
+            let errorMessage;
+            if (error.response?.data) {
+                if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data;
+                }
+                else {
+                    try {
+                        errorMessage = JSON.stringify(error.response.data);
+                    }
+                    catch (_e) {
+                        errorMessage = String(error.response.data).substring(0, 500);
+                    }
+                }
+            }
+            else {
+                errorMessage = error.message || String(error);
+            }
+            throw new utils_1.McpError(utils_1.ErrorCode.InternalError, `Failed to create domain ${domainName}: ${errorMessage}`);
+        }
+    }
+    catch (error) {
+        if (error instanceof utils_1.McpError) {
+            throw error;
+        }
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleCreateDomain.js.map

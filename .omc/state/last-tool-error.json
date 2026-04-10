@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__mcp-abap-adt__DeleteInclude",
+  "tool_input_preview": "{\"include_name\":\"ZPAEK_TEST003_INC05\",\"transport_request\":\"S4HK904224\"}",
+  "error": "MCP error -32603: Error: Failed to delete include ZPAEK_TEST003_INC05: SAP Error: Program ZPAEK_TEST003_INC05 is referenced in other programs",
+  "timestamp": "2026-04-10T04:20:23.461Z",
+  "retry_count": 1
+}

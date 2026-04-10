@@ -1,0 +1,138 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleDescribeByList = handleDescribeByList;
+exports.TOOL_DEFINITION = {
+    name: 'DescribeByList',
+    available_in: ['onprem', 'cloud'],
+    description: '[read-only] Batch description for a list of ABAP objects. Input: objects: Array<{ name: string, type?: string }>. Each object may be of type: PROG/P, FUGR, PROG/I, CLAS/OC, FUGR/FC, INTF/OI, TABLE, STRUCTURE, etc.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            objects: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string',
+                            description: '[read-only] Object name (required, must be valid ABAP object name or mask)',
+                        },
+                        type: {
+                            type: 'string',
+                            description: '[read-only] Optional type (e.g. PROG/P, CLAS/OC, etc.)',
+                        },
+                    },
+                },
+            },
+        },
+        required: ['objects'],
+    },
+};
+const handleSearchObject_1 = require("../../search/readonly/handleSearchObject");
+/**
+ * DescribeByListArray handler.
+ * @param args { objects: Array<{ name: string, type?: string }> }
+ * @returns Result of handleDetectObjectTypeList with objects
+ */
+async function handleDescribeByList(context, args) {
+    const { connection, logger } = context;
+    const objects = args?.objects;
+    if (!args || !Array.isArray(objects) || objects.length === 0) {
+        const err = new Error('Missing or invalid parameters: objects (array) is required and must not be empty.');
+        // @ts-expect-error
+        err.status = 400;
+        // @ts-expect-error
+        err.body = {
+            error: {
+                message: 'Missing or invalid parameters: objects (array) is required and must not be empty.',
+                code: 'INVALID_PARAMS',
+            },
+        };
+        throw err;
+    }
+    logger?.info(`Describing ${objects.length} objects via search`);
+    const results = [];
+    try {
+        for (const obj of objects) {
+            const type = obj.type;
+            let res = await (0, handleSearchObject_1.handleSearchObject)(context, {
+                object_name: obj.name,
+                object_type: type,
+            });
+            let parsed;
+            try {
+                parsed = typeof res === 'string' ? JSON.parse(res) : res;
+                // If the response is empty or flagged as an error, retry without explicit type
+                let tryWithoutType = false;
+                if (parsed == null ||
+                    parsed.isError === true ||
+                    (parsed.content &&
+                        Array.isArray(parsed.content) &&
+                        parsed.content.length === 0)) {
+                    tryWithoutType = true;
+                }
+                if (tryWithoutType) {
+                    res = await (0, handleSearchObject_1.handleSearchObject)(context, { object_name: obj.name });
+                    parsed = typeof res === 'string' ? JSON.parse(res) : res;
+                    // If it still fails or comes back empty, skip this object
+                    if (parsed == null ||
+                        parsed.isError === true ||
+                        (parsed.content &&
+                            Array.isArray(parsed.content) &&
+                            parsed.content.length === 0)) {
+                        continue;
+                    }
+                }
+                // When content is a non-empty array
+                if (parsed.content && Array.isArray(parsed.content)) {
+                    const contentArr = parsed.content;
+                    if (contentArr.length === 0) {
+                        continue;
+                    }
+                    // Handle SearchObject-style payloads containing a results array
+                    let allResults = [];
+                    for (const item of contentArr) {
+                        try {
+                            const parsedItem = typeof item.text === 'string'
+                                ? JSON.parse(item.text)
+                                : item.text;
+                            if (parsedItem?.results && Array.isArray(parsedItem.results)) {
+                                allResults = allResults.concat(parsedItem.results);
+                            }
+                            else {
+                                allResults.push(parsedItem);
+                            }
+                        }
+                        catch {
+                            allResults.push(item);
+                        }
+                    }
+                    results.push({
+                        type: 'text',
+                        text: JSON.stringify({
+                            name: obj.name,
+                            results: allResults,
+                        }),
+                    });
+                    continue;
+                }
+                // Otherwise handle direct object payloads (e.g., DTEL)
+                if (typeof parsed === 'object' && parsed !== null) {
+                    results.push({ type: 'text', text: JSON.stringify(parsed) });
+                }
+            }
+            catch { }
+        }
+        // Return isError: false even when nothing matched
+        return {
+            isError: false,
+            content: results,
+        };
+    }
+    catch (e) {
+        logger?.error('Failed to describe objects list', e);
+        return { isError: true, content: [] };
+    }
+}
+//# sourceMappingURL=handleDescribeByList.js.map

@@ -105,12 +105,18 @@ export async function handleCheckMetadataExtension(
       // Parse check results
       const checkResult = parseCheckRunResponse(response as AxiosResponse);
 
-      // Get updated session state after check
+      // Capture raw response for debugging (DDLX may have different XML structure)
+      const rawResponseData = response.data
+        ? typeof response.data === 'string'
+          ? response.data
+          : JSON.stringify(response.data)
+        : null;
 
       logger?.info(`✅ CheckMetadataExtension completed: ${ddlxName}`);
       logger?.debug(
         `Status: ${checkResult.status} | Errors: ${checkResult.errors.length}, Warnings: ${checkResult.warnings.length}`,
       );
+      logger?.debug(`Raw response: ${rawResponseData}`);
 
       return return_response({
         data: JSON.stringify(
@@ -118,8 +124,9 @@ export async function handleCheckMetadataExtension(
             success: checkResult.success,
             name: ddlxName,
             check_result: checkResult,
+            raw_response: rawResponseData,
             session_id: session_id || null,
-            session_state: null, // Session state management is now handled by auth-broker,
+            session_state: null,
             message: checkResult.success
               ? `MetadataExtension ${ddlxName} has no syntax errors`
               : `MetadataExtension ${ddlxName} has ${checkResult.errors.length} error(s) and ${checkResult.warnings.length} warning(s)`,

@@ -1,0 +1,167 @@
+"use strict";
+/**
+ * ValidateBehaviorDefinition Handler - Validate ABAP BehaviorDefinition Name
+ *
+ * Uses AdtClient.validateBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Low-level handler: single method call.
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TOOL_DEFINITION = void 0;
+exports.handleValidateBehaviorDefinition = handleValidateBehaviorDefinition;
+const clients_1 = require("../../../lib/clients");
+const utils_1 = require("../../../lib/utils");
+exports.TOOL_DEFINITION = {
+    name: 'ValidateBehaviorDefinitionLow',
+    available_in: ['onprem', 'cloud'],
+    description: '[low-level] Validate an ABAP behavior definition name before creation. Checks if the name is valid and available. Returns validation result with success status and message. Can use session_id and session_state from GetSession to maintain the same session.',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            name: {
+                type: 'string',
+                description: 'BehaviorDefinition name to validate (e.g., ZI_MY_BDEF).',
+            },
+            root_entity: {
+                type: 'string',
+                description: 'Root entity name (e.g., ZI_MY_ENTITY). Required for validation.',
+            },
+            implementation_type: {
+                type: 'string',
+                description: "Implementation type: 'Managed', 'Unmanaged', 'Abstract', or 'Projection'.",
+                enum: ['Managed', 'Unmanaged', 'Abstract', 'Projection'],
+            },
+            package_name: {
+                type: 'string',
+                description: 'Package name (e.g., ZOK_LOCAL, $TMP for local objects). Required for validation.',
+            },
+            description: {
+                type: 'string',
+                description: 'BehaviorDefinition description. Required for validation.',
+            },
+            session_id: {
+                type: 'string',
+                description: 'Session ID from GetSession. If not provided, a new session will be created.',
+            },
+            session_state: {
+                type: 'object',
+                description: 'Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.',
+                properties: {
+                    cookies: { type: 'string' },
+                    csrf_token: { type: 'string' },
+                    cookie_store: { type: 'object' },
+                },
+            },
+        },
+        required: [
+            'name',
+            'root_entity',
+            'implementation_type',
+            'package_name',
+            'description',
+        ],
+    },
+};
+/**
+ * Main handler for ValidateBehaviorDefinition MCP tool
+ *
+ * Uses AdtClient.validateBehaviorDefinition - low-level single method call
+ */
+async function handleValidateBehaviorDefinition(context, args) {
+    const { connection, logger } = context;
+    try {
+        const { name, root_entity, implementation_type, package_name, description, session_id, session_state, } = args;
+        // Validation
+        if (!name ||
+            !root_entity ||
+            !implementation_type ||
+            !package_name ||
+            !description) {
+            return (0, utils_1.return_error)(new Error('name, root_entity, implementation_type, package_name, and description are required'));
+        }
+        const client = (0, clients_1.createAdtClient)(connection);
+        // Restore session state if provided
+        if (session_id && session_state) {
+            await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
+        }
+        else {
+            // Ensure connection is established
+        }
+        const bdefName = name.toUpperCase();
+        logger?.info(`Starting behavior definition validation: ${bdefName}`);
+        try {
+            // Validate behavior definition - using IBehaviorDefinitionValidationParams from adt-clients
+            // Note: In SAP ADT validation API, objname and rootEntity are both required parameters
+            // but they must have the same value (one value in two parameters)
+            // We use root_entity for both since it's the actual CDS view name
+            const validateParams = {
+                objname: root_entity, // objname - same as rootEntity
+                rootEntity: root_entity, // rootEntity - CDS view name
+                description: description,
+                package: package_name.toUpperCase(),
+                implementationType: implementation_type,
+            };
+            // AdtClient.validateBehaviorDefinition expects IBehaviorDefinitionConfig,
+            // but we use IBehaviorDefinitionValidationParams structure for clarity
+            // Convert to the format expected by AdtClient
+            const validationState = await client.getBehaviorDefinition().validate({
+                name: validateParams.objname,
+                rootEntity: validateParams.rootEntity,
+                description: validateParams.description,
+                packageName: validateParams.package,
+                implementationType: validateParams.implementationType,
+            });
+            const validationResponse = validationState.validationResponse;
+            if (!validationResponse) {
+                throw new Error('Validation did not return a result');
+            }
+            const result = (0, utils_1.parseValidationResponse)(validationResponse);
+            // Get updated session state after validation
+            logger?.info(`✅ ValidateBehaviorDefinition completed: ${bdefName}`);
+            logger?.info(`   Valid: ${result.valid}, Message: ${result.message}`);
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: result.valid,
+                    name: bdefName,
+                    validation_result: result,
+                    session_id: session_id || null,
+                    session_state: null, // Session state management is now handled by auth-broker,
+                    message: result.valid
+                        ? `BehaviorDefinition ${bdefName} is valid and available`
+                        : `BehaviorDefinition ${bdefName} validation failed: ${result.message}`,
+                }, null, 2),
+            });
+        }
+        catch (error) {
+            logger?.error(`Error validating behavior definition ${bdefName}: ${error?.message || error}`);
+            // Parse error message
+            let errorMessage = `Failed to validate behavior definition: ${error.message || String(error)}`;
+            if (error.response?.status === 404) {
+                errorMessage = `BehaviorDefinition ${bdefName} not found.`;
+            }
+            else if (error.response?.data &&
+                typeof error.response.data === 'string') {
+                try {
+                    const { XMLParser } = require('fast-xml-parser');
+                    const parser = new XMLParser({
+                        ignoreAttributes: false,
+                        attributeNamePrefix: '@_',
+                    });
+                    const errorData = parser.parse(error.response.data);
+                    const errorMsg = errorData['exc:exception']?.message?.['#text'] ||
+                        errorData['exc:exception']?.message;
+                    if (errorMsg) {
+                        errorMessage = `SAP Error: ${errorMsg}`;
+                    }
+                }
+                catch (_parseError) {
+                    // Ignore parse errors
+                }
+            }
+            return (0, utils_1.return_error)(new Error(errorMessage));
+        }
+    }
+    catch (error) {
+        return (0, utils_1.return_error)(error);
+    }
+}
+//# sourceMappingURL=handleValidateBehaviorDefinition.js.map

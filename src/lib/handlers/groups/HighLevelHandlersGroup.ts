@@ -166,6 +166,35 @@ import {
   TOOL_DEFINITION as GetFunctionModule_Tool,
   handleGetFunctionModule,
 } from '../../../handlers/function_module/high/handleGetFunctionModule';
+// Import high-level handlers - GUI Status
+import {
+  TOOL_DEFINITION as CreateGuiStatus_Tool,
+  handleCreateGuiStatus,
+} from '../../../handlers/gui_status/high/handleCreateGuiStatus';
+import {
+  TOOL_DEFINITION as DeleteGuiStatus_Tool,
+  handleDeleteGuiStatus,
+} from '../../../handlers/gui_status/high/handleDeleteGuiStatus';
+import {
+  TOOL_DEFINITION as GetGuiStatus_Tool,
+  handleGetGuiStatus,
+} from '../../../handlers/gui_status/high/handleGetGuiStatus';
+import {
+  handleUpdateGuiStatus as handleUpdateGuiStatusHigh,
+  TOOL_DEFINITION as UpdateGuiStatusHigh_Tool,
+} from '../../../handlers/gui_status/high/handleUpdateGuiStatus';
+import {
+  TOOL_DEFINITION as CreateInclude_Tool,
+  handleCreateInclude,
+} from '../../../handlers/include/high/handleCreateInclude';
+import {
+  TOOL_DEFINITION as DeleteInclude_Tool,
+  handleDeleteInclude,
+} from '../../../handlers/include/high/handleDeleteInclude';
+import {
+  handleUpdateInclude,
+  TOOL_DEFINITION as UpdateInclude_Tool,
+} from '../../../handlers/include/high/handleUpdateInclude';
 import {
   TOOL_DEFINITION as CreateInterface_Tool,
   handleCreateInterface,
@@ -216,6 +245,23 @@ import {
   handleUpdateProgram as handleUpdateProgramHigh,
   TOOL_DEFINITION as UpdateProgramHigh_Tool,
 } from '../../../handlers/program/high/handleUpdateProgram';
+// Import high-level handlers - Screen (Dynpro)
+import {
+  TOOL_DEFINITION as CreateScreen_Tool,
+  handleCreateScreen,
+} from '../../../handlers/screen/high/handleCreateScreen';
+import {
+  TOOL_DEFINITION as DeleteScreen_Tool,
+  handleDeleteScreen,
+} from '../../../handlers/screen/high/handleDeleteScreen';
+import {
+  TOOL_DEFINITION as GetScreen_Tool,
+  handleGetScreen,
+} from '../../../handlers/screen/high/handleGetScreen';
+import {
+  handleUpdateScreen as handleUpdateScreenHigh,
+  TOOL_DEFINITION as UpdateScreenHigh_Tool,
+} from '../../../handlers/screen/high/handleUpdateScreen';
 import {
   TOOL_DEFINITION as CreateServiceBinding_Tool,
   handleCreateServiceBinding,
@@ -630,6 +676,18 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
         handler: withContext(handleDeleteLocalMacros),
       },
       {
+        toolDefinition: CreateInclude_Tool,
+        handler: withContext(handleCreateInclude),
+      },
+      {
+        toolDefinition: UpdateInclude_Tool,
+        handler: withContext(handleUpdateInclude),
+      },
+      {
+        toolDefinition: DeleteInclude_Tool,
+        handler: withContext(handleDeleteInclude),
+      },
+      {
         toolDefinition: CreateProgram_Tool,
         handler: withContext(handleCreateProgram),
       },
@@ -740,6 +798,40 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: DeleteMetadataExtension_Tool,
         handler: withContext(handleDeleteMetadataExtension),
+      },
+      // Screen (Dynpro) high-level handlers
+      {
+        toolDefinition: CreateScreen_Tool,
+        handler: withContext(handleCreateScreen),
+      },
+      {
+        toolDefinition: GetScreen_Tool,
+        handler: withContext(handleGetScreen),
+      },
+      {
+        toolDefinition: UpdateScreenHigh_Tool,
+        handler: withContext(handleUpdateScreenHigh),
+      },
+      {
+        toolDefinition: DeleteScreen_Tool,
+        handler: withContext(handleDeleteScreen),
+      },
+      // GUI Status high-level handlers
+      {
+        toolDefinition: CreateGuiStatus_Tool,
+        handler: withContext(handleCreateGuiStatus),
+      },
+      {
+        toolDefinition: GetGuiStatus_Tool,
+        handler: withContext(handleGetGuiStatus),
+      },
+      {
+        toolDefinition: UpdateGuiStatusHigh_Tool,
+        handler: withContext(handleUpdateGuiStatusHigh),
+      },
+      {
+        toolDefinition: DeleteGuiStatus_Tool,
+        handler: withContext(handleDeleteGuiStatus),
       },
     ];
   }

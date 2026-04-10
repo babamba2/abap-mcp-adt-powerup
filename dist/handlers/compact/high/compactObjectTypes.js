@@ -1,0 +1,31 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.COMPACT_OBJECT_TYPES = void 0;
+exports.COMPACT_OBJECT_TYPES = [
+    'PACKAGE',
+    'DOMAIN',
+    'DATA_ELEMENT',
+    'TRANSPORT',
+    'TABLE',
+    'STRUCTURE',
+    'VIEW',
+    'SERVICE_DEFINITION',
+    'SERVICE_BINDING',
+    'CLASS',
+    'UNIT_TEST',
+    'CDS_UNIT_TEST',
+    'LOCAL_TEST_CLASS',
+    'LOCAL_TYPES',
+    'LOCAL_DEFINITIONS',
+    'LOCAL_MACROS',
+    'PROGRAM',
+    'INTERFACE',
+    'FUNCTION_GROUP',
+    'FUNCTION_MODULE',
+    'BEHAVIOR_DEFINITION',
+    'BEHAVIOR_IMPLEMENTATION',
+    'METADATA_EXTENSION',
+    'RUNTIME_PROFILE',
+    'RUNTIME_DUMP',
+];
+//# sourceMappingURL=compactObjectTypes.js.map

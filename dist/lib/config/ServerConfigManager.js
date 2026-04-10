@@ -1,0 +1,290 @@
+"use strict";
+/**
+ * Server Configuration Manager
+ *
+ * Central configuration management for MCP ABAP ADT Server
+ * Handles:
+ * - Command line arguments parsing
+ * - YAML configuration file loading (via yamlConfig DI)
+ * - Configuration template generation (via yamlConfig DI)
+ * - Handler exposition control
+ *
+ * Uses dependency injection pattern to reuse existing yamlConfig infrastructure
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ServerConfigManager = void 0;
+const ArgumentsParser_js_1 = require("./ArgumentsParser.js");
+const yamlConfig_js_1 = require("./yamlConfig.js");
+// ============================================================================
+// SERVER CONFIGURATION MANAGER CLASS
+// ============================================================================
+/**
+ * Server Configuration Manager
+ */
+class ServerConfigManager {
+    config = null;
+    // --------------------------------------------------------------------------
+    // PUBLIC API - Configuration Access
+    // --------------------------------------------------------------------------
+    /**
+     * Get current configuration with async YAML support
+     * Uses existing yamlConfig infrastructure via DI
+     */
+    async getConfig() {
+        if (this.config) {
+            return { ...this.config };
+        }
+        // Load and apply YAML config if specified
+        this.loadYamlConfigIfNeeded();
+        // Parse final config from process.argv (after YAML applied)
+        this.config = this.parseCommandLine();
+        return { ...this.config };
+    }
+    /**
+     * Get current configuration synchronously (for backward compatibility)
+     * Note: If used before getConfig(), will not include YAML config values
+     */
+    getConfigSync() {
+        if (!this.config) {
+            this.config = this.parseCommandLine();
+        }
+        return { ...this.config };
+    }
+    // --------------------------------------------------------------------------
+    // PRIVATE - YAML Configuration Loading
+    // --------------------------------------------------------------------------
+    /**
+     * Load YAML configuration if --conf parameter is present
+     * Delegates to yamlConfig module via DI
+     */
+    loadYamlConfigIfNeeded() {
+        const configPath = (0, yamlConfig_js_1.parseConfigArg)();
+        if (!configPath)
+            return;
+        // Generate template if needed (from yamlConfig)
+        const templateGenerated = (0, yamlConfig_js_1.generateConfigTemplateIfNeeded)(configPath);
+        if (templateGenerated) {
+            process.stderr.write('[MCP-CONFIG] Template generated. Edit it and rerun with --conf.\n');
+            process.exit(0);
+        }
+        // Load YAML config and apply to process.argv
+        const yamlConfig = (0, yamlConfig_js_1.loadYamlConfig)(configPath);
+        if (yamlConfig) {
+            (0, yamlConfig_js_1.applyYamlConfigToArgs)(yamlConfig);
+        }
+    }
+    // --------------------------------------------------------------------------
+    // PRIVATE - Command Line Parsing
+    // --------------------------------------------------------------------------
+    /**
+     * Parse command line arguments
+     * Note: Should be called after applyYamlConfigToArgs for proper YAML support
+     * Uses ArgumentsParser for unified CLI parsing
+     */
+    parseCommandLine() {
+        // Use unified ArgumentsParser for CLI args
+        const parsed = ArgumentsParser_js_1.ArgumentsParser.parse();
+        const transport = this.parseTransport();
+        const exposition = this.parseExposition();
+        return {
+            transport: transport || 'stdio',
+            exposition: exposition.length > 0 ? exposition : ['readonly', 'high'],
+            configFile: (0, yamlConfig_js_1.parseConfigArg)(),
+            host: ArgumentsParser_js_1.ArgumentsParser.getArgument('--host') || parsed.httpHost,
+            port: this.parsePort() || parsed.httpPort,
+            httpJsonResponse: parsed.httpJsonResponse || undefined,
+            httpPath: ArgumentsParser_js_1.ArgumentsParser.getArgument('--path') ||
+                ArgumentsParser_js_1.ArgumentsParser.getArgument('--http-path'),
+            ssePath: ArgumentsParser_js_1.ArgumentsParser.getArgument('--sse-path'),
+            postPath: ArgumentsParser_js_1.ArgumentsParser.getArgument('--post-path'),
+            envFile: parsed.env,
+            envFilePath: parsed.env,
+            authBrokerPath: parsed.authBrokerPath,
+            mcpDestination: parsed.mcp,
+            unsafe: parsed.unsafe,
+            useAuthBroker: parsed.useAuthBroker,
+            browserAuthPort: parsed.browserAuthPort,
+            connectionType: parsed.connectionType,
+            systemType: parsed.systemType,
+        };
+    }
+    /**
+     * Parse transport from command line or environment variable
+     */
+    parseTransport() {
+        // Priority 1: Command line argument --transport
+        const cliValue = ArgumentsParser_js_1.ArgumentsParser.getArgument('--transport');
+        if (cliValue === 'sse')
+            return 'sse';
+        if (cliValue === 'http' || cliValue === 'streamable-http')
+            return 'http';
+        if (cliValue === 'stdio')
+            return 'stdio';
+        // Priority 2: Environment variable MCP_TRANSPORT
+        const envValue = process.env.MCP_TRANSPORT;
+        if (envValue === 'sse')
+            return 'sse';
+        if (envValue === 'http' || envValue === 'streamable-http')
+            return 'http';
+        if (envValue === 'stdio')
+            return 'stdio';
+        return undefined;
+    }
+    /**
+     * Parse port from command line
+     */
+    parsePort() {
+        const port = ArgumentsParser_js_1.ArgumentsParser.getArgument('--port');
+        return port ? parseInt(port, 10) : undefined;
+    }
+    /**
+     * Parse handler exposition from command line
+     * Format: --exposition=readonly,high,low,compact
+     */
+    parseExposition() {
+        const value = ArgumentsParser_js_1.ArgumentsParser.getArgument('--exposition');
+        if (!value)
+            return [];
+        return value
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s === 'readonly' || s === 'high' || s === 'low' || s === 'compact');
+    }
+    // --------------------------------------------------------------------------
+    // STATIC - Help Text Generation
+    // --------------------------------------------------------------------------
+    /**
+     * Get handler sets description for help text
+     */
+    static getHandlerSetsDescription() {
+        return `
+HANDLER EXPOSITION:
+  --exposition=<sets>              Comma-separated handler sets to expose
+                                   Options: readonly, high, low, compact
+                                   Default: readonly,high
+
+                                   Handler Sets:
+                                   - readonly: Get*, Check*, Validate*, Lock*, Unlock*
+                                               (read operations, validation, locking)
+                                               Also includes: search, system
+                                   - high:     Create*, Update*High
+                                               (safe create/update via ADT)
+                                   - low:      Update*Low, Delete*, Activate*
+                                               (direct/dangerous operations)
+                                   - compact:  HandlerCreate, HandlerGet,
+                                               HandlerUpdate, HandlerDelete
+                                               (object_type-routed facade)
+                                   - search:   SearchObject (included with readonly)
+                                   - system:   GetWhereUsed, GetTypeInfo, GetObjectInfo,
+                                               GetAbapAST, GetSession, etc.
+                                               (included with readonly)
+
+                                   Examples:
+                                   --exposition=readonly       (readonly + search + system)
+                                   --exposition=readonly,high  (readonly + high + search + system)
+                                   --exposition=high           (high only, NO search/system)
+                                   --exposition=compact        (compact facade only)
+                                   --exposition=readonly,high,low (all handlers)
+
+                                   For details: docs/user-guide/HANDLERS_MANAGEMENT.md
+`;
+    }
+    /**
+     * Generate complete help text with all configuration options
+     */
+    static generateHelp(additionalSections) {
+        return `
+MCP ABAP ADT Server - SAP ABAP Development Tools MCP Integration
+
+USAGE:
+  mcp-abap-adt [options]
+
+DESCRIPTION:
+  MCP server for interacting with SAP ABAP systems via ADT (ABAP Development Tools).
+  Supports multiple transport modes and handler set filtering.
+
+OPTIONS:
+  --help, -h                       Show this help message
+  --conf=<path>                    Path to YAML config file
+                                   If file does not exist, a template will be generated
+                                   Command line arguments override config file values
+
+TRANSPORT SELECTION:
+  --transport=<type>               Transport type: stdio|http|streamable-http|sse
+                                   Default: stdio (for MCP clients)
+  --host=<host>                    Server host (default: 127.0.0.1)
+                                   Use 0.0.0.0 for all interfaces
+  --port=<port>                    Server port (default: 3000 for http, 3001 for sse)
+  --path=<path>                    HTTP endpoint path (default: /mcp/stream/http)
+  --http-path=<path>               Alias for --path
+  --sse-path=<path>                SSE connection path (default: /sse)
+  --post-path=<path>               SSE message post path (default: /messages)
+
+AUTHENTICATION:
+  --env=<name>                     Env destination name (resolved to sessions/<name>.env)
+                                   Uses platform default sessions directory
+  --env-path=<path|file>           Explicit .env file path (or relative file name)
+  --mcp=<destination>              Default MCP destination name (for auth-broker mode)
+                                   Example: --mcp=TRIAL
+  --connection-type=<type>         SAP connection type: http (default) or rfc
+                                   RFC requires SAP NW RFC SDK + node-rfc installed
+                                   Alternative: SAP_CONNECTION_TYPE env var in .env
+  --system-type=<type>             SAP system type: cloud (default) | onprem | legacy
+                                   Controls which tools are available
+                                   Set to 'onprem' for on-premise systems (enables Programs etc.)
+                                   Alternative: SAP_SYSTEM_TYPE env var in .env
+  --auth-broker-path=<path>        Custom path for auth-broker storage
+                                   Example: --auth-broker-path=~/prj/tmp/
+  --browser-auth-port=<port>       OAuth callback port for browser authentication
+                                   (default: 5000 http, 4000 sse, 4001 stdio)
+
+${ServerConfigManager.getHandlerSetsDescription()}
+HTTP OPTIONS:
+  --http-json-response             Enable JSON response format
+
+YAML CONFIG FILE:
+  Use --conf to specify YAML config file with all settings.
+  Template will be generated automatically if file doesn't exist.
+
+EXAMPLES:
+  # Stdio with auth-broker (for MCP clients)
+  mcp-abap-adt --mcp=TRIAL
+
+  # Stdio with env destination from sessions store
+  mcp-abap-adt --env=trial
+
+  # Stdio with explicit env file
+  mcp-abap-adt --env-path=.env
+
+  # RFC connection to legacy system (BASIS < 7.50)
+  # Set SAP_CONNECTION_TYPE=rfc in .env file, requires SAP NW RFC SDK
+  mcp-abap-adt --env-path=legacy.env
+
+  # Explicit system type (bypass auto-detection)
+  mcp-abap-adt --env-path=e96.env --system-type=onprem
+  # Or set SAP_SYSTEM_TYPE=onprem in .env file
+
+  # Limit to readonly operations only
+  mcp-abap-adt --mcp=TRIAL --exposition=readonly
+
+  # HTTP server (default path /mcp/stream/http)
+  mcp-abap-adt --transport=http --port=8080
+
+  # HTTP server with custom path
+  mcp-abap-adt --transport=http --path=/api/mcp
+
+  # SSE transport
+  mcp-abap-adt --transport=sse --mcp=TRIAL
+
+  # SSE transport with custom paths
+  mcp-abap-adt --transport=sse --sse-path=/events --post-path=/msgs
+
+  # Use YAML config file
+  mcp-abap-adt --conf=my-config.yaml
+
+${additionalSections || ''}
+`;
+    }
+}
+exports.ServerConfigManager = ServerConfigManager;
+//# sourceMappingURL=ServerConfigManager.js.map

@@ -81,6 +81,13 @@ import { handleUnlockFunctionModule } from '../../../handlers/function/low/handl
 import { handleUpdateFunctionModule as handleUpdateFunctionModuleLow } from '../../../handlers/function/low/handleUpdateFunctionModule';
 import { handleValidateFunctionGroup } from '../../../handlers/function/low/handleValidateFunctionGroup';
 import { handleValidateFunctionModule } from '../../../handlers/function/low/handleValidateFunctionModule';
+// Import low-level handlers - GUI Status
+import { handleActivateGuiStatus } from '../../../handlers/gui_status/low/handleActivateGuiStatus';
+import { handleCreateGuiStatus as handleCreateGuiStatusLow } from '../../../handlers/gui_status/low/handleCreateGuiStatus';
+import { handleDeleteGuiStatus as handleDeleteGuiStatusLow } from '../../../handlers/gui_status/low/handleDeleteGuiStatus';
+import { handleLockGuiStatus } from '../../../handlers/gui_status/low/handleLockGuiStatus';
+import { handleUnlockGuiStatus } from '../../../handlers/gui_status/low/handleUnlockGuiStatus';
+import { handleUpdateGuiStatus as handleUpdateGuiStatusLow } from '../../../handlers/gui_status/low/handleUpdateGuiStatus';
 import { handleActivateInterface } from '../../../handlers/interface/low/handleActivateInterface';
 import { handleCheckInterface } from '../../../handlers/interface/low/handleCheckInterface';
 import { handleCreateInterface as handleCreateInterfaceLow } from '../../../handlers/interface/low/handleCreateInterface';
@@ -107,6 +114,13 @@ import { handleUnlockProgram } from '../../../handlers/program/low/handleUnlockP
 // Import low-level handlers - Program
 import { handleUpdateProgram as handleUpdateProgramLow } from '../../../handlers/program/low/handleUpdateProgram';
 import { handleValidateProgram } from '../../../handlers/program/low/handleValidateProgram';
+// Import low-level handlers - Screen (Dynpro)
+import { handleActivateScreen } from '../../../handlers/screen/low/handleActivateScreen';
+import { handleCreateScreen as handleCreateScreenLow } from '../../../handlers/screen/low/handleCreateScreen';
+import { handleDeleteScreen as handleDeleteScreenLow } from '../../../handlers/screen/low/handleDeleteScreen';
+import { handleLockScreen } from '../../../handlers/screen/low/handleLockScreen';
+import { handleUnlockScreen } from '../../../handlers/screen/low/handleUnlockScreen';
+import { handleUpdateScreen as handleUpdateScreenLow } from '../../../handlers/screen/low/handleUpdateScreen';
 import { handleActivateStructure } from '../../../handlers/structure/low/handleActivateStructure';
 import { handleCheckStructure } from '../../../handlers/structure/low/handleCheckStructure';
 import { handleCreateStructure as handleCreateStructureLow } from '../../../handlers/structure/low/handleCreateStructure';
@@ -217,6 +231,13 @@ import { TOOL_DEFINITION as UnlockFunctionModule_Tool } from '../../../handlers/
 import { TOOL_DEFINITION as UpdateFunctionModule_Tool } from '../../../handlers/function/low/handleUpdateFunctionModule';
 import { TOOL_DEFINITION as ValidateFunctionGroup_Tool } from '../../../handlers/function/low/handleValidateFunctionGroup';
 import { TOOL_DEFINITION as ValidateFunctionModule_Tool } from '../../../handlers/function/low/handleValidateFunctionModule';
+// Import TOOL_DEFINITION from gui_status low handlers
+import { TOOL_DEFINITION as ActivateGuiStatus_Tool } from '../../../handlers/gui_status/low/handleActivateGuiStatus';
+import { TOOL_DEFINITION as CreateGuiStatusLow_Tool } from '../../../handlers/gui_status/low/handleCreateGuiStatus';
+import { TOOL_DEFINITION as DeleteGuiStatusLow_Tool } from '../../../handlers/gui_status/low/handleDeleteGuiStatus';
+import { TOOL_DEFINITION as LockGuiStatus_Tool } from '../../../handlers/gui_status/low/handleLockGuiStatus';
+import { TOOL_DEFINITION as UnlockGuiStatus_Tool } from '../../../handlers/gui_status/low/handleUnlockGuiStatus';
+import { TOOL_DEFINITION as UpdateGuiStatusLow_Tool } from '../../../handlers/gui_status/low/handleUpdateGuiStatus';
 import { TOOL_DEFINITION as ActivateInterface_Tool } from '../../../handlers/interface/low/handleActivateInterface';
 import { TOOL_DEFINITION as CheckInterface_Tool } from '../../../handlers/interface/low/handleCheckInterface';
 import { TOOL_DEFINITION as CreateInterfaceLow_Tool } from '../../../handlers/interface/low/handleCreateInterface';
@@ -243,6 +264,13 @@ import { TOOL_DEFINITION as UnlockProgram_Tool } from '../../../handlers/program
 // Import TOOL_DEFINITION from program low handlers
 import { TOOL_DEFINITION as UpdateProgram_Tool } from '../../../handlers/program/low/handleUpdateProgram';
 import { TOOL_DEFINITION as ValidateProgram_Tool } from '../../../handlers/program/low/handleValidateProgram';
+// Import TOOL_DEFINITION from screen low handlers
+import { TOOL_DEFINITION as ActivateScreen_Tool } from '../../../handlers/screen/low/handleActivateScreen';
+import { TOOL_DEFINITION as CreateScreenLow_Tool } from '../../../handlers/screen/low/handleCreateScreen';
+import { TOOL_DEFINITION as DeleteScreenLow_Tool } from '../../../handlers/screen/low/handleDeleteScreen';
+import { TOOL_DEFINITION as LockScreen_Tool } from '../../../handlers/screen/low/handleLockScreen';
+import { TOOL_DEFINITION as UnlockScreen_Tool } from '../../../handlers/screen/low/handleUnlockScreen';
+import { TOOL_DEFINITION as UpdateScreenLow_Tool } from '../../../handlers/screen/low/handleUpdateScreen';
 import { TOOL_DEFINITION as ActivateStructure_Tool } from '../../../handlers/structure/low/handleActivateStructure';
 import { TOOL_DEFINITION as CheckStructure_Tool } from '../../../handlers/structure/low/handleCheckStructure';
 import { TOOL_DEFINITION as CreateStructureLow_Tool } from '../../../handlers/structure/low/handleCreateStructure';
@@ -1016,6 +1044,80 @@ export class LowLevelHandlersGroup extends BaseHandlerGroup {
         toolDefinition: ActivateMetadataExtension_Tool,
         handler: (args: any) => {
           return handleActivateMetadataExtension(this.context, args);
+        },
+      },
+      // Screen (Dynpro) low-level handlers
+      {
+        toolDefinition: LockScreen_Tool,
+        handler: (args: any) => {
+          return handleLockScreen(this.context, args);
+        },
+      },
+      {
+        toolDefinition: UnlockScreen_Tool,
+        handler: (args: any) => {
+          return handleUnlockScreen(this.context, args);
+        },
+      },
+      {
+        toolDefinition: UpdateScreenLow_Tool,
+        handler: (args: any) => {
+          return handleUpdateScreenLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: CreateScreenLow_Tool,
+        handler: (args: any) => {
+          return handleCreateScreenLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: DeleteScreenLow_Tool,
+        handler: (args: any) => {
+          return handleDeleteScreenLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: ActivateScreen_Tool,
+        handler: (args: any) => {
+          return handleActivateScreen(this.context, args);
+        },
+      },
+      // GUI Status low-level handlers
+      {
+        toolDefinition: LockGuiStatus_Tool,
+        handler: (args: any) => {
+          return handleLockGuiStatus(this.context, args);
+        },
+      },
+      {
+        toolDefinition: UnlockGuiStatus_Tool,
+        handler: (args: any) => {
+          return handleUnlockGuiStatus(this.context, args);
+        },
+      },
+      {
+        toolDefinition: UpdateGuiStatusLow_Tool,
+        handler: (args: any) => {
+          return handleUpdateGuiStatusLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: CreateGuiStatusLow_Tool,
+        handler: (args: any) => {
+          return handleCreateGuiStatusLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: DeleteGuiStatusLow_Tool,
+        handler: (args: any) => {
+          return handleDeleteGuiStatusLow(this.context, args);
+        },
+      },
+      {
+        toolDefinition: ActivateGuiStatus_Tool,
+        handler: (args: any) => {
+          return handleActivateGuiStatus(this.context, args);
         },
       },
     ];
