@@ -45,11 +45,13 @@ async function handleGetGuiStatus(context, params) {
         const { result } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
             program: programName,
         });
-        // If a specific status was requested, filter the results
+        // If a specific status was requested, filter the results.
+        // /ui2/cl_json=>serialize default keeps ABAP field names UPPERCASE.
         let filteredResult = result;
-        if (statusName && result?.sta) {
-            const filteredSta = result.sta.filter((s) => s.CODE === statusName || s.code === statusName);
-            filteredResult = { ...result, sta: filteredSta };
+        const staArr = result?.STA ?? result?.sta;
+        if (statusName && Array.isArray(staArr)) {
+            const filteredSta = staArr.filter((s) => s.CODE === statusName || s.code === statusName);
+            filteredResult = { ...result, STA: filteredSta };
         }
         logger?.info(`✅ GetGuiStatus completed: ${programName}`);
         return (0, utils_1.return_response)({

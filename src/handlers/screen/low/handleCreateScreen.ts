@@ -96,21 +96,23 @@ export async function handleCreateScreen(
     logger?.info(`Creating screen: ${programName} / ${screen_number}`);
 
     // Build dynpro data - either from provided data or minimal defaults
+    // /ui2/cl_json=>deserialize default requires UPPERCASE JSON keys to
+    // map into ABAP structure fields (HEADER, CONTAINERS, ...).
     const screenData =
       dynpro_data ||
       JSON.stringify({
-        header: {
+        HEADER: {
           PROGRAM: programName,
           SCREEN: screen_number,
           LANGUAGE: 'E',
-          DESSION: description || `Screen ${screen_number}`,
+          DESCRIPT: description || `Screen ${screen_number}`,
           TYPE: 'N',
-          LINES: '20',
-          COLUMNS: '83',
+          LINES: 20,
+          COLUMNS: 83,
         },
-        containers: [],
-        fields_to_containers: [],
-        flow_logic: [
+        CONTAINERS: [],
+        FIELDS_TO_CONTAINERS: [],
+        FLOW_LOGIC: [
           { LINE: `PROCESS BEFORE OUTPUT.` },
           { LINE: `* MODULE STATUS_${screen_number}.` },
           { LINE: `` },

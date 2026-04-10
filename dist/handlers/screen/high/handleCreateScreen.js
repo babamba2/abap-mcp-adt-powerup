@@ -51,20 +51,22 @@ async function handleCreateScreen(context, params) {
     const shouldActivate = args.activate === true;
     logger?.info(`Creating screen: ${programName} / ${args.screen_number}`);
     try {
+        // /ui2/cl_json=>deserialize default requires UPPERCASE JSON keys to
+        // map into ABAP structure fields (HEADER, CONTAINERS, ...).
         const screenData = args.dynpro_data ||
             JSON.stringify({
-                header: {
+                HEADER: {
                     PROGRAM: programName,
                     SCREEN: args.screen_number,
                     LANGUAGE: 'E',
-                    DESSION: args.description || `Screen ${args.screen_number}`,
+                    DESCRIPT: args.description || `Screen ${args.screen_number}`,
                     TYPE: 'N',
-                    LINES: '20',
-                    COLUMNS: '83',
+                    LINES: 20,
+                    COLUMNS: 83,
                 },
-                containers: [],
-                fields_to_containers: [],
-                flow_logic: [
+                CONTAINERS: [],
+                FIELDS_TO_CONTAINERS: [],
+                FLOW_LOGIC: [
                     { LINE: 'PROCESS BEFORE OUTPUT.' },
                     { LINE: `* MODULE STATUS_${args.screen_number}.` },
                     { LINE: '' },

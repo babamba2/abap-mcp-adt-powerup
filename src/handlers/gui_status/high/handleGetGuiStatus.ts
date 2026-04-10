@@ -64,13 +64,15 @@ export async function handleGetGuiStatus(context: HandlerContext, params: any) {
       program: programName,
     });
 
-    // If a specific status was requested, filter the results
+    // If a specific status was requested, filter the results.
+    // /ui2/cl_json=>serialize default keeps ABAP field names UPPERCASE.
     let filteredResult = result;
-    if (statusName && result?.sta) {
-      const filteredSta = result.sta.filter(
+    const staArr = result?.STA ?? result?.sta;
+    if (statusName && Array.isArray(staArr)) {
+      const filteredSta = staArr.filter(
         (s: any) => s.CODE === statusName || s.code === statusName,
       );
-      filteredResult = { ...result, sta: filteredSta };
+      filteredResult = { ...result, STA: filteredSta };
     }
 
     logger?.info(`✅ GetGuiStatus completed: ${programName}`);

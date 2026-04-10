@@ -71,38 +71,49 @@ async function handleCreateGuiStatus(context, args) {
         const programName = program_name.toUpperCase();
         const sName = status_name.toUpperCase();
         logger?.info(`Creating GUI status: ${programName} / ${sName}`);
-        // Fetch existing CUA data (may not exist yet)
+        // Fetch existing CUA data (may not exist yet).
+        // /ui2/cl_json=>serialize/deserialize default keeps ABAP field names
+        // UPPERCASE, so both the fetched result and the payload must use
+        // UPPERCASE keys (STA, FUN, ..., ADM).
         let cuaData = {
-            sta: [],
-            fun: [],
-            men: [],
-            mtx: [],
-            act: [],
-            but: [],
-            pfk: [],
-            set: [],
-            doc: [],
-            tit: [],
-            biv: [],
-            adm: {},
+            ADM: {},
+            STA: [],
+            FUN: [],
+            MEN: [],
+            MTX: [],
+            ACT: [],
+            BUT: [],
+            PFK: [],
+            SET: [],
+            DOC: [],
+            TIT: [],
+            BIV: [],
         };
         try {
             const { result } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
                 program: programName,
             });
-            cuaData = result;
+            if (result && typeof result === 'object') {
+                cuaData = { ...cuaData, ...result };
+            }
         }
         catch {
             // No existing CUA data - start fresh
         }
-        // Add new status entry
+        // Add new status entry. Note: rsmpe_stat does not have a TXT column —
+        // status descriptions live in the TIT table (rsmpe_titt). Here we only
+        // add the status row itself; a richer create path should also append
+        // to TIT for localized text.
         const newStatus = {
             CODE: sName,
-            MODAL: status_type || 'N',
-            TXT: description || `Status ${sName}`,
+            MODAL: status_type || 'D',
         };
-        cuaData.sta = cuaData.sta || [];
-        cuaData.sta.push(newStatus);
+        cuaData.STA = Array.isArray(cuaData.STA) ? cuaData.STA : [];
+        cuaData.STA.push(newStatus);
+        if (description) {
+            cuaData.TIT = Array.isArray(cuaData.TIT) ? cuaData.TIT : [];
+            cuaData.TIT.push({ CODE: sName, TEXT: description });
+        }
         // Write back
         await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,

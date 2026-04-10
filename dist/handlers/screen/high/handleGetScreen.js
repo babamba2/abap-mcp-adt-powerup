@@ -44,10 +44,12 @@ async function handleGetScreen(context, params) {
             program: programName,
             dynpro: args.screen_number,
         });
+        // /ui2/cl_json=>serialize default keeps ABAP field names UPPERCASE.
+        const flowLogicArr = result?.FLOW_LOGIC ?? result?.flow_logic;
         let flowLogic = null;
-        if (result?.flow_logic && Array.isArray(result.flow_logic)) {
-            flowLogic = result.flow_logic
-                .map((line) => line.LINE || line.line || '')
+        if (Array.isArray(flowLogicArr)) {
+            flowLogic = flowLogicArr
+                .map((line) => line.LINE ?? line.line ?? '')
                 .join('\n');
         }
         logger?.info(`✅ GetScreen completed: ${programName}/${args.screen_number}`);
@@ -58,9 +60,9 @@ async function handleGetScreen(context, params) {
                 screen_number: args.screen_number,
                 type: 'DYNP',
                 flow_logic: flowLogic,
-                metadata: result?.header || null,
-                containers: result?.containers || [],
-                fields_to_containers: result?.fields_to_containers || [],
+                metadata: result?.HEADER ?? result?.header ?? null,
+                containers: result?.CONTAINERS ?? result?.containers ?? [],
+                fields_to_containers: result?.FIELDS_TO_CONTAINERS ?? result?.fields_to_containers ?? [],
                 steps_completed: ['get_metadata', 'get_flow_logic'],
             }, null, 2),
             status: 200,

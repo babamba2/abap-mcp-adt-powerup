@@ -43,11 +43,12 @@ async function handleReadScreen(context, args) {
             program: programName,
             dynpro: args.screen_number,
         });
-        // Extract flow logic text from the result
+        // /ui2/cl_json=>serialize default keeps ABAP field names UPPERCASE.
+        const flowLogicArr = result?.FLOW_LOGIC ?? result?.flow_logic;
         let flowLogic = null;
-        if (result?.flow_logic && Array.isArray(result.flow_logic)) {
-            flowLogic = result.flow_logic
-                .map((line) => line.LINE || line.line || '')
+        if (Array.isArray(flowLogicArr)) {
+            flowLogic = flowLogicArr
+                .map((line) => line.LINE ?? line.line ?? '')
                 .join('\n');
         }
         logger?.info(`✅ ReadScreen completed: ${programName}/${args.screen_number}`);
@@ -57,9 +58,9 @@ async function handleReadScreen(context, args) {
                 program_name: programName,
                 screen_number: args.screen_number,
                 flow_logic: flowLogic,
-                metadata: result?.header || null,
-                containers: result?.containers || [],
-                fields_to_containers: result?.fields_to_containers || [],
+                metadata: result?.HEADER ?? result?.header ?? null,
+                containers: result?.CONTAINERS ?? result?.containers ?? [],
+                fields_to_containers: result?.FIELDS_TO_CONTAINERS ?? result?.fields_to_containers ?? [],
             }, null, 2),
         });
     }

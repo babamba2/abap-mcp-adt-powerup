@@ -65,9 +65,34 @@ async function handleDeleteGuiStatus(context, args) {
         const programName = program_name.toUpperCase();
         const statusName = status_name.toUpperCase();
         logger?.info(`Deleting GUI status: ${programName} / ${statusName}`);
-        await (0, soapRfc_1.callDispatch)(connection, 'CUA_DELETE', {
+        // Source-level delete: RS_CUA_DELETE only removes the runtime load
+        // from RS38L_INCL; it does NOT edit rsmpe_stat/rsmpe_titt. So we
+        // fetch, drop the matching STA/TIT/SET rows, and CUA_WRITE back.
+        // status_name === '*' means "delete all statuses" (source wipe).
+        const { result: cuaResult } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', { program: programName });
+        if (!cuaResult || typeof cuaResult !== 'object') {
+            throw new Error(`Could not fetch CUA data for program ${programName} prior to delete.`);
+        }
+        const cua = { ...cuaResult };
+        const staBefore = Array.isArray(cua.STA) ? cua.STA : [];
+        const titBefore = Array.isArray(cua.TIT) ? cua.TIT : [];
+        const setBefore = Array.isArray(cua.SET) ? cua.SET : [];
+        if (statusName === '*') {
+            cua.STA = [];
+            cua.TIT = [];
+            cua.SET = [];
+        }
+        else {
+            cua.STA = staBefore.filter((row) => row?.CODE !== statusName);
+            cua.TIT = titBefore.filter((row) => row?.CODE !== statusName);
+            cua.SET = setBefore.filter((row) => row?.STATUS !== statusName);
+            if (cua.STA.length === staBefore.length) {
+                throw new Error(`GUI Status ${statusName} not found in program ${programName}.`);
+            }
+        }
+        await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
-            status: statusName,
+            cua_data: JSON.stringify(cua),
         });
         logger?.info(`✅ GUI status deleted: ${programName}/${statusName}`);
         return (0, utils_1.return_response)({

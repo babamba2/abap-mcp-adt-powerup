@@ -60,38 +60,47 @@ async function handleCreateGuiStatus(context, params) {
     const shouldActivate = args.activate === true;
     logger?.info(`Creating GUI status: ${programName} / ${statusName}`);
     try {
-        // Fetch existing CUA data (may not exist yet)
+        // Fetch existing CUA data (may not exist yet).
+        // /ui2/cl_json=>serialize/deserialize default keeps ABAP field names
+        // UPPERCASE, so both the fetched result and the payload must use
+        // UPPERCASE keys (STA, FUN, ..., ADM).
         let cuaData = {
-            sta: [],
-            fun: [],
-            men: [],
-            mtx: [],
-            act: [],
-            but: [],
-            pfk: [],
-            set: [],
-            doc: [],
-            tit: [],
-            biv: [],
-            adm: {},
+            ADM: {},
+            STA: [],
+            FUN: [],
+            MEN: [],
+            MTX: [],
+            ACT: [],
+            BUT: [],
+            PFK: [],
+            SET: [],
+            DOC: [],
+            TIT: [],
+            BIV: [],
         };
         try {
             const { result } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
                 program: programName,
             });
-            cuaData = result;
+            if (result && typeof result === 'object') {
+                cuaData = { ...cuaData, ...result };
+            }
         }
         catch {
             // No existing CUA data - start fresh
         }
-        // Add new status entry
+        // Add new status entry. rsmpe_stat has no TXT column — status
+        // descriptions live in the TIT table (rsmpe_titt).
         const newStatus = {
             CODE: statusName,
-            MODAL: args.status_type || 'N',
-            TXT: args.description || `Status ${statusName}`,
+            MODAL: args.status_type || 'D',
         };
-        cuaData.sta = cuaData.sta || [];
-        cuaData.sta.push(newStatus);
+        cuaData.STA = Array.isArray(cuaData.STA) ? cuaData.STA : [];
+        cuaData.STA.push(newStatus);
+        if (args.description) {
+            cuaData.TIT = Array.isArray(cuaData.TIT) ? cuaData.TIT : [];
+            cuaData.TIT.push({ CODE: statusName, TEXT: args.description });
+        }
         // Write back
         await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
