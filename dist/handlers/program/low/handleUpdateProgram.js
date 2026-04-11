@@ -10,6 +10,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateProgram = handleUpdateProgram;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateProgramLow',
@@ -29,6 +30,10 @@ exports.TOOL_DEFINITION = {
             lock_handle: {
                 type: 'string',
                 description: 'Lock handle from LockObject. Required for update operation.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip the pre-write syntax check of the new source. Default: false. Set to true when chaining multiple low-level calls where the caller will run CheckProgramLow explicitly before this update.',
             },
             session_id: {
                 type: 'string',
@@ -71,7 +76,22 @@ async function handleUpdateProgram(context, args) {
         }
         const programName = program_name.toUpperCase();
         logger?.info(`Starting program update: ${programName}`);
+        let checkWarnings = [];
         try {
+            // Pre-write syntax check on the proposed new source. If errors are
+            // found we never PUT the broken code; the caller still holds the
+            // lock (their responsibility to unlock) but the program source on
+            // SAP stays in the previous working state.
+            if (args.skip_check !== true) {
+                logger?.debug(`Pre-write syntax check: ${programName}`);
+                const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName, sourceCode: source_code });
+                (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program', programName);
+                checkWarnings = checkResult.warnings;
+                logger?.debug(`Pre-write syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+            }
+            else {
+                logger?.debug(`Pre-write syntax check SKIPPED (skip_check=true): ${programName}`);
+            }
             // Update program with source code
             await client
                 .getProgram()
@@ -85,10 +105,16 @@ async function handleUpdateProgram(context, args) {
                     session_id: session_id || null,
                     session_state: null, // Session state management is now handled by auth-broker,
                     message: `Program ${programName} updated successfully. Remember to unlock using UnlockObject.`,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                 }, null, 2),
             });
         }
         catch (error) {
+            // Surface preflight failures as-is with their structured diagnostics.
+            if (error?.isPreflightCheckFailure) {
+                logger?.error(`Error updating program ${programName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating program ${programName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update program: ${error.message || String(error)}`;

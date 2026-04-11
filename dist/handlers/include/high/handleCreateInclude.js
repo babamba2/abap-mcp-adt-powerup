@@ -16,6 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateInclude = handleCreateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 const CT_INCLUDE = 'application/vnd.sap.adt.programs.includes.v2+xml, application/vnd.sap.adt.programs.includes+xml';
 const CT_INCLUDE_POST = 'application/vnd.sap.adt.programs.includes+xml';
@@ -242,6 +243,7 @@ async function handleCreateInclude(context, params) {
     logger?.info(`Starting include creation: ${includeName} (main program: ${mainProgram})`);
     const stepsCompleted = [];
     let insertNote;
+    let checkWarnings = [];
     try {
         // ---- Step 1: Create the include object via POST ----
         const queryParams = [];
@@ -273,6 +275,44 @@ async function handleCreateInclude(context, params) {
                 logger?.warn(insertNote);
             }
         }
+        // ---- Step 3: Preflight syntax check on the main program tree ----
+        // Runs after any insert+activate on the main program so we catch:
+        //   (a) a pre-existing broken state of the main program that we
+        //       exposed by touching it,
+        //   (b) a bad INCLUDE insertion that corrupted the source,
+        //   (c) the include object is broken (empty at create time, but the
+        //       `programTree` check is still useful as a sanity pass).
+        //
+        // If the check fails, the include object AND the main-program insert
+        // are already written to SAP — we cannot roll them back from here.
+        // We surface the full error and leave the state as-is so the caller
+        // can fix the main program, UpdateInclude the body, or DeleteInclude
+        // to roll back.
+        try {
+            logger?.debug(`Running program-tree syntax check after include create: ${mainProgram}`);
+            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
+            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
+            checkWarnings = checkResult.warnings;
+            stepsCompleted.push('check_new_code');
+            logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+        }
+        catch (checkErr) {
+            // Include WAS created and main program WAS modified — cannot roll
+            // back from here. Surface the error with a clear note.
+            if (checkErr?.isPreflightCheckFailure) {
+                const wrapped = new Error(`Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
+                    `${checkErr.message}. ` +
+                    `Fix the main program or call DeleteInclude to roll back.`);
+                wrapped.isPreflightCheckFailure = true;
+                wrapped.checkErrors = checkErr.checkErrors;
+                wrapped.checkWarnings = checkErr.checkWarnings;
+                wrapped.include_name = includeName;
+                wrapped.main_program = mainProgram;
+                wrapped.steps_completed = stepsCompleted;
+                throw wrapped;
+            }
+            throw checkErr;
+        }
         const result = {
             success: true,
             include_name: includeName,
@@ -286,6 +326,7 @@ async function handleCreateInclude(context, params) {
             uri: `/sap/bc/adt/programs/includes/${encodedName.toLowerCase()}`,
             steps_completed: stepsCompleted,
             insert_note: insertNote || null,
+            check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         };
         return (0, utils_1.return_response)({
             data: JSON.stringify(result, null, 2),
@@ -296,6 +337,12 @@ async function handleCreateInclude(context, params) {
         });
     }
     catch (error) {
+        // Preflight syntax-check failures carry a full, pre-formatted message
+        // and structured checkErrors/checkWarnings — surface them as-is.
+        if (error?.isPreflightCheckFailure) {
+            logger?.error(`Error creating include ${includeName}: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         let errorMessage = error instanceof Error ? error.message : String(error);
         // Always try to extract the real SAP error message first
         try {

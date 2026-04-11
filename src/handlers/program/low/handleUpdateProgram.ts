@@ -9,6 +9,10 @@ import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preflightCheck';
+import {
   type AxiosResponse,
   isCloudConnection,
   restoreSessionInConnection,
@@ -38,6 +42,11 @@ export const TOOL_DEFINITION = {
         description:
           'Lock handle from LockObject. Required for update operation.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip the pre-write syntax check of the new source. Default: false. Set to true when chaining multiple low-level calls where the caller will run CheckProgramLow explicitly before this update.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -62,6 +71,7 @@ interface UpdateProgramArgs {
   program_name: string;
   source_code: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -116,7 +126,33 @@ export async function handleUpdateProgram(
 
     logger?.info(`Starting program update: ${programName}`);
 
+    let checkWarnings: Array<{
+      type: string;
+      text: string;
+      line?: string | number;
+    }> = [];
     try {
+      // Pre-write syntax check on the proposed new source. If errors are
+      // found we never PUT the broken code; the caller still holds the
+      // lock (their responsibility to unlock) but the program source on
+      // SAP stays in the previous working state.
+      if (args.skip_check !== true) {
+        logger?.debug(`Pre-write syntax check: ${programName}`);
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'program', name: programName, sourceCode: source_code },
+        );
+        assertNoCheckErrors(checkResult, 'Program', programName);
+        checkWarnings = checkResult.warnings;
+        logger?.debug(
+          `Pre-write syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+        );
+      } else {
+        logger?.debug(
+          `Pre-write syntax check SKIPPED (skip_check=true): ${programName}`,
+        );
+      }
+
       // Update program with source code
       await client
         .getProgram()
@@ -136,12 +172,21 @@ export async function handleUpdateProgram(
             session_id: session_id || null,
             session_state: null, // Session state management is now handled by auth-broker,
             message: `Program ${programName} updated successfully. Remember to unlock using UnlockObject.`,
+            check_warnings:
+              checkWarnings.length > 0 ? checkWarnings : undefined,
           },
           null,
           2,
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // Surface preflight failures as-is with their structured diagnostics.
+      if (error?.isPreflightCheckFailure) {
+        logger?.error(
+          `Error updating program ${programName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
       logger?.error(
         `Error updating program ${programName}: ${error?.message || error}`,
       );

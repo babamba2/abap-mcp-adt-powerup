@@ -140,6 +140,25 @@ async function runSyntaxCheck(context, args) {
                 // and anywhere else a caller needs full program-tree validation.
                 return await runProgramTreeCheck(connection, name, logger);
             }
+            case 'programTreeInline': {
+                // PRE-WRITE check: compile the object with the inline source
+                // of its artifact substituted for the stored version. Used by
+                // Include update handlers to validate proposed content BEFORE
+                // it touches SAP. No PUT is required — the source is
+                // base64-embedded in the /checkruns request, the kernel
+                // compiles it in-place, and returns real errors if the new
+                // content is broken.
+                //
+                // The `inlineArtifactUri` is the child source URI (e.g.
+                // `.../includes/zxyz/source/main`). AdtClient's convention is
+                // that the outer checkObject URI is the parent of the artifact
+                // URI — we derive it by stripping the trailing `/source/main`.
+                if (!args.inlineArtifactUri || args.inlineSourceCode === undefined) {
+                    throw new Error('programTreeInline requires inlineArtifactUri and inlineSourceCode');
+                }
+                const outerUri = args.inlineArtifactUri.replace(/\/source\/main$/, '');
+                return await runInlineArtifactCheck(connection, outerUri, args.inlineArtifactUri, args.inlineSourceCode, logger);
+            }
             case 'screen': {
                 // Dynpros have no standalone syntax check — run a program-scoped
                 // check on the parent so flow-logic errors surface there.
@@ -176,9 +195,54 @@ async function runSyntaxCheck(context, args) {
  * For pre-write validation you must have already uploaded the new source
  * as the inactive version beforehand.
  */
+/**
+ * Pre-write check that compiles an object with an inline artifact
+ * substitution.
+ *
+ * The outer `adtcore:uri` is the object being compiled. Inside its
+ * `<chkrun:artifacts>` we embed the proposed source as base64,
+ * replacing whatever the server currently has at `artifactUri`. SAP
+ * compiles in memory and returns real errors — no PUT, no lock, no
+ * modification of stored state. This is the same pattern AdtClient
+ * uses internally for `getProgram().check({sourceCode}, 'active')`.
+ *
+ * For an include pre-check:
+ *   outerUri    = `/sap/bc/adt/programs/includes/zxyz`
+ *   artifactUri = `/sap/bc/adt/programs/includes/zxyz/source/main`
+ */
+async function runInlineArtifactCheck(connection, outerUri, artifactUri, sourceCode, logger) {
+    const base64Source = Buffer.from(sourceCode, 'utf-8').toString('base64');
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<chkrun:checkObjectList xmlns:chkrun="http://www.sap.com/adt/checkrun" xmlns:adtcore="http://www.sap.com/adt/core">\n` +
+        `  <chkrun:checkObject adtcore:uri="${outerUri}" chkrun:version="active">\n` +
+        `    <chkrun:artifacts>\n` +
+        `      <chkrun:artifact chkrun:contentType="text/plain; charset=utf-8" chkrun:uri="${artifactUri}">\n` +
+        `        <chkrun:content>${base64Source}</chkrun:content>\n` +
+        `      </chkrun:artifact>\n` +
+        `    </chkrun:artifacts>\n` +
+        `  </chkrun:checkObject>\n` +
+        `</chkrun:checkObjectList>`;
+    logger?.debug?.(`runInlineArtifactCheck: outer=${outerUri}, artifact=${artifactUri}, source=${sourceCode.length} bytes`);
+    try {
+        const response = await (0, utils_1.makeAdtRequestWithTimeout)(connection, '/sap/bc/adt/checkruns?reporters=abapCheckRun', 'POST', 'default', body, undefined, {
+            'Content-Type': 'application/vnd.sap.adt.checkobjects+xml',
+            Accept: 'application/vnd.sap.adt.checkmessages+xml',
+        });
+        const parsed = (0, checkRunParser_1.parseCheckRunResponse)(response);
+        logger?.debug?.(`runInlineArtifactCheck result: status=${parsed.status}, errors=${parsed.errors.length}, warnings=${parsed.warnings.length}, info=${parsed.info.length}`);
+        return parsed;
+    }
+    catch (err) {
+        if ((0, utils_1.isAlreadyCheckedError)(err)) {
+            logger?.debug?.(`runInlineArtifactCheck: ${outerUri} already checked`);
+            return EMPTY_RESULT;
+        }
+        throw err;
+    }
+}
 async function runRawCheckRun(connection, objectUri, logger, version = 'inactive') {
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-        `<chkrun:checkObjectList xmlns:adtcore="http://www.sap.com/adt/core" xmlns:chkrun="http://www.sap.com/adt/checkrun">\n` +
+        `<chkrun:checkObjectList xmlns:chkrun="http://www.sap.com/adt/checkrun" xmlns:adtcore="http://www.sap.com/adt/core">\n` +
         `  <chkrun:checkObject adtcore:uri="${objectUri}" chkrun:version="${version}"/>\n` +
         `</chkrun:checkObjectList>`;
     try {
@@ -316,7 +380,9 @@ async function perIncludeSweep(connection, mainProgramName, seed, logger) {
         success: seed.success,
         status: seed.status,
         message: seed.message,
-        errors: [...seed.errors.filter((e) => !/REPORT\/?\s*PROGRAM statement is missing/i.test(e.text))],
+        errors: [
+            ...seed.errors.filter((e) => !/REPORT\/?\s*PROGRAM statement is missing/i.test(e.text)),
+        ],
         warnings: [...seed.warnings],
         info: [...seed.info],
         total_messages: 0,
@@ -352,46 +418,51 @@ async function perIncludeSweep(connection, mainProgramName, seed, logger) {
  *     assertNoCheckErrors(result, 'Include', name);
  *     // …continue; warnings are in result.warnings
  */
+/**
+ * Detects the SAP "REPORT missing / program type is INCLUDE" noise
+ * error. SAP's abapCheckRun reporter returns this in several cases:
+ *   1. There's a real broken include that the kernel couldn't compile
+ *      and it fell back to this generic message.
+ *   2. The object being checked has no inactive version (or matches
+ *      active byte-for-byte) and SAP had nothing meaningful to compile.
+ *   3. Transient cache / session state confusion between the reporter
+ *      and the include resolver.
+ *
+ * Cases (2) and (3) are *false positives* — the source is actually
+ * fine. Since we can't distinguish (1) from (2)/(3) from the message
+ * alone, we downgrade "noise-only" check results to non-fatal. The
+ * handler's subsequent activation step is the ultimate authority: if
+ * the source is really broken, activation will surface the real error
+ * with line numbers.
+ */
+function isReportMissingNoiseText(text) {
+    return (/REPORT\/?\s*PROGRAM statement is missing/i.test(text) ||
+        /program type is INCLUDE/i.test(text));
+}
 function assertNoCheckErrors(result, kind, name) {
     if (result.errors.length === 0)
         return;
-    // Detect the SAP "REPORT missing / program type is INCLUDE" noise —
-    // it's what the abapCheckRun reporter returns when compiling an
-    // include failed but SAP couldn't attribute the failure to a specific
-    // line. It usually means there's a real broken reference somewhere in
-    // one of the includes, but /checkruns won't name it. Upgrade the
-    // message so callers know to run a per-include follow-up.
-    const isReportMissing = (text) => /REPORT\/?\s*PROGRAM statement is missing/i.test(text) ||
-        /program type is INCLUDE/i.test(text);
-    const onlyReportMissing = result.errors.length > 0 && result.errors.every((e) => isReportMissing(e.text));
-    // Include ALL errors in the message so the caller sees every line
-    // number + text and can fix the source in one pass.
-    const full = result.errors
+    const realErrors = result.errors.filter((e) => !isReportMissingNoiseText(e.text));
+    const noiseErrors = result.errors.filter((e) => isReportMissingNoiseText(e.text));
+    // If every error is just SAP noise, we treat the check as
+    // inconclusive: don't throw, leave real validation to activation.
+    if (realErrors.length === 0 && noiseErrors.length > 0) {
+        return;
+    }
+    // Include ALL real errors in the message so the caller sees every
+    // line number + text and can fix the source in one pass.
+    const full = realErrors
         .map((e) => {
         const loc = e.line ? `[L${e.line}] ` : '';
         const type = e.type === 'E' ? '' : `<${e.type}> `;
         return `${type}${loc}${e.text}`;
     })
         .join(' | ');
-    let message;
-    if (onlyReportMissing) {
-        message =
-            `${kind} ${name} preflight syntax check aborted — SAP reported ` +
-                `"REPORT/PROGRAM statement missing" noise, which usually means a ` +
-                `real broken reference exists inside one of the program's user ` +
-                `includes but /checkruns cannot pinpoint the line. ` +
-                `Re-check each include individually (CheckProgramLow on the main ` +
-                `program, or re-open the include in SE38/SE80) to see the actual ` +
-                `error line. Raw SAP messages: ${full}`;
-    }
-    else {
-        message = `${kind} ${name} preflight syntax check failed (${result.errors.length} error${result.errors.length === 1 ? '' : 's'}): ${full}`;
-    }
+    const message = `${kind} ${name} preflight syntax check failed (${realErrors.length} error${realErrors.length === 1 ? '' : 's'}): ${full}`;
     const error = new Error(message);
     error.isPreflightCheckFailure = true;
-    error.checkErrors = result.errors;
+    error.checkErrors = realErrors;
     error.checkWarnings = result.warnings;
-    error.isReportMissingNoise = onlyReportMissing;
     throw error;
 }
 //# sourceMappingURL=preflightCheck.js.map

@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateProgram = handleCreateProgram;
 const clients_1 = require("../../../lib/clients");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'CreateProgramLow',
@@ -40,6 +41,10 @@ exports.TOOL_DEFINITION = {
             application: {
                 type: 'string',
                 description: "Application area (optional, default: '*').",
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip the post-create syntax check on the newly created program shell. Default: false. Set to true when chaining multiple low-level calls where the caller will run CheckProgramLow explicitly later.',
             },
             session_id: {
                 type: 'string',
@@ -99,8 +104,35 @@ async function handleCreateProgram(context, args) {
             if (!createResult) {
                 throw new Error(`Create did not return a response for program ${programName}`);
             }
-            // Get updated session state after create
             logger?.info(`✅ CreateProgram completed: ${programName}`);
+            // Post-create sanity syntax check. The shell the ADT create
+            // endpoint produces is a minimal REPORT statement which should
+            // always be clean, but running the check here catches package /
+            // transport-request / naming anomalies that surface only when the
+            // kernel tries to compile. Callers chaining multiple low-level
+            // calls can pass skip_check=true to defer the check to a later
+            // explicit CheckProgramLow invocation.
+            let checkWarnings = [];
+            if (args.skip_check !== true) {
+                try {
+                    const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
+                    (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program', programName);
+                    checkWarnings = checkResult.warnings;
+                    logger?.debug(`Post-create syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+                }
+                catch (checkErr) {
+                    if (checkErr?.isPreflightCheckFailure) {
+                        logger?.error(`Program ${programName} was created but failed post-create syntax check: ${checkErr.message}`);
+                        return (0, utils_1.return_error)(checkErr);
+                    }
+                    // Transport/tooling issue on the check pass — not fatal, log
+                    // and continue. Caller can rerun CheckProgramLow manually.
+                    logger?.warn(`Post-create check had issues for ${programName}: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+                }
+            }
+            else {
+                logger?.debug(`Post-create syntax check SKIPPED (skip_check=true): ${programName}`);
+            }
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
                     success: true,
@@ -111,6 +143,7 @@ async function handleCreateProgram(context, args) {
                     session_id: session_id || null,
                     session_state: null, // Session state management is now handled by auth-broker,
                     message: `Program ${programName} created successfully. Use LockProgram and UpdateProgram to add source code, then UnlockProgram and ActivateObject.`,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                 }, null, 2),
             });
         }

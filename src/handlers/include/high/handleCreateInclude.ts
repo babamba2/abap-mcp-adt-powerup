@@ -16,6 +16,10 @@ import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preflightCheck';
+import {
   type AxiosResponse,
   encodeSapObjectName,
   isCloudConnection,
@@ -362,6 +366,11 @@ export async function handleCreateInclude(
 
   const stepsCompleted: string[] = [];
   let insertNote: string | undefined;
+  let checkWarnings: Array<{
+    type: string;
+    text: string;
+    line?: string | number;
+  }> = [];
 
   try {
     // ---- Step 1: Create the include object via POST ----
@@ -412,6 +421,53 @@ export async function handleCreateInclude(
       }
     }
 
+    // ---- Step 3: Preflight syntax check on the main program tree ----
+    // Runs after any insert+activate on the main program so we catch:
+    //   (a) a pre-existing broken state of the main program that we
+    //       exposed by touching it,
+    //   (b) a bad INCLUDE insertion that corrupted the source,
+    //   (c) the include object is broken (empty at create time, but the
+    //       `programTree` check is still useful as a sanity pass).
+    //
+    // If the check fails, the include object AND the main-program insert
+    // are already written to SAP — we cannot roll them back from here.
+    // We surface the full error and leave the state as-is so the caller
+    // can fix the main program, UpdateInclude the body, or DeleteInclude
+    // to roll back.
+    try {
+      logger?.debug(
+        `Running program-tree syntax check after include create: ${mainProgram}`,
+      );
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'programTree', name: mainProgram },
+      );
+      assertNoCheckErrors(checkResult, 'Program tree', mainProgram);
+      checkWarnings = checkResult.warnings;
+      stepsCompleted.push('check_new_code');
+      logger?.info(
+        `Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+      );
+    } catch (checkErr: any) {
+      // Include WAS created and main program WAS modified — cannot roll
+      // back from here. Surface the error with a clear note.
+      if (checkErr?.isPreflightCheckFailure) {
+        const wrapped: any = new Error(
+          `Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
+            `${checkErr.message}. ` +
+            `Fix the main program or call DeleteInclude to roll back.`,
+        );
+        wrapped.isPreflightCheckFailure = true;
+        wrapped.checkErrors = checkErr.checkErrors;
+        wrapped.checkWarnings = checkErr.checkWarnings;
+        wrapped.include_name = includeName;
+        wrapped.main_program = mainProgram;
+        wrapped.steps_completed = stepsCompleted;
+        throw wrapped;
+      }
+      throw checkErr;
+    }
+
     const result = {
       success: true,
       include_name: includeName,
@@ -425,6 +481,7 @@ export async function handleCreateInclude(
       uri: `/sap/bc/adt/programs/includes/${encodedName.toLowerCase()}`,
       steps_completed: stepsCompleted,
       insert_note: insertNote || null,
+      check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
     };
 
     return return_response({
@@ -435,6 +492,13 @@ export async function handleCreateInclude(
       config: {} as any,
     } as AxiosResponse);
   } catch (error: any) {
+    // Preflight syntax-check failures carry a full, pre-formatted message
+    // and structured checkErrors/checkWarnings — surface them as-is.
+    if (error?.isPreflightCheckFailure) {
+      logger?.error(`Error creating include ${includeName}: ${error.message}`);
+      return return_error(error);
+    }
+
     let errorMessage = error instanceof Error ? error.message : String(error);
 
     // Always try to extract the real SAP error message first

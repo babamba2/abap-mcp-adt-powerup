@@ -10,7 +10,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateInclude = handleUpdateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -62,6 +61,29 @@ async function handleUpdateInclude(context, params) {
     let currentStep = 'start';
     let checkWarnings = [];
     try {
+        // NOTE on include syntax checking:
+        //
+        // SAP's /sap/bc/adt/checkruns reporter does NOT reliably catch
+        // cross-reference errors (type not found, form not found, etc.)
+        // when the object being checked is a PROG/I include — neither via
+        // raw version="inactive" checks, nor via inline-artifact
+        // substitution, nor via program-tree checks. The reporter only
+        // reliably validates the outermost object's OWN source.
+        //
+        // For includes, the ONLY reliable validator is activation itself:
+        // the ADT activation endpoint compiles the full program tree and
+        // returns structured error messages on failure. So this handler
+        // treats the activation step (Step 5) as the validation gate and
+        // parses any chkl:messages from a failed activation response,
+        // returning them as structured check_errors. A deliberately broken
+        // include source will fail at activation with line-level detail,
+        // and the active version on SAP stays in its previous working
+        // state because activation failures do not promote inactive code.
+        //
+        // Callers that want validation MUST pass activate: true. With
+        // activate: false, the broken source lands as an inactive version
+        // on SAP but the active version remains intact — use DeleteInclude
+        // or another UpdateInclude to clean up.
         // Step 1: Lock — stateful BEFORE lock to establish ICM session
         currentStep = 'lock';
         logger?.debug(`Locking include: ${includeName}`);
@@ -101,40 +123,73 @@ async function handleUpdateInclude(context, params) {
         connection.setSessionType('stateless');
         lockHandle = undefined;
         logger?.info(`Include unlocked: ${includeName}`);
-        // Step 4: Preflight syntax check on the newly uploaded source.
-        //
-        // Dynpro-like sub-objects (including PROG/I includes) have no standalone
-        // ADT check endpoint that reliably sees the freshly staged inactive
-        // version via raw /checkruns. The proven working path is a program-wide
-        // check on the PARENT program — SAP compiles the program tree (which
-        // includes this include), and any syntax errors in our new code surface
-        // as errors on the program. Skip the step if the caller didn't tell us
-        // the parent program name.
-        if (args.main_program) {
-            currentStep = 'check_new_code';
-            const mainProgram = args.main_program.toUpperCase();
-            logger?.debug(`Running program-tree syntax check for parent ${mainProgram} (include=${includeName})`);
-            // Use 'programTree' which checks the main program AND every include
-            // it owns in one aggregated /checkruns call. This works around the
-            // SAP quirk where checking the program alone can return "REPORT
-            // missing / program type is INCLUDE" when it tries to compile one
-            // of the broken includes standalone.
-            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
-            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
-            checkWarnings = checkResult.warnings;
-            logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
-        }
-        else {
-            logger?.warn(`UpdateInclude ${includeName}: main_program not provided — preflight syntax check SKIPPED. Pass main_program to enable program-wide validation of the new include code.`);
-        }
-        // Step 5: Activate if requested
+        // Step 4: Activate (if requested) — THIS IS ALSO THE VALIDATION GATE
+        // for include source. SAP activation compiles the full program tree
+        // and returns <chkl:messages> with line numbers on failure. We parse
+        // those into structured checkErrors so the caller can see exactly
+        // which line is broken.
         if (shouldActivate) {
             currentStep = 'activate';
             logger?.debug(`Activating include: ${includeName}`);
             const activationXml = `<?xml version="1.0" encoding="utf-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="${baseUrl}" adtcore:name="${includeName}"/></adtcore:objectReferences>`;
-            await (0, utils_1.makeAdtRequestWithTimeout)(connection, '/sap/bc/adt/activation', 'POST', 'long', activationXml, { method: 'activate', preauditRequested: 'true' }, {
+            const activationResponse = await (0, utils_1.makeAdtRequestWithTimeout)(connection, '/sap/bc/adt/activation', 'POST', 'long', activationXml, { method: 'activate', preauditRequested: 'true' }, {
                 'Content-Type': 'application/vnd.sap.adt.activation.request+xml; charset=utf-8',
             });
+            // Parse activation response for compile errors. SAP returns HTTP
+            // 200 on activation WITH errors — the errors are in the body as
+            // <chkl:messages> with type="E". If any E-type messages are
+            // present, the activation didn't actually promote the inactive
+            // version; we surface the errors to the caller.
+            const activationBody = typeof activationResponse.data === 'string'
+                ? activationResponse.data
+                : String(activationResponse.data ?? '');
+            if (activationBody.includes('<chkl:messages') ||
+                activationBody.includes('chkl:messages')) {
+                const actParser = new fast_xml_parser_1.XMLParser({
+                    ignoreAttributes: false,
+                    attributeNamePrefix: '@_',
+                    removeNSPrefix: true,
+                });
+                const parsed = actParser.parse(activationBody);
+                const messages = parsed?.messages?.msg ??
+                    parsed?.['chkl:messages']?.msg ??
+                    [];
+                const msgArray = Array.isArray(messages) ? messages : messages ? [messages] : [];
+                const activationErrors = [];
+                const activationWarnings = [];
+                for (const msg of msgArray) {
+                    if (!msg || typeof msg !== 'object')
+                        continue;
+                    const msgType = String(msg['@_type'] || msg.type || '').toUpperCase();
+                    const shortText = (msg.shortText && (msg.shortText['#text'] || msg.shortText.txt || msg.shortText)) ||
+                        msg['@_shortText'] ||
+                        '';
+                    const line = msg['@_line'] || msg.line;
+                    const href = msg['@_href'] || msg.href;
+                    const entry = {
+                        type: msgType,
+                        text: String(shortText),
+                        line,
+                        href,
+                    };
+                    if (msgType === 'E')
+                        activationErrors.push(entry);
+                    else if (msgType === 'W')
+                        activationWarnings.push(entry);
+                }
+                if (activationErrors.length > 0) {
+                    const full = activationErrors
+                        .map((e) => `${e.line ? `[L${e.line}] ` : ''}${e.text}`)
+                        .join(' | ');
+                    const err = new Error(`Include ${includeName} activation failed (${activationErrors.length} error${activationErrors.length === 1 ? '' : 's'}): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`);
+                    err.isPreflightCheckFailure = true;
+                    err.checkErrors = activationErrors;
+                    err.checkWarnings = activationWarnings;
+                    throw err;
+                }
+                // Warnings only: keep them in the response
+                checkWarnings = activationWarnings;
+            }
             logger?.info(`Include activated: ${includeName}`);
         }
         const result = {
@@ -150,7 +205,6 @@ async function handleUpdateInclude(context, params) {
                 'lock',
                 'update',
                 'unlock',
-                'check_new_code',
                 ...(shouldActivate ? ['activate'] : []),
             ],
             source_size_bytes: args.source_code.length,

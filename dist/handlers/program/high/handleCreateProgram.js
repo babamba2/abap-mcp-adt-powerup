@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateProgram = handleCreateProgram;
 const clients_1 = require("../../../lib/clients");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -103,6 +104,29 @@ async function handleCreateProgram(context, params) {
             application: args.application,
         });
         logger?.info(`Program created: ${programName}`);
+        // Post-create sanity syntax check. The shell the ADT create endpoint
+        // produces is a minimal REPORT statement that should always be
+        // clean, but the check also verifies the package / transport /
+        // naming side of things once the object is actually in the system.
+        // Non-fatal: if the check endpoint fails for transport reasons, log
+        // a warning and still return success.
+        const stepsCompleted = ['validate', 'create'];
+        let checkWarnings = [];
+        try {
+            logger?.debug(`Post-create syntax check: ${programName}`);
+            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
+            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program', programName);
+            checkWarnings = checkResult.warnings;
+            stepsCompleted.push('check');
+            logger?.debug(`Post-create syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+        }
+        catch (checkErr) {
+            if (checkErr?.isPreflightCheckFailure) {
+                logger?.error(`Program ${programName} was created but failed post-create syntax check: ${checkErr.message}`);
+                return (0, utils_1.return_error)(checkErr);
+            }
+            logger?.warn(`Post-create check had issues for ${programName}: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+        }
         const result = {
             success: true,
             program_name: programName,
@@ -112,7 +136,8 @@ async function handleCreateProgram(context, params) {
             type: 'PROG/P',
             message: `Program ${programName} created successfully. Use UpdateProgram to set source code.`,
             uri: `/sap/bc/adt/programs/programs/${(0, utils_1.encodeSapObjectName)(programName).toLowerCase()}`,
-            steps_completed: ['validate', 'create'],
+            steps_completed: stepsCompleted,
+            check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         };
         return (0, utils_1.return_response)({
             data: JSON.stringify(result, null, 2),

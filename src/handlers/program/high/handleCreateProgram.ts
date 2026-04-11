@@ -9,6 +9,10 @@ import type { IAdtResponse } from '@mcp-abap-adt/interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preflightCheck';
+import {
   encodeSapObjectName,
   isCloudConnection,
   parseValidationResponse,
@@ -145,6 +149,44 @@ export async function handleCreateProgram(
     });
     logger?.info(`Program created: ${programName}`);
 
+    // Post-create sanity syntax check. The shell the ADT create endpoint
+    // produces is a minimal REPORT statement that should always be
+    // clean, but the check also verifies the package / transport /
+    // naming side of things once the object is actually in the system.
+    // Non-fatal: if the check endpoint fails for transport reasons, log
+    // a warning and still return success.
+    const stepsCompleted = ['validate', 'create'];
+    let checkWarnings: Array<{
+      type: string;
+      text: string;
+      line?: string | number;
+    }> = [];
+    try {
+      logger?.debug(`Post-create syntax check: ${programName}`);
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'program', name: programName },
+      );
+      assertNoCheckErrors(checkResult, 'Program', programName);
+      checkWarnings = checkResult.warnings;
+      stepsCompleted.push('check');
+      logger?.debug(
+        `Post-create syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+      );
+    } catch (checkErr: any) {
+      if (checkErr?.isPreflightCheckFailure) {
+        logger?.error(
+          `Program ${programName} was created but failed post-create syntax check: ${checkErr.message}`,
+        );
+        return return_error(checkErr);
+      }
+      logger?.warn(
+        `Post-create check had issues for ${programName}: ${
+          checkErr instanceof Error ? checkErr.message : String(checkErr)
+        }`,
+      );
+    }
+
     const result = {
       success: true,
       program_name: programName,
@@ -154,7 +196,8 @@ export async function handleCreateProgram(
       type: 'PROG/P',
       message: `Program ${programName} created successfully. Use UpdateProgram to set source code.`,
       uri: `/sap/bc/adt/programs/programs/${encodeSapObjectName(programName).toLowerCase()}`,
-      steps_completed: ['validate', 'create'],
+      steps_completed: stepsCompleted,
+      check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
     };
 
     return return_response({

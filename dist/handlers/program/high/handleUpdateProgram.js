@@ -9,6 +9,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateProgram = handleUpdateProgram;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateProgram',
@@ -55,30 +56,24 @@ async function handleUpdateProgram(context, params) {
         const shouldActivate = args.activate === true; // Default to false if not specified
         let lockHandle;
         let activateResponse;
+        let checkWarnings = [];
         try {
             // Lock
             logger?.debug(`Locking program: ${programName}`);
             lockHandle = await client.getProgram().lock({ programName });
             logger?.debug(`Program locked: ${programName} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`);
-            // Check new code BEFORE update
+            // Preflight syntax check on the new source BEFORE upload.
+            // If this throws, we never PUT the broken code, so the program
+            // stays in its previous working state.
             logger?.debug(`Checking new source code before update: ${programName}`);
-            try {
-                await (0, utils_1.safeCheckOperation)(() => client
-                    .getProgram()
-                    .check({ programName, sourceCode: args.source_code }, 'inactive'), programName, {
-                    debug: (message) => logger?.debug(message),
-                });
-                logger?.debug(`New code check passed: ${programName}`);
-            }
-            catch (checkError) {
-                if (checkError.isAlreadyChecked) {
-                    logger?.debug(`Program ${programName} was already checked - continuing`);
-                }
-                else {
-                    logger?.error(`New code check failed: ${programName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                    throw new Error(`New code check failed: ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                }
-            }
+            const preCheckResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, {
+                kind: 'program',
+                name: programName,
+                sourceCode: args.source_code,
+            });
+            (0, preflightCheck_1.assertNoCheckErrors)(preCheckResult, 'Program', programName);
+            checkWarnings = preCheckResult.warnings;
+            logger?.debug(`New code check passed: ${programName}`);
             // Update
             logger?.debug(`Updating program source code: ${programName}`);
             await client.getProgram().update({
@@ -100,21 +95,19 @@ async function handleUpdateProgram(context, params) {
                 }
             }
         }
-        // Check inactive version (after unlock)
+        // Check inactive version (after unlock) — non-fatal: warnings from
+        // the post-write view go into check_warnings in the response, but
+        // transport/tooling issues on this pass don't abort the flow.
         logger?.debug(`Checking inactive version: ${programName}`);
         try {
-            await (0, utils_1.safeCheckOperation)(() => client.getProgram().check({ programName }, 'inactive'), programName, {
-                debug: (message) => logger?.debug(message),
-            });
+            const postCheckResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
+            if (postCheckResult.warnings.length > 0) {
+                checkWarnings = [...checkWarnings, ...postCheckResult.warnings];
+            }
             logger?.debug(`Inactive version check completed: ${programName}`);
         }
         catch (checkError) {
-            if (checkError.isAlreadyChecked) {
-                logger?.debug(`Program ${programName} was already checked - continuing`);
-            }
-            else {
-                logger?.warn(`Inactive version check had issues: ${programName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-            }
+            logger?.warn(`Inactive version check had issues: ${programName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
         }
         // Activate if requested
         if (shouldActivate) {
@@ -170,6 +163,7 @@ async function handleUpdateProgram(context, params) {
                 ...(shouldActivate ? ['activate'] : []),
             ],
             activation_warnings: activationWarnings.length > 0 ? activationWarnings : undefined,
+            check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
             source_size_bytes: args.source_code.length,
         };
         return (0, utils_1.return_response)({
@@ -181,6 +175,12 @@ async function handleUpdateProgram(context, params) {
         });
     }
     catch (error) {
+        // Preflight syntax-check failures carry full structured diagnostics —
+        // surface as-is so the caller sees every error with line numbers.
+        if (error?.isPreflightCheckFailure) {
+            logger?.error(`Error updating program source ${programName}: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         // Parse error message
         let errorMessage = error instanceof Error ? error.message : String(error);
         // Attempt to parse ADT XML error
