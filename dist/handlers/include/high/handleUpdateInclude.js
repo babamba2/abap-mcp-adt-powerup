@@ -10,6 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateInclude = handleUpdateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const preflightCheck_1 = require("../../../lib/preflightCheck");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -26,6 +27,10 @@ exports.TOOL_DEFINITION = {
             source_code: {
                 type: 'string',
                 description: 'Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.',
+            },
+            main_program: {
+                type: 'string',
+                description: 'Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.',
             },
             transport_request: {
                 type: 'string',
@@ -55,6 +60,7 @@ async function handleUpdateInclude(context, params) {
     logger?.info(`Starting include source update: ${includeName} (activate=${shouldActivate})`);
     let lockHandle;
     let currentStep = 'start';
+    let checkWarnings = [];
     try {
         // Step 1: Lock — stateful BEFORE lock to establish ICM session
         currentStep = 'lock';
@@ -95,7 +101,33 @@ async function handleUpdateInclude(context, params) {
         connection.setSessionType('stateless');
         lockHandle = undefined;
         logger?.info(`Include unlocked: ${includeName}`);
-        // Step 4: Activate if requested
+        // Step 4: Preflight syntax check on the newly uploaded source.
+        //
+        // Dynpro-like sub-objects (including PROG/I includes) have no standalone
+        // ADT check endpoint that reliably sees the freshly staged inactive
+        // version via raw /checkruns. The proven working path is a program-wide
+        // check on the PARENT program — SAP compiles the program tree (which
+        // includes this include), and any syntax errors in our new code surface
+        // as errors on the program. Skip the step if the caller didn't tell us
+        // the parent program name.
+        if (args.main_program) {
+            currentStep = 'check_new_code';
+            const mainProgram = args.main_program.toUpperCase();
+            logger?.debug(`Running program-tree syntax check for parent ${mainProgram} (include=${includeName})`);
+            // Use 'programTree' which checks the main program AND every include
+            // it owns in one aggregated /checkruns call. This works around the
+            // SAP quirk where checking the program alone can return "REPORT
+            // missing / program type is INCLUDE" when it tries to compile one
+            // of the broken includes standalone.
+            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
+            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
+            checkWarnings = checkResult.warnings;
+            logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+        }
+        else {
+            logger?.warn(`UpdateInclude ${includeName}: main_program not provided — preflight syntax check SKIPPED. Pass main_program to enable program-wide validation of the new include code.`);
+        }
+        // Step 5: Activate if requested
         if (shouldActivate) {
             currentStep = 'activate';
             logger?.debug(`Activating include: ${includeName}`);
@@ -118,9 +150,11 @@ async function handleUpdateInclude(context, params) {
                 'lock',
                 'update',
                 'unlock',
+                'check_new_code',
                 ...(shouldActivate ? ['activate'] : []),
             ],
             source_size_bytes: args.source_code.length,
+            check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         };
         return (0, utils_1.return_response)({
             data: JSON.stringify(result, null, 2),
@@ -164,6 +198,13 @@ async function handleUpdateInclude(context, params) {
         const statusCode = error.response?.status;
         const statusPart = statusCode ? ` [${statusCode}]` : '';
         logger?.error(`Error updating include ${includeName} at step=${currentStep}${statusPart}: ${errorMessage}`);
+        // Surface preflight-check details so the caller can fix & retry.
+        if (error?.isPreflightCheckFailure) {
+            const errWithDetails = new Error(`Failed to update include ${includeName} at step=${currentStep}: ${errorMessage}`);
+            errWithDetails.checkErrors = error.checkErrors;
+            errWithDetails.checkWarnings = error.checkWarnings;
+            return (0, utils_1.return_error)(errWithDetails);
+        }
         return (0, utils_1.return_error)(new Error(`Failed to update include ${includeName} at step=${currentStep}${statusPart}: ${errorMessage}`));
     }
 }
