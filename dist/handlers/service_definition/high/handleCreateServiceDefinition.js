@@ -12,6 +12,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleCreateServiceDefinition = handleCreateServiceDefinition;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -101,6 +102,10 @@ async function handleCreateServiceDefinition(context, args) {
             if (!createResult) {
                 throw new Error(`Create did not return a response for service definition ${serviceDefinitionName}`);
             }
+            // Post-create syntax check on the staged inactive version.
+            // Surfaces ALL compile errors with structured diagnostics.
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'serviceDefinition', name: serviceDefinitionName });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Service Definition', serviceDefinitionName);
             // Activate if requested
             if (shouldActivate) {
                 const activateState = await client
@@ -153,6 +158,12 @@ async function handleCreateServiceDefinition(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error creating service definition ${serviceDefinitionName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error creating service definition ${serviceDefinitionName}:`, error);
             // Check if service definition already exists
             if (error.message?.includes('already exists') ||

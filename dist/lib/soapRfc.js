@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.callSoapRfc = callSoapRfc;
 exports.callDispatch = callDispatch;
+exports.callTextpool = callTextpool;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const utils_1 = require("./utils");
 const SOAP_RFC_PATH = '/sap/bc/soap/rfc';
@@ -116,6 +117,42 @@ async function callDispatch(connection, action, params) {
     }
     if (subrc !== 0) {
         throw new Error(`ZMCP_ADT_DISPATCH error (action=${action}, subrc=${subrc}): ${message}`);
+    }
+    return { result, subrc, message };
+}
+/**
+ * Call ZMCP_ADT_TEXTPOOL via SOAP RFC - dedicated text pool read/write FM.
+ *
+ * Text elements (text symbols, selection texts, program title, list
+ * headings) have no ADT URI, so this routes through a custom RFC in
+ * function group ZMCP_ADT_UTILS. INSERT TEXTPOOL fully replaces the
+ * language-specific pool, so WRITE must always carry the complete
+ * array (fetch → modify → write back). The FM writes with STATE 'A'
+ * so the text pool becomes active in one round-trip (matching the
+ * CUA/DYNPRO dispatcher semantics).
+ *
+ * @param action 'READ' | 'WRITE'
+ * @param params program/language/textpool_json
+ */
+async function callTextpool(connection, action, params) {
+    const { raw } = await callSoapRfc(connection, 'ZMCP_ADT_TEXTPOOL', {
+        IV_ACTION: action,
+        IV_PROGRAM: params.program,
+        IV_LANGUAGE: params.language ?? '',
+        IV_TEXTPOOL_JSON: params.textpool_json ?? '',
+    });
+    const subrc = Number(raw.EV_SUBRC ?? raw.ev_subrc ?? 0);
+    const message = String(raw.EV_MESSAGE ?? raw.ev_message ?? '');
+    const resultStr = String(raw.EV_RESULT ?? raw.ev_result ?? '[]');
+    let result;
+    try {
+        result = JSON.parse(resultStr);
+    }
+    catch {
+        result = resultStr;
+    }
+    if (subrc !== 0) {
+        throw new Error(`ZMCP_ADT_TEXTPOOL error (action=${action}, subrc=${subrc}): ${message}`);
     }
     return { result, subrc, message };
 }

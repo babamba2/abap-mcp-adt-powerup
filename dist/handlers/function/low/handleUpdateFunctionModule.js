@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateFunctionModule = handleUpdateFunctionModule;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateFunctionModuleLow',
@@ -36,6 +37,10 @@ exports.TOOL_DEFINITION = {
             lock_handle: {
                 type: 'string',
                 description: 'Lock handle from LockFunctionModule. Required for update operation.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.',
             },
             session_id: {
                 type: 'string',
@@ -67,7 +72,7 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateFunctionModule(context, args) {
     const { connection, logger } = context;
     try {
-        const { function_module_name, function_group_name, source_code, transport_request, lock_handle, session_id, session_state, } = args;
+        const { function_module_name, function_group_name, source_code, transport_request, lock_handle, skip_check, session_id, session_state, } = args;
         // Validation
         if (!function_module_name ||
             !function_group_name ||
@@ -98,6 +103,18 @@ async function handleUpdateFunctionModule(context, args) {
             if (!updateResult) {
                 throw new Error(`Update did not return a response for function module ${functionModuleName}`);
             }
+            // Post-write syntax check on the staged inactive version (unless
+            // explicitly skipped). Surfaces ALL compile errors with line numbers.
+            let checkWarnings = [];
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, {
+                    kind: 'functionModule',
+                    name: functionModuleName,
+                    functionGroupName,
+                });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Function module', functionModuleName);
+                checkWarnings = checkResult.warnings;
+            }
             // Get updated session state after update
             logger?.info(`✅ UpdateFunctionModule completed: ${functionModuleName}`);
             return (0, utils_1.return_response)({
@@ -110,10 +127,17 @@ async function handleUpdateFunctionModule(context, args) {
                     session_id: session_id || null,
                     session_state: null, // Session state management is now handled by auth-broker,
                     message: `Function module ${functionModuleName} updated successfully. Remember to unlock using UnlockFunctionModule.`,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                 }, null, 2),
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating function module ${functionModuleName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating function module ${functionModuleName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update function module: ${error.message || String(error)}`;

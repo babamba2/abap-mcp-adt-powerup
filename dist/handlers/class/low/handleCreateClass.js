@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateClass = handleCreateClass;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'CreateClassLow',
@@ -49,6 +50,10 @@ exports.TOOL_DEFINITION = {
                 type: 'boolean',
                 description: 'Create protected section (optional, default: false).',
             },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-create syntax check. Default: false. When false, runs a syntax check on the newly created class shell and surfaces any errors with line numbers.',
+            },
             session_id: {
                 type: 'string',
                 description: 'Session ID from GetSession. If not provided, a new session will be created.',
@@ -74,7 +79,7 @@ exports.TOOL_DEFINITION = {
 async function handleCreateClass(context, args) {
     const { connection, logger } = context;
     try {
-        const { class_name, description, package_name, transport_request, superclass, final, abstract, create_protected, session_id, session_state, } = args;
+        const { class_name, description, package_name, transport_request, superclass, final, abstract, create_protected, skip_check, session_id, session_state, } = args;
         // Validation
         if (!class_name || !description || !package_name) {
             return (0, utils_1.return_error)(new Error('class_name, description, and package_name are required'));
@@ -86,7 +91,7 @@ async function handleCreateClass(context, args) {
             const canRefresh = connectionWithRefresh.canRefreshToken();
             logger?.debug(`Connection can refresh token: ${canRefresh}`);
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         const className = class_name.toUpperCase();
         logger?.info(`Starting class creation: ${className}`);
         try {
@@ -105,6 +110,13 @@ async function handleCreateClass(context, args) {
             if (!createResult) {
                 throw new Error(`Create did not return a response for class ${className}`);
             }
+            // Post-create syntax check on the freshly created empty class
+            // shell (unless skipped). Belt-and-suspenders — catches cases
+            // where the shell landed in a broken state.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'class', name: className });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Class', className);
+            }
             // Get updated session state after create
             logger?.info(`✅ CreateClass completed: ${className}`);
             return (0, utils_1.return_response)({
@@ -121,6 +133,12 @@ async function handleCreateClass(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error creating class ${className}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error creating class ${className}: ${error.message || String(error)}`);
             // Parse error message
             let errorMessage = `Failed to create class: ${error.message || String(error)}`;

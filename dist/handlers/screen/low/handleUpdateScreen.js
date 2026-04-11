@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateScreen = handleUpdateScreen;
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -30,6 +31,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'Lock handle from LockScreenLow.',
             },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
+            },
             session_id: {
                 type: 'string',
                 description: 'Session ID from GetSession.',
@@ -50,7 +55,7 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateScreen(context, args) {
     const { connection, logger } = context;
     try {
-        const { program_name, screen_number, dynpro_data, lock_handle, session_id, session_state, } = args;
+        const { program_name, screen_number, dynpro_data, lock_handle, skip_check, session_id, session_state, } = args;
         if (!program_name || !screen_number || !dynpro_data || !lock_handle) {
             return (0, utils_1.return_error)(new Error('program_name, screen_number, dynpro_data, and lock_handle are required'));
         }
@@ -77,6 +82,11 @@ async function handleUpdateScreen(context, args) {
             dynpro: screen_number,
             dynpro_data: dynpro_data,
         });
+        // Post-write syntax check on the parent program tree (unless skipped).
+        if (skip_check !== true) {
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'screen', name: programName, parentProgramName: programName });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Screen', `${programName}/${screen_number}`);
+        }
         logger?.info(`✅ Screen updated: ${programName}/${screen_number}`);
         return (0, utils_1.return_response)({
             data: JSON.stringify({
@@ -89,6 +99,10 @@ async function handleUpdateScreen(context, args) {
         });
     }
     catch (error) {
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error updating screen: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger?.error(`Error updating screen: ${errorMessage}`);
         return (0, utils_1.return_error)(new Error(`Failed to update screen: ${errorMessage}`));

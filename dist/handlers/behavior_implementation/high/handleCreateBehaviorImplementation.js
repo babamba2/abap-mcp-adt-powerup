@@ -74,7 +74,7 @@ async function handleCreateBehaviorImplementation(context, args) {
         logger?.info(`Starting behavior implementation creation: ${className} for ${behaviorDefinition}`);
         try {
             // Create client
-            const client = (0, clients_1.createAdtClient)(connection);
+            const client = (0, clients_1.createAdtClient)(connection, logger);
             // Create behavior implementation (full workflow)
             const createConfig = {
                 className: className,

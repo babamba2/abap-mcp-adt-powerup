@@ -8,10 +8,13 @@ import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   return_error,
   return_response,
-  safeCheckOperation,
 } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
@@ -73,6 +76,11 @@ export async function handleUpdateClass(
     const client = createAdtClient(connection, logger);
     const shouldActivate = args.activate === true;
     let lockHandle: string | undefined;
+    let checkWarnings: Array<{
+      type: string;
+      text: string;
+      line?: string | number;
+    }> = [];
 
     try {
       // Lock
@@ -82,52 +90,34 @@ export async function handleUpdateClass(
         `Class locked: ${className} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`,
       );
 
-      // Check new code before update
-      logger?.debug(`Checking new code before update: ${className}`);
-      let checkNewCodePassed = false;
-      try {
-        await safeCheckOperation(
-          () =>
-            client
-              .getClass()
-              .check(
-                { className: className, sourceCode: args.source_code },
-                'inactive',
-              ),
-          className,
-          { debug: (message: string) => logger?.debug(message) },
-        );
-        checkNewCodePassed = true;
-        logger?.debug(`New code check passed: ${className}`);
-      } catch (checkError: any) {
-        if ((checkError as any).isAlreadyChecked) {
-          logger?.debug(`Class ${className} was already checked - continuing`);
-          checkNewCodePassed = true;
-        } else {
-          logger?.error(
-            `New code check failed: ${className} - ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-          );
-          throw new Error(
-            `New code check failed: ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-          );
-        }
-      }
+      // Pre-write syntax check on the proposed source. If errors are
+      // found we never PUT the broken code; the active class stays in
+      // its previous working state. The lock is released by the finally
+      // block below.
+      logger?.debug(`Pre-write syntax check: ${className}`);
+      const preCheckResult = await runSyntaxCheck(
+        { connection, logger },
+        {
+          kind: 'class',
+          name: className,
+          sourceCode: args.source_code,
+        },
+      );
+      assertNoCheckErrors(preCheckResult, 'Class', className);
+      checkWarnings = preCheckResult.warnings;
+      logger?.debug(`Pre-write check passed: ${className}`);
 
-      // Update (if check passed)
-      if (checkNewCodePassed) {
-        logger?.debug(`Updating class source code: ${className}`);
-        await client.getClass().update(
-          {
-            className: className,
-            sourceCode: args.source_code,
-            transportRequest: args.transport_request,
-          },
-          { lockHandle },
-        );
-        logger?.info(`Class source code updated: ${className}`);
-      } else {
-        logger?.warn(`Skipping update - new code check failed: ${className}`);
-      }
+      // Update
+      logger?.debug(`Updating class source code: ${className}`);
+      await client.getClass().update(
+        {
+          className: className,
+          sourceCode: args.source_code,
+          transportRequest: args.transport_request,
+        },
+        { lockHandle },
+      );
+      logger?.info(`Class source code updated: ${className}`);
     } finally {
       if (lockHandle) {
         try {
@@ -142,23 +132,24 @@ export async function handleUpdateClass(
       }
     }
 
-    // Check inactive after unlock
+    // Post-write inactive check — non-fatal: warnings flow into
+    // check_warnings, transport/tooling issues are logged and ignored.
     logger?.debug(`Checking inactive version: ${className}`);
     try {
-      await safeCheckOperation(
-        () => client.getClass().check({ className: className }, 'inactive'),
-        className,
-        { debug: (message: string) => logger?.debug(message) },
+      const postCheckResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'class', name: className },
       );
+      if (postCheckResult.warnings.length > 0) {
+        checkWarnings = [...checkWarnings, ...postCheckResult.warnings];
+      }
       logger?.debug(`Inactive version check completed: ${className}`);
     } catch (checkError: any) {
-      if ((checkError as any).isAlreadyChecked) {
-        logger?.debug(`Class ${className} was already checked - continuing`);
-      } else {
-        logger?.warn(
-          `Inactive version check had issues: ${className} - ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-        );
-      }
+      logger?.warn(
+        `Inactive version check had issues: ${className} - ${
+          checkError instanceof Error ? checkError.message : String(checkError)
+        }`,
+      );
     }
 
     // Activate if requested
@@ -179,12 +170,20 @@ export async function handleUpdateClass(
           class_name: className,
           activated: shouldActivate,
           message: `Class ${className} updated${shouldActivate ? ' and activated' : ''} successfully`,
+          check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         },
         null,
         2,
       ),
     } as AxiosResponse);
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error updating class ${className}: ${error.message}`);
+      return return_error(error);
+    }
+
     // Parse error message
     let errorMessage = error instanceof Error ? error.message : String(error);
 

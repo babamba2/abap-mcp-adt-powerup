@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateMetadataExtension = handleUpdateMetadataExtension;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateMetadataExtension',
@@ -49,19 +50,37 @@ async function handleUpdateMetadataExtension(context, params) {
         const client = (0, clients_1.createAdtClient)(connection);
         const shouldActivate = args.activate !== false;
         let lockHandle = args.lock_handle;
+        const lockedByUs = !args.lock_handle;
         // Lock if not provided
         if (!lockHandle) {
             lockHandle = await client.getMetadataExtension().lock({ name: name });
         }
-        // Update
-        await client.getMetadataExtension().update({
-            name,
-            sourceCode: args.source_code,
-            transportRequest: args.transport_request,
-        }, { lockHandle });
-        // Unlock if we locked it internally
-        if (!args.lock_handle) {
-            await client.getMetadataExtension().unlock({ name: name }, lockHandle);
+        try {
+            // Update
+            await client.getMetadataExtension().update({
+                name,
+                sourceCode: args.source_code,
+                transportRequest: args.transport_request,
+            }, { lockHandle });
+            // Post-write syntax check on the staged inactive version.
+            // Surfaces ALL compile errors with structured diagnostics.
+            // NOTE: SAP's /checkruns reporter is known to be weak for DDLX
+            // — this may return empty for some error classes.
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'metadataExtension', name });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Metadata Extension', name);
+        }
+        finally {
+            // Unlock if we locked it internally — mandatory after lock
+            if (lockedByUs && lockHandle) {
+                try {
+                    await client
+                        .getMetadataExtension()
+                        .unlock({ name: name }, lockHandle);
+                }
+                catch (unlockError) {
+                    logger?.warn(`Failed to unlock DDLX ${name}: ${unlockError?.message || unlockError}`);
+                }
+            }
         }
         // Activate if requested
         if (shouldActivate) {
@@ -83,6 +102,12 @@ async function handleUpdateMetadataExtension(context, params) {
         });
     }
     catch (error) {
+        // PreCheck syntax-check failures carry full structured diagnostics —
+        // forward them as-is so the caller sees every error with line numbers.
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error updating DDLX ${name}: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         const detailedError = (0, utils_1.extractAdtErrorMessage)(error, `Failed to update metadata extension ${name}`);
         logger?.error(`Error updating DDLX ${name}: ${detailedError}`);
         return (0, utils_1.return_error)(new Error(detailedError));

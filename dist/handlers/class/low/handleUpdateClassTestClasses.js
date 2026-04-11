@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateClassTestClasses = handleUpdateClassTestClasses;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateClassTestClassesLow',
@@ -28,6 +29,10 @@ exports.TOOL_DEFINITION = {
             lock_handle: {
                 type: 'string',
                 description: 'Test classes lock handle from LockClassTestClassesLow.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-write syntax check. Default: false. When false, runs a syntax check on the parent class after updating the test-classes include and surfaces any errors with line numbers.',
             },
             session_id: {
                 type: 'string',
@@ -49,11 +54,11 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateClassTestClasses(context, args) {
     const { connection, logger } = context;
     try {
-        const { class_name, test_class_source, lock_handle, session_id, session_state, } = args;
+        const { class_name, test_class_source, lock_handle, skip_check, session_id, session_state, } = args;
         if (!class_name || !test_class_source || !lock_handle) {
             return (0, utils_1.return_error)(new Error('class_name, test_class_source, and lock_handle are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
         }
@@ -67,6 +72,13 @@ async function handleUpdateClassTestClasses(context, args) {
                 testClassCode: test_class_source,
             }, { lockHandle: lock_handle });
             const updateResult = updateState.updateResult;
+            // Post-write syntax check on the parent class (unless skipped).
+            // Surfaces ALL compile errors with line numbers — catches bad
+            // test-class code via a class-level /checkruns compile.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'class', name: className });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Class', className);
+            }
             logger?.info(`✅ UpdateClassTestClasses completed: ${className}`);
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
@@ -80,6 +92,12 @@ async function handleUpdateClassTestClasses(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating test classes for ${className}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             const detailedError = (0, utils_1.extractAdtErrorMessage)(error, `Failed to update test classes for ${className}`);
             logger?.error(`Error updating test classes for ${className}: ${detailedError}`);
             const reason = error?.response?.status === 404

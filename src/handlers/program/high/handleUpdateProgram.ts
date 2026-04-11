@@ -10,7 +10,7 @@ import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
-} from '../../../lib/preflightCheck';
+} from '../../../lib/preCheckBeforeActivation';
 import {
   encodeSapObjectName,
   isCloudConnection,
@@ -104,7 +104,7 @@ export async function handleUpdateProgram(
         `Program locked: ${programName} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`,
       );
 
-      // Preflight syntax check on the new source BEFORE upload.
+      // PreCheck syntax check on the new source BEFORE upload.
       // If this throws, we never PUT the broken code, so the program
       // stays in its previous working state.
       logger?.debug(`Checking new source code before update: ${programName}`);
@@ -242,9 +242,9 @@ export async function handleUpdateProgram(
       config: {} as any,
     });
   } catch (error: any) {
-    // Preflight syntax-check failures carry full structured diagnostics —
+    // PreCheck syntax-check failures carry full structured diagnostics —
     // surface as-is so the caller sees every error with line numbers.
-    if (error?.isPreflightCheckFailure) {
+    if (error?.isPreCheckFailure) {
       logger?.error(
         `Error updating program source ${programName}: ${error.message}`,
       );

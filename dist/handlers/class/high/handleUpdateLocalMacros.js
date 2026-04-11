@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateLocalMacros = handleUpdateLocalMacros;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateLocalMacros',
@@ -56,6 +57,21 @@ async function handleUpdateLocalMacros(context, args) {
                 throw new Error(`Update did not return a result for ${className}`);
             }
             logger?.info(`✅ UpdateLocalMacros completed successfully: ${className}`);
+            // Post-update class-level syntax check (see handleUpdateLocalDefinitions for rationale).
+            let checkWarnings = [];
+            try {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'class', name: className });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Class', className);
+                checkWarnings = checkResult.warnings;
+                logger?.debug(`Post-update syntax check passed: ${className} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+            }
+            catch (checkErr) {
+                if (checkErr?.isPreCheckFailure) {
+                    logger?.error(`Local macros of ${className} were updated but the class failed post-update syntax check: ${checkErr.message}`);
+                    return (0, utils_1.return_error)(checkErr);
+                }
+                logger?.warn(`Post-update check had issues for ${className}: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+            }
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
                     success: true,
@@ -63,10 +79,14 @@ async function handleUpdateLocalMacros(context, args) {
                     transport_request: transport_request || null,
                     activated: activate_on_update,
                     message: `Local macros updated successfully in ${className}.`,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                 }, null, 2),
             });
         }
         catch (error) {
+            if (error?.isPreCheckFailure) {
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating local macros for ${className}: ${error?.message || error}`);
             const detailedError = (0, utils_1.extractAdtErrorMessage)(error, `Failed to update local macros in ${className}`);
             let errorMessage = `Failed to update local macros: ${detailedError}`;

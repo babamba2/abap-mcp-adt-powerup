@@ -6,6 +6,10 @@ import type { IBehaviorDefinitionConfig } from '@mcp-abap-adt/adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   extractAdtErrorMessage,
   return_error,
   return_response,
@@ -73,6 +77,7 @@ export async function handleUpdateBehaviorDefinition(
     const client = createAdtClient(connection, logger);
     const shouldActivate = args.activate !== false;
     let lockHandle = args.lock_handle;
+    const lockedByUs = !args.lock_handle;
 
     // Lock if not provided - using types from adt-clients
     if (!lockHandle) {
@@ -82,25 +87,41 @@ export async function handleUpdateBehaviorDefinition(
       lockHandle = await client.getBehaviorDefinition().lock(lockConfig);
     }
 
-    // Update - using types from adt-clients
-    const updateConfig: Pick<
-      IBehaviorDefinitionConfig,
-      'name' | 'sourceCode'
-    > & { transportRequest?: string } = {
-      name,
-      sourceCode: args.source_code,
-      transportRequest: args.transport_request,
-    };
-    await client
-      .getBehaviorDefinition()
-      .update(updateConfig, { lockHandle: lockHandle });
-
-    // Unlock if we locked it internally - using types from adt-clients
-    if (!args.lock_handle) {
-      const unlockConfig: Pick<IBehaviorDefinitionConfig, 'name'> = {
+    try {
+      // Update - using types from adt-clients
+      const updateConfig: Pick<
+        IBehaviorDefinitionConfig,
+        'name' | 'sourceCode'
+      > & { transportRequest?: string } = {
         name,
+        sourceCode: args.source_code,
+        transportRequest: args.transport_request,
       };
-      await client.getBehaviorDefinition().unlock(unlockConfig, lockHandle);
+      await client
+        .getBehaviorDefinition()
+        .update(updateConfig, { lockHandle: lockHandle });
+
+      // Post-write syntax check on the staged inactive version.
+      // Surfaces ALL compile errors with structured diagnostics.
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'behaviorDefinition', name },
+      );
+      assertNoCheckErrors(checkResult, 'Behavior Definition', name);
+    } finally {
+      // Unlock if we locked it internally - mandatory after lock
+      if (lockedByUs && lockHandle) {
+        try {
+          const unlockConfig: Pick<IBehaviorDefinitionConfig, 'name'> = {
+            name,
+          };
+          await client.getBehaviorDefinition().unlock(unlockConfig, lockHandle);
+        } catch (unlockError: any) {
+          logger?.warn(
+            `Failed to unlock BDEF ${name}: ${unlockError?.message || unlockError}`,
+          );
+        }
+      }
     }
 
     // Activate if requested - using types from adt-clients
@@ -127,6 +148,12 @@ export async function handleUpdateBehaviorDefinition(
       config: {} as any,
     });
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error updating BDEF ${name}: ${error.message}`);
+      return return_error(error);
+    }
     const detailedError = extractAdtErrorMessage(
       error,
       `Failed to update behavior definition ${name}`,

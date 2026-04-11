@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   return_error,
   return_response,
@@ -36,6 +40,11 @@ export const TOOL_DEFINITION = {
         description:
           'Lock handle from LockClass operation. Required for update operation.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip pre-write syntax check on source_code. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.',
+      },
     },
     required: ['class_name', 'source_code', 'lock_handle'],
   },
@@ -45,6 +54,7 @@ interface UpdateClassArgs {
   class_name: string;
   source_code: string;
   lock_handle: string;
+  skip_check?: boolean;
 }
 
 /**
@@ -58,7 +68,8 @@ export async function handleUpdateClass(
 ) {
   const { connection, logger } = context;
   try {
-    const { class_name, source_code, lock_handle } = args as UpdateClassArgs;
+    const { class_name, source_code, lock_handle, skip_check } =
+      args as UpdateClassArgs;
 
     // Validation
     if (!class_name || !source_code || !lock_handle) {
@@ -74,6 +85,18 @@ export async function handleUpdateClass(
     logger?.info(`Starting class update: ${className}`);
 
     try {
+      // Pre-write syntax check on the proposed source (unless skipped).
+      // Surfaces ALL compile errors with line numbers via the raw
+      // /checkruns inline-artifact path, so the broken source never
+      // lands on SAP.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'class', name: className, sourceCode: source_code },
+        );
+        assertNoCheckErrors(checkResult, 'Class', className);
+      }
+
       // Update class with source code
       const updateState = await client
         .getClass()
@@ -103,6 +126,13 @@ export async function handleUpdateClass(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(`Error updating class ${className}: ${error.message}`);
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating class ${className}: ${error?.message || error}`,
       );

@@ -7,6 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateScreen = handleCreateScreen;
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -80,6 +81,11 @@ async function handleCreateScreen(context, params) {
             dynpro_data: screenData,
         });
         logger?.info(`Screen created: ${programName}/${args.screen_number}`);
+        // Post-write syntax check on the parent program tree. Dynpros
+        // have no standalone check — flow-logic errors surface as errors
+        // in the parent program's compile.
+        const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'screen', name: programName, parentProgramName: programName });
+        (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Screen', `${programName}/${args.screen_number}`);
         if (shouldActivate) {
             const encodedProgram = (0, utils_1.encodeSapObjectName)(programName);
             const programUri = `/sap/bc/adt/programs/programs/${encodedProgram}`;
@@ -107,6 +113,12 @@ async function handleCreateScreen(context, params) {
         });
     }
     catch (error) {
+        // PreCheck syntax-check failures carry full structured diagnostics —
+        // forward them as-is so the caller sees every error with line numbers.
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error creating screen: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger?.error(`Error creating screen: ${errorMessage}`);
         return (0, utils_1.return_error)(new Error(`Failed to create screen: ${errorMessage}`));

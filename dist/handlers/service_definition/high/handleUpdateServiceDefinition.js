@@ -12,6 +12,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateServiceDefinition = handleUpdateServiceDefinition;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateServiceDefinition',
@@ -77,19 +78,10 @@ async function handleUpdateServiceDefinition(context, args) {
                     sourceCode: source_code,
                     transportRequest: args.transport_request,
                 }, { lockHandle });
-                // Check
-                try {
-                    await (0, utils_1.safeCheckOperation)(() => client.getServiceDefinition().check({ serviceDefinitionName }), serviceDefinitionName, {
-                        debug: (message) => logger?.debug(`[UpdateServiceDefinition] ${message}`),
-                    });
-                }
-                catch (checkError) {
-                    // If error was marked as "already checked", continue silently
-                    if (!checkError.isAlreadyChecked) {
-                        // Real check error - rethrow
-                        throw checkError;
-                    }
-                }
+                // Post-write syntax check on the staged inactive version.
+                // Surfaces ALL compile errors with structured diagnostics.
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'serviceDefinition', name: serviceDefinitionName });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Service Definition', serviceDefinitionName);
             }
             finally {
                 if (lockHandle) {
@@ -156,6 +148,12 @@ async function handleUpdateServiceDefinition(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating service definition ${serviceDefinitionName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating service definition source ${serviceDefinitionName}:`, error);
             const errorMessage = error.response?.data
                 ? typeof error.response.data === 'string'

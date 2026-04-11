@@ -52,7 +52,7 @@ async function handleCheckDataElement(context, args) {
         if (!data_element_name) {
             return (0, utils_1.return_error)(new Error('data_element_name is required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);

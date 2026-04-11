@@ -9,6 +9,10 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { return_error, return_response } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
@@ -103,6 +107,11 @@ export async function handleUpdateFunctionModule(
 
       // Execute operation chain: lock -> update -> check -> unlock -> (activate)
       let lockHandle: string | undefined;
+      let checkWarnings: Array<{
+        type: string;
+        text: string;
+        line?: string | number;
+      }> = [];
       try {
         lockHandle = await client.getFunctionModule().lock({
           functionModuleName,
@@ -117,10 +126,18 @@ export async function handleUpdateFunctionModule(
           },
           { lockHandle },
         );
-        await client.getFunctionModule().check({
-          functionModuleName,
-          functionGroupName,
-        });
+        // Post-write syntax check on the staged inactive version.
+        // Surfaces ALL compile errors with line numbers via assertNoCheckErrors.
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          {
+            kind: 'functionModule',
+            name: functionModuleName,
+            functionGroupName,
+          },
+        );
+        assertNoCheckErrors(checkResult, 'Function module', functionModuleName);
+        checkWarnings = checkResult.warnings;
       } finally {
         // Always unlock if we got a lock handle
         if (lockHandle) {
@@ -155,6 +172,7 @@ export async function handleUpdateFunctionModule(
         transport_request: args.transport_request || null,
         activated: shouldActivate,
         message: `Function module ${functionModuleName} source code updated successfully${shouldActivate ? ' and activated' : ''}`,
+        check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
       };
 
       return return_response({
@@ -165,6 +183,15 @@ export async function handleUpdateFunctionModule(
         config: {} as any,
       });
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating function module ${functionModuleName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating function module source ${functionModuleName}: ${error?.message || error}`,
       );

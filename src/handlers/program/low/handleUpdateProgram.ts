@@ -11,7 +11,7 @@ import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
-} from '../../../lib/preflightCheck';
+} from '../../../lib/preCheckBeforeActivation';
 import {
   type AxiosResponse,
   isCloudConnection,
@@ -180,8 +180,8 @@ export async function handleUpdateProgram(
         ),
       } as AxiosResponse);
     } catch (error: any) {
-      // Surface preflight failures as-is with their structured diagnostics.
-      if (error?.isPreflightCheckFailure) {
+      // Surface preCheck failures as-is with their structured diagnostics.
+      if (error?.isPreCheckFailure) {
         logger?.error(
           `Error updating program ${programName}: ${error.message}`,
         );

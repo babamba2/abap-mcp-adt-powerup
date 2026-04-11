@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateBehaviorDefinition = handleUpdateBehaviorDefinition;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateBehaviorDefinitionLow',
@@ -32,6 +33,10 @@ exports.TOOL_DEFINITION = {
             transport_request: {
                 type: 'string',
                 description: 'Transport request number (required for transportable packages).',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.',
             },
             session_id: {
                 type: 'string',
@@ -58,12 +63,12 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateBehaviorDefinition(context, args) {
     const { connection, logger } = context;
     try {
-        const { name, source_code, lock_handle, transport_request, session_id, session_state, } = args;
+        const { name, source_code, lock_handle, transport_request, skip_check, session_id, session_state, } = args;
         // Validation
         if (!name || !source_code || !lock_handle) {
             return (0, utils_1.return_error)(new Error('name, source_code, and lock_handle are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
@@ -87,6 +92,12 @@ async function handleUpdateBehaviorDefinition(context, args) {
             if (!updateResult) {
                 throw new Error(`Update did not return a response for behavior definition ${behaviorDefinitionName}`);
             }
+            // Post-write syntax check on the staged inactive version (unless
+            // explicitly skipped). Surfaces ALL compile errors with line numbers.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'behaviorDefinition', name: behaviorDefinitionName });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Behavior Definition', behaviorDefinitionName);
+            }
             // Get updated session state after update
             logger?.info(`✅ UpdateBehaviorDefinition completed: ${behaviorDefinitionName}`);
             return (0, utils_1.return_response)({
@@ -100,6 +111,12 @@ async function handleUpdateBehaviorDefinition(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating behavior definition ${behaviorDefinitionName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating behavior definition ${behaviorDefinitionName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update behavior definition: ${error.message || String(error)}`;

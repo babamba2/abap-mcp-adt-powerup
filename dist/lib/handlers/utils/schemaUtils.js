@@ -36,6 +36,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.jsonSchemaToZod = jsonSchemaToZod;
 const z = __importStar(require("zod"));
 /**
+ * Lenient boolean schema that accepts JSON booleans AND the common
+ * string forms `"true"` / `"false"` (any case). Some MCP clients
+ * (notably the Claude Code in-process tool bridge) stringify boolean
+ * arguments before they reach the Zod validator, which used to cause
+ * `Invalid input: expected boolean, received string` errors on every
+ * `activate: true` style call. Using `z.preprocess` here keeps strict
+ * boolean semantics for everything else (numbers, "yes", etc. are
+ * still rejected) while normalizing the only two ambiguous string
+ * forms we actually see in practice.
+ */
+function lenientBoolean() {
+    return z.preprocess((value) => {
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'true')
+                return true;
+            if (normalized === 'false')
+                return false;
+        }
+        return value;
+    }, z.boolean());
+}
+/**
  * Converts JSON Schema to Zod schema object (not z.object(), but object with Zod fields)
  * SDK expects inputSchema to be an object with Zod schemas as values, not z.object()
  */
@@ -85,7 +108,7 @@ function jsonSchemaToZod(jsonSchema) {
                 zodType = z.number();
             }
             else if (propSchema.type === 'boolean') {
-                zodType = z.boolean();
+                zodType = lenientBoolean();
             }
             else if (propSchema.type === 'array') {
                 const items = propSchema.items;
@@ -96,7 +119,7 @@ function jsonSchemaToZod(jsonSchema) {
                     zodType = z.array(z.number());
                 }
                 else if (items?.type === 'boolean') {
-                    zodType = z.array(z.boolean());
+                    zodType = z.array(lenientBoolean());
                 }
                 else if (items?.type === 'object' && items.properties) {
                     // For nested objects in arrays, create object schema
@@ -125,7 +148,7 @@ function jsonSchemaToZod(jsonSchema) {
                             nestedZodType = z.number();
                         }
                         else if (nestedPropSchema.type === 'boolean') {
-                            nestedZodType = z.boolean();
+                            nestedZodType = lenientBoolean();
                         }
                         else {
                             nestedZodType = z.any();
@@ -167,7 +190,7 @@ function jsonSchemaToZod(jsonSchema) {
                         nestedZodType = z.number();
                     }
                     else if (nestedPropSchema.type === 'boolean') {
-                        nestedZodType = z.boolean();
+                        nestedZodType = lenientBoolean();
                     }
                     else {
                         nestedZodType = z.any();

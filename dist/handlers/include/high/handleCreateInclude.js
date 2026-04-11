@@ -16,7 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateInclude = handleCreateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const preflightCheck_1 = require("../../../lib/preflightCheck");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const CT_INCLUDE = 'application/vnd.sap.adt.programs.includes.v2+xml, application/vnd.sap.adt.programs.includes+xml';
 const CT_INCLUDE_POST = 'application/vnd.sap.adt.programs.includes+xml';
@@ -275,7 +275,7 @@ async function handleCreateInclude(context, params) {
                 logger?.warn(insertNote);
             }
         }
-        // ---- Step 3: Preflight syntax check on the main program tree ----
+        // ---- Step 3: PreCheck syntax check on the main program tree ----
         // Runs after any insert+activate on the main program so we catch:
         //   (a) a pre-existing broken state of the main program that we
         //       exposed by touching it,
@@ -290,8 +290,8 @@ async function handleCreateInclude(context, params) {
         // to roll back.
         try {
             logger?.debug(`Running program-tree syntax check after include create: ${mainProgram}`);
-            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
-            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
             checkWarnings = checkResult.warnings;
             stepsCompleted.push('check_new_code');
             logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
@@ -299,11 +299,11 @@ async function handleCreateInclude(context, params) {
         catch (checkErr) {
             // Include WAS created and main program WAS modified — cannot roll
             // back from here. Surface the error with a clear note.
-            if (checkErr?.isPreflightCheckFailure) {
+            if (checkErr?.isPreCheckFailure) {
                 const wrapped = new Error(`Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
                     `${checkErr.message}. ` +
                     `Fix the main program or call DeleteInclude to roll back.`);
-                wrapped.isPreflightCheckFailure = true;
+                wrapped.isPreCheckFailure = true;
                 wrapped.checkErrors = checkErr.checkErrors;
                 wrapped.checkWarnings = checkErr.checkWarnings;
                 wrapped.include_name = includeName;
@@ -337,9 +337,9 @@ async function handleCreateInclude(context, params) {
         });
     }
     catch (error) {
-        // Preflight syntax-check failures carry a full, pre-formatted message
+        // PreCheck syntax-check failures carry a full, pre-formatted message
         // and structured checkErrors/checkWarnings — surface them as-is.
-        if (error?.isPreflightCheckFailure) {
+        if (error?.isPreCheckFailure) {
             logger?.error(`Error creating include ${includeName}: ${error.message}`);
             return (0, utils_1.return_error)(error);
         }

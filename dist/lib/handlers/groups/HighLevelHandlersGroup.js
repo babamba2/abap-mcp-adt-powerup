@@ -88,6 +88,11 @@ const handleCreateTable_1 = require("../../../handlers/table/high/handleCreateTa
 const handleDeleteTable_1 = require("../../../handlers/table/high/handleDeleteTable");
 const handleGetTable_1 = require("../../../handlers/table/high/handleGetTable");
 const handleUpdateTable_1 = require("../../../handlers/table/high/handleUpdateTable");
+// Import high-level handlers - Text Element (TEXTPOOL)
+const handleCreateTextElement_1 = require("../../../handlers/text_element/high/handleCreateTextElement");
+const handleDeleteTextElement_1 = require("../../../handlers/text_element/high/handleDeleteTextElement");
+const handleGetTextElement_1 = require("../../../handlers/text_element/high/handleGetTextElement");
+const handleUpdateTextElement_1 = require("../../../handlers/text_element/high/handleUpdateTextElement");
 const handleCreateTransport_1 = require("../../../handlers/transport/high/handleCreateTransport");
 const handleCreateCdsUnitTest_1 = require("../../../handlers/unit_test/high/handleCreateCdsUnitTest");
 const handleCreateUnitTest_1 = require("../../../handlers/unit_test/high/handleCreateUnitTest");
@@ -526,6 +531,23 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleDeleteGuiStatus_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteGuiStatus_1.handleDeleteGuiStatus),
+            },
+            // Text Element (TEXTPOOL) high-level handlers
+            {
+                toolDefinition: handleGetTextElement_1.TOOL_DEFINITION,
+                handler: withContext(handleGetTextElement_1.handleGetTextElement),
+            },
+            {
+                toolDefinition: handleCreateTextElement_1.TOOL_DEFINITION,
+                handler: withContext(handleCreateTextElement_1.handleCreateTextElement),
+            },
+            {
+                toolDefinition: handleUpdateTextElement_1.TOOL_DEFINITION,
+                handler: withContext(handleUpdateTextElement_1.handleUpdateTextElement),
+            },
+            {
+                toolDefinition: handleDeleteTextElement_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteTextElement_1.handleDeleteTextElement),
             },
         ];
     }

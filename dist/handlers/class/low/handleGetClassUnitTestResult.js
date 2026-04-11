@@ -54,7 +54,7 @@ async function handleGetClassUnitTestResult(context, args) {
         if (!run_id) {
             return (0, utils_1.return_error)(new Error('run_id is required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
         }

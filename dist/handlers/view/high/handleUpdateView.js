@@ -9,6 +9,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateView = handleUpdateView;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateView',
@@ -64,41 +65,22 @@ async function handleUpdateView(context, params) {
             logger?.debug(`Locking view: ${viewName}`);
             lockHandle = await client.getView().lock({ viewName });
             logger?.debug(`View locked: ${viewName} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`);
-            // Check new code BEFORE update
-            logger?.debug(`Checking new DDL code before update: ${viewName}`);
-            let checkNewCodePassed = false;
-            try {
-                await (0, utils_1.safeCheckOperation)(() => client
-                    .getView()
-                    .check({ viewName, ddlSource: args.ddl_source }, 'inactive'), viewName, {
-                    debug: (message) => logger?.debug(message),
-                });
-                checkNewCodePassed = true;
-                logger?.debug(`New code check passed: ${viewName}`);
-            }
-            catch (checkError) {
-                if (checkError.isAlreadyChecked) {
-                    logger?.debug(`View ${viewName} was already checked - continuing`);
-                    checkNewCodePassed = true;
-                }
-                else {
-                    logger?.error(`New code check failed: ${viewName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                    throw new Error(`New code check failed: ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                }
-            }
-            // Update (only if check passed)
-            if (checkNewCodePassed) {
-                logger?.debug(`Updating view DDL source: ${viewName}`);
-                await client.getView().update({
-                    viewName,
-                    ddlSource: args.ddl_source,
-                    transportRequest: args.transport_request,
-                }, { lockHandle });
-                logger?.info(`View DDL source updated: ${viewName}`);
-            }
-            else {
-                logger?.warn(`Skipping update - new code check failed: ${viewName}`);
-            }
+            // Pre-write syntax check on the proposed DDL source.
+            // Surfaces ALL compile errors with structured diagnostics via
+            // the inline-artifact /checkruns path so the broken source never
+            // lands on SAP.
+            logger?.debug(`Pre-write syntax check: ${viewName}`);
+            const preCheckResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'view', name: viewName, sourceCode: args.ddl_source });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(preCheckResult, 'View', viewName);
+            logger?.debug(`Pre-write check passed: ${viewName}`);
+            // Update
+            logger?.debug(`Updating view DDL source: ${viewName}`);
+            await client.getView().update({
+                viewName,
+                ddlSource: args.ddl_source,
+                transportRequest: args.transport_request,
+            }, { lockHandle });
+            logger?.info(`View DDL source updated: ${viewName}`);
         }
         finally {
             if (lockHandle) {
@@ -112,23 +94,15 @@ async function handleUpdateView(context, params) {
                 }
             }
         }
-        // Check inactive version (after unlock)
-        logger?.debug(`Checking inactive version: ${viewName}`);
+        // Post-write inactive check — non-fatal, warnings only (the
+        // pre-write check already gated the upload).
+        logger?.debug(`Post-write inactive check: ${viewName}`);
         try {
-            await (0, utils_1.safeCheckOperation)(() => client
-                .getView()
-                .check({ viewName, ddlSource: args.ddl_source }, 'inactive'), viewName, {
-                debug: (message) => logger?.debug(message),
-            });
+            await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'view', name: viewName });
             logger?.debug(`Inactive version check completed: ${viewName}`);
         }
         catch (checkError) {
-            if (checkError.isAlreadyChecked) {
-                logger?.debug(`View ${viewName} was already checked - continuing`);
-            }
-            else {
-                logger?.warn(`Inactive version check had issues: ${viewName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-            }
+            logger?.warn(`Inactive version check had issues: ${viewName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`);
         }
         // Activate if requested
         let activateResponse;
@@ -191,6 +165,12 @@ async function handleUpdateView(context, params) {
         });
     }
     catch (error) {
+        // PreCheck syntax-check failures carry full structured diagnostics —
+        // forward them as-is so the caller sees every error with line numbers.
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error updating view ${viewName}: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         // Parse error message
         let errorMessage = error instanceof Error ? error.message : String(error);
         // Attempt to parse ADT XML error

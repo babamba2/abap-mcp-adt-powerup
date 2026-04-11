@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   extractAdtErrorMessage,
   restoreSessionInConnection,
@@ -35,6 +39,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'Test classes lock handle from LockClassTestClassesLow.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-write syntax check. Default: false. When false, runs a syntax check on the parent class after updating the test-classes include and surfaces any errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -59,6 +68,7 @@ interface UpdateClassTestClassesArgs {
   class_name: string;
   test_class_source: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -77,6 +87,7 @@ export async function handleUpdateClassTestClasses(
       class_name,
       test_class_source,
       lock_handle,
+      skip_check,
       session_id,
       session_state,
     } = args as UpdateClassTestClassesArgs;
@@ -109,6 +120,17 @@ export async function handleUpdateClassTestClasses(
       );
       const updateResult = updateState.updateResult;
 
+      // Post-write syntax check on the parent class (unless skipped).
+      // Surfaces ALL compile errors with line numbers — catches bad
+      // test-class code via a class-level /checkruns compile.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'class', name: className },
+        );
+        assertNoCheckErrors(checkResult, 'Class', className);
+      }
+
       logger?.info(`✅ UpdateClassTestClasses completed: ${className}`);
 
       return return_response({
@@ -126,6 +148,15 @@ export async function handleUpdateClassTestClasses(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating test classes for ${className}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       const detailedError = extractAdtErrorMessage(
         error,
         `Failed to update test classes for ${className}`,

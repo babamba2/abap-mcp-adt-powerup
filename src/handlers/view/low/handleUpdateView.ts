@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   restoreSessionInConnection,
   return_error,
@@ -37,6 +41,11 @@ export const TOOL_DEFINITION = {
         description:
           'Lock handle from LockObject. Required for update operation.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip pre-write syntax check on ddl_source. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -61,6 +70,7 @@ interface UpdateViewArgs {
   view_name: string;
   ddl_source: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -80,8 +90,14 @@ export async function handleUpdateView(
 ) {
   const { connection, logger } = context;
   try {
-    const { view_name, ddl_source, lock_handle, session_id, session_state } =
-      args as UpdateViewArgs;
+    const {
+      view_name,
+      ddl_source,
+      lock_handle,
+      skip_check,
+      session_id,
+      session_state,
+    } = args as UpdateViewArgs;
 
     // Validation
     if (!view_name || !ddl_source || !lock_handle) {
@@ -104,6 +120,18 @@ export async function handleUpdateView(
     logger?.info(`Starting view update: ${viewName}`);
 
     try {
+      // Pre-write syntax check on the proposed DDL source (unless
+      // skipped). Surfaces ALL compile errors with line numbers via
+      // the inline /checkruns path, so the broken source never lands
+      // on SAP.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'view', name: viewName, sourceCode: ddl_source },
+        );
+        assertNoCheckErrors(checkResult, 'View', viewName);
+      }
+
       // Update view with DDL source
       const updateState = await client
         .getView()
@@ -137,6 +165,13 @@ export async function handleUpdateView(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(`Error updating view ${viewName}: ${error.message}`);
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating view ${viewName}: ${error?.message || error}`,
       );

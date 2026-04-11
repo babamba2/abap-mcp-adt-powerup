@@ -10,7 +10,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateProgram = handleUpdateProgram;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
-const preflightCheck_1 = require("../../../lib/preflightCheck");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateProgramLow',
@@ -84,8 +84,8 @@ async function handleUpdateProgram(context, args) {
             // SAP stays in the previous working state.
             if (args.skip_check !== true) {
                 logger?.debug(`Pre-write syntax check: ${programName}`);
-                const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName, sourceCode: source_code });
-                (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program', programName);
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName, sourceCode: source_code });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Program', programName);
                 checkWarnings = checkResult.warnings;
                 logger?.debug(`Pre-write syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
             }
@@ -110,8 +110,8 @@ async function handleUpdateProgram(context, args) {
             });
         }
         catch (error) {
-            // Surface preflight failures as-is with their structured diagnostics.
-            if (error?.isPreflightCheckFailure) {
+            // Surface preCheck failures as-is with their structured diagnostics.
+            if (error?.isPreCheckFailure) {
                 logger?.error(`Error updating program ${programName}: ${error.message}`);
                 return (0, utils_1.return_error)(error);
             }

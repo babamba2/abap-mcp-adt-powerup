@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateLocalDefinitions = handleUpdateLocalDefinitions;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateLocalDefinitions',
@@ -56,6 +57,26 @@ async function handleUpdateLocalDefinitions(context, args) {
                 throw new Error(`Update did not return a result for ${className}`);
             }
             logger?.info(`✅ UpdateLocalDefinitions completed successfully: ${className}`);
+            // Post-update syntax check on the parent class. Catches the case
+            // where the new local definitions break the class as a whole
+            // (e.g. unknown type referenced in a method signature). The
+            // update has already been applied at this point — if the check
+            // fails the local definitions stay on SAP as inactive and the
+            // active class version is preserved.
+            let checkWarnings = [];
+            try {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'class', name: className });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Class', className);
+                checkWarnings = checkResult.warnings;
+                logger?.debug(`Post-update syntax check passed: ${className} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+            }
+            catch (checkErr) {
+                if (checkErr?.isPreCheckFailure) {
+                    logger?.error(`Local definitions of ${className} were updated but the class failed post-update syntax check: ${checkErr.message}`);
+                    return (0, utils_1.return_error)(checkErr);
+                }
+                logger?.warn(`Post-update check had issues for ${className}: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+            }
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
                     success: true,
@@ -63,10 +84,15 @@ async function handleUpdateLocalDefinitions(context, args) {
                     transport_request: transport_request || null,
                     activated: activate_on_update,
                     message: `Local definitions updated successfully in ${className}.`,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                 }, null, 2),
             });
         }
         catch (error) {
+            // Forward preCheck failures directly so structured diagnostics survive.
+            if (error?.isPreCheckFailure) {
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating local definitions for ${className}: ${error?.message || error}`);
             const detailedError = (0, utils_1.extractAdtErrorMessage)(error, `Failed to update local definitions in ${className}`);
             let errorMessage = `Failed to update local definitions: ${detailedError}`;

@@ -65,7 +65,7 @@ async function handleUpdateBehaviorImplementation(context, args) {
         logger?.info(`Starting behavior implementation source update: ${className} for ${behaviorDefinition}`);
         try {
             // Create client
-            const client = (0, clients_1.createAdtClient)(connection);
+            const client = (0, clients_1.createAdtClient)(connection, logger);
             // Update behavior implementation using AdtClient chain
             const shouldActivate = activate !== false; // Default to true if not specified
             const updateState = await client.getBehaviorImplementation().update({

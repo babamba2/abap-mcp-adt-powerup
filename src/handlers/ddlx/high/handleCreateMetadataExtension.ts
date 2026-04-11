@@ -4,6 +4,10 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { return_error, return_response } from '../../../lib/utils';
 import { validateTransportRequest } from '../../../utils/transportValidation.js';
 export const TOOL_DEFINITION = {
@@ -83,8 +87,15 @@ export async function handleCreateMetadataExtension(
     const lockHandle = await client.getMetadataExtension().lock({ name: name });
 
     try {
-      // Check
-      await client.getMetadataExtension().check({ name: name });
+      // Post-create syntax check on the staged inactive version.
+      // Surfaces ALL compile errors with structured diagnostics.
+      // NOTE: SAP's /checkruns reporter is known to be weak for DDLX
+      // — this may return empty for some error classes.
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'metadataExtension', name },
+      );
+      assertNoCheckErrors(checkResult, 'Metadata Extension', name);
 
       // Unlock
       await client.getMetadataExtension().unlock({ name: name }, lockHandle);
@@ -124,6 +135,12 @@ export async function handleCreateMetadataExtension(
       config: {} as any,
     });
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error creating DDLX ${name}: ${error.message}`);
+      return return_error(error);
+    }
     logger?.error(`Error creating DDLX ${name}: ${error?.message || error}`);
     return return_error(error);
   }

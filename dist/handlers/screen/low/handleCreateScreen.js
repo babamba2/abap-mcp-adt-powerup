@@ -7,6 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateScreen = handleCreateScreen;
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -25,6 +26,10 @@ exports.TOOL_DEFINITION = {
             dynpro_data: {
                 type: 'string',
                 description: 'Full screen definition as JSON (header, containers, fields_to_containers, flow_logic). If omitted, creates a minimal empty screen.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
             },
             session_id: {
                 type: 'string',
@@ -46,7 +51,7 @@ exports.TOOL_DEFINITION = {
 async function handleCreateScreen(context, args) {
     const { connection, logger } = context;
     try {
-        const { program_name, screen_number, description, dynpro_data, session_id, session_state, } = args;
+        const { program_name, screen_number, description, dynpro_data, skip_check, session_id, session_state, } = args;
         if (!program_name || !screen_number) {
             return (0, utils_1.return_error)(new Error('program_name and screen_number are required'));
         }
@@ -87,6 +92,11 @@ async function handleCreateScreen(context, args) {
             dynpro: screen_number,
             dynpro_data: screenData,
         });
+        // Post-write syntax check on the parent program tree (unless skipped).
+        if (skip_check !== true) {
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'screen', name: programName, parentProgramName: programName });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Screen', `${programName}/${screen_number}`);
+        }
         logger?.info(`✅ Screen created: ${programName}/${screen_number}`);
         return (0, utils_1.return_response)({
             data: JSON.stringify({
@@ -99,6 +109,10 @@ async function handleCreateScreen(context, args) {
         });
     }
     catch (error) {
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error creating screen: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger?.error(`Error creating screen: ${errorMessage}`);
         return (0, utils_1.return_error)(new Error(`Failed to create screen: ${errorMessage}`));

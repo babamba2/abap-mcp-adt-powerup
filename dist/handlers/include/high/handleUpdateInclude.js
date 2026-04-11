@@ -10,6 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateInclude = handleUpdateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -61,6 +62,29 @@ async function handleUpdateInclude(context, params) {
     let currentStep = 'start';
     let checkWarnings = [];
     try {
+        // PRE-WRITE syntax check via /sap/bc/adt/checkruns with the
+        // proposed source embedded as a base64 inline artifact under the
+        // PARENT program's checkObject. This compiles the full program tree
+        // in a single SAP call and returns ALL errors it can detect (with
+        // line numbers), without writing anything to the server. Only fires
+        // when main_program is provided.
+        if (args.main_program) {
+            currentStep = 'check_new_code';
+            const mainProgram = args.main_program.toUpperCase();
+            const programUri = `/sap/bc/adt/programs/programs/${(0, utils_1.encodeSapObjectName)(mainProgram).toLowerCase()}`;
+            const includeArtifactUri = `${baseUrl}/source/main`;
+            logger?.debug(`Pre-write inline check: program=${mainProgram}, include=${includeName}`);
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, {
+                kind: 'programTreeInline',
+                name: mainProgram,
+                parentObjectUri: programUri,
+                inlineArtifactUri: includeArtifactUri,
+                inlineSourceCode: args.source_code,
+            });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Include', includeName);
+            checkWarnings = checkResult.warnings;
+            logger?.info(`Pre-write check passed: ${includeName} via ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+        }
         // NOTE on include syntax checking:
         //
         // SAP's /sap/bc/adt/checkruns reporter does NOT reliably catch
@@ -139,7 +163,17 @@ async function handleUpdateInclude(context, params) {
             // 200 on activation WITH errors — the errors are in the body as
             // <chkl:messages> with type="E". If any E-type messages are
             // present, the activation didn't actually promote the inactive
-            // version; we surface the errors to the caller.
+            // version; we surface ALL errors to the caller.
+            //
+            // Multi-error support: SAP's activation endpoint returns ALL
+            // compile errors it detects in a single call, including
+            // cross-reference errors from the parent program tree (e.g.
+            // PERFORM calls to FORMs that no longer exist in the updated
+            // include). Verified empirically — a single broken include
+            // returned 9 errors in one call. Each error has its own line
+            // number, extracted from the href fragment
+            // (`#start=line,col;end=line,col`) when SAP sets the misleading
+            // line="1" attribute.
             const activationBody = typeof activationResponse.data === 'string'
                 ? activationResponse.data
                 : String(activationResponse.data ?? '');
@@ -151,21 +185,33 @@ async function handleUpdateInclude(context, params) {
                     removeNSPrefix: true,
                 });
                 const parsed = actParser.parse(activationBody);
-                const messages = parsed?.messages?.msg ??
-                    parsed?.['chkl:messages']?.msg ??
-                    [];
-                const msgArray = Array.isArray(messages) ? messages : messages ? [messages] : [];
+                const messages = parsed?.messages?.msg ?? parsed?.['chkl:messages']?.msg ?? [];
+                const msgArray = Array.isArray(messages)
+                    ? messages
+                    : messages
+                        ? [messages]
+                        : [];
                 const activationErrors = [];
                 const activationWarnings = [];
                 for (const msg of msgArray) {
                     if (!msg || typeof msg !== 'object')
                         continue;
                     const msgType = String(msg['@_type'] || msg.type || '').toUpperCase();
-                    const shortText = (msg.shortText && (msg.shortText['#text'] || msg.shortText.txt || msg.shortText)) ||
+                    const shortText = (msg.shortText &&
+                        (msg.shortText['#text'] || msg.shortText.txt || msg.shortText)) ||
                         msg['@_shortText'] ||
                         '';
-                    const line = msg['@_line'] || msg.line;
+                    const rawLine = msg['@_line'] || msg.line;
                     const href = msg['@_href'] || msg.href;
+                    // SAP often sets line="1" as a placeholder and embeds the
+                    // real line/column in the href fragment
+                    // (`#start=line,col;end=line,col`). Prefer that when present.
+                    let line = rawLine;
+                    if (typeof href === 'string') {
+                        const m = href.match(/#start=(\d+),/);
+                        if (m)
+                            line = m[1];
+                    }
                     const entry = {
                         type: msgType,
                         text: String(shortText),
@@ -182,7 +228,7 @@ async function handleUpdateInclude(context, params) {
                         .map((e) => `${e.line ? `[L${e.line}] ` : ''}${e.text}`)
                         .join(' | ');
                     const err = new Error(`Include ${includeName} activation failed (${activationErrors.length} error${activationErrors.length === 1 ? '' : 's'}): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`);
-                    err.isPreflightCheckFailure = true;
+                    err.isPreCheckFailure = true;
                     err.checkErrors = activationErrors;
                     err.checkWarnings = activationWarnings;
                     throw err;
@@ -252,8 +298,8 @@ async function handleUpdateInclude(context, params) {
         const statusCode = error.response?.status;
         const statusPart = statusCode ? ` [${statusCode}]` : '';
         logger?.error(`Error updating include ${includeName} at step=${currentStep}${statusPart}: ${errorMessage}`);
-        // Surface preflight-check details so the caller can fix & retry.
-        if (error?.isPreflightCheckFailure) {
+        // Surface preCheck-check details so the caller can fix & retry.
+        if (error?.isPreCheckFailure) {
             const errWithDetails = new Error(`Failed to update include ${includeName} at step=${currentStep}: ${errorMessage}`);
             errWithDetails.checkErrors = error.checkErrors;
             errWithDetails.checkWarnings = error.checkWarnings;

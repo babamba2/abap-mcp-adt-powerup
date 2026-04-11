@@ -65,7 +65,9 @@ async function handleDeleteGuiStatus(context, params) {
         // it does NOT edit rsmpe_stat/rsmpe_titt/rsmpe_staf. To actually
         // remove a status from the source we fetch the current CUA, drop
         // the matching STA/TIT/SET rows, and CUA_WRITE the result back.
-        const { result: cuaResult } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', { program: programName });
+        const { result: cuaResult } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
+            program: programName,
+        });
         if (!cuaResult || typeof cuaResult !== 'object') {
             throw new Error(`Could not fetch CUA data for program ${programName} prior to delete.`);
         }

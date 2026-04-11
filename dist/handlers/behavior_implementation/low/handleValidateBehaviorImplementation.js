@@ -68,7 +68,7 @@ async function handleValidateBehaviorImplementation(context, args) {
         if (!class_name || !behavior_definition || !package_name || !description) {
             return (0, utils_1.return_error)(new Error('class_name, behavior_definition, package_name, and description are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);

@@ -9,7 +9,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateProgram = handleUpdateProgram;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
-const preflightCheck_1 = require("../../../lib/preflightCheck");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateProgram',
@@ -62,16 +62,16 @@ async function handleUpdateProgram(context, params) {
             logger?.debug(`Locking program: ${programName}`);
             lockHandle = await client.getProgram().lock({ programName });
             logger?.debug(`Program locked: ${programName} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`);
-            // Preflight syntax check on the new source BEFORE upload.
+            // PreCheck syntax check on the new source BEFORE upload.
             // If this throws, we never PUT the broken code, so the program
             // stays in its previous working state.
             logger?.debug(`Checking new source code before update: ${programName}`);
-            const preCheckResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, {
+            const preCheckResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, {
                 kind: 'program',
                 name: programName,
                 sourceCode: args.source_code,
             });
-            (0, preflightCheck_1.assertNoCheckErrors)(preCheckResult, 'Program', programName);
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(preCheckResult, 'Program', programName);
             checkWarnings = preCheckResult.warnings;
             logger?.debug(`New code check passed: ${programName}`);
             // Update
@@ -100,7 +100,7 @@ async function handleUpdateProgram(context, params) {
         // transport/tooling issues on this pass don't abort the flow.
         logger?.debug(`Checking inactive version: ${programName}`);
         try {
-            const postCheckResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
+            const postCheckResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
             if (postCheckResult.warnings.length > 0) {
                 checkWarnings = [...checkWarnings, ...postCheckResult.warnings];
             }
@@ -175,9 +175,9 @@ async function handleUpdateProgram(context, params) {
         });
     }
     catch (error) {
-        // Preflight syntax-check failures carry full structured diagnostics —
+        // PreCheck syntax-check failures carry full structured diagnostics —
         // surface as-is so the caller sees every error with line numbers.
-        if (error?.isPreflightCheckFailure) {
+        if (error?.isPreCheckFailure) {
             logger?.error(`Error updating program source ${programName}: ${error.message}`);
             return (0, utils_1.return_error)(error);
         }

@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   restoreSessionInConnection,
   return_error,
@@ -36,6 +40,11 @@ export const TOOL_DEFINITION = {
         description:
           'Lock handle from LockObject. Required for update operation.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          "Skip post-write syntax check. Default: false. NOTE: SAP's /checkruns reporter is weak for DDLX — may return empty results for some error classes.",
+      },
       session_id: {
         type: 'string',
         description:
@@ -60,6 +69,7 @@ interface UpdateMetadataExtensionArgs {
   name: string;
   source_code: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -79,8 +89,14 @@ export async function handleUpdateMetadataExtension(
 ) {
   const { connection, logger } = context;
   try {
-    const { name, source_code, lock_handle, session_id, session_state } =
-      args as UpdateMetadataExtensionArgs;
+    const {
+      name,
+      source_code,
+      lock_handle,
+      skip_check,
+      session_id,
+      session_state,
+    } = args as UpdateMetadataExtensionArgs;
 
     // Validation
     if (!name || !source_code || !lock_handle) {
@@ -121,6 +137,21 @@ export async function handleUpdateMetadataExtension(
         );
       }
 
+      // Post-write syntax check (unless skipped). Surfaces ALL compile
+      // errors with structured diagnostics. NOTE: SAP's /checkruns
+      // reporter is weak for DDLX — may return empty for some errors.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'metadataExtension', name: metadataExtensionName },
+        );
+        assertNoCheckErrors(
+          checkResult,
+          'Metadata Extension',
+          metadataExtensionName,
+        );
+      }
+
       // Get updated session state after update
 
       logger?.info(
@@ -141,6 +172,15 @@ export async function handleUpdateMetadataExtension(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating metadata extension ${metadataExtensionName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating metadata extension ${metadataExtensionName}: ${error?.message || error}`,
       );

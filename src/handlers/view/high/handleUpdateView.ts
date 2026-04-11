@@ -8,11 +8,14 @@ import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   encodeSapObjectName,
   return_error,
   return_response,
-  safeCheckOperation,
 } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
@@ -93,51 +96,29 @@ export async function handleUpdateView(context: HandlerContext, params: any) {
         `View locked: ${viewName} (handle=${lockHandle ? `${lockHandle.substring(0, 8)}...` : 'none'})`,
       );
 
-      // Check new code BEFORE update
-      logger?.debug(`Checking new DDL code before update: ${viewName}`);
-      let checkNewCodePassed = false;
-      try {
-        await safeCheckOperation(
-          () =>
-            client
-              .getView()
-              .check({ viewName, ddlSource: args.ddl_source }, 'inactive'),
-          viewName,
-          {
-            debug: (message: string) => logger?.debug(message),
-          },
-        );
-        checkNewCodePassed = true;
-        logger?.debug(`New code check passed: ${viewName}`);
-      } catch (checkError: any) {
-        if ((checkError as any).isAlreadyChecked) {
-          logger?.debug(`View ${viewName} was already checked - continuing`);
-          checkNewCodePassed = true;
-        } else {
-          logger?.error(
-            `New code check failed: ${viewName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-          );
-          throw new Error(
-            `New code check failed: ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-          );
-        }
-      }
+      // Pre-write syntax check on the proposed DDL source.
+      // Surfaces ALL compile errors with structured diagnostics via
+      // the inline-artifact /checkruns path so the broken source never
+      // lands on SAP.
+      logger?.debug(`Pre-write syntax check: ${viewName}`);
+      const preCheckResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'view', name: viewName, sourceCode: args.ddl_source },
+      );
+      assertNoCheckErrors(preCheckResult, 'View', viewName);
+      logger?.debug(`Pre-write check passed: ${viewName}`);
 
-      // Update (only if check passed)
-      if (checkNewCodePassed) {
-        logger?.debug(`Updating view DDL source: ${viewName}`);
-        await client.getView().update(
-          {
-            viewName,
-            ddlSource: args.ddl_source,
-            transportRequest: args.transport_request,
-          },
-          { lockHandle },
-        );
-        logger?.info(`View DDL source updated: ${viewName}`);
-      } else {
-        logger?.warn(`Skipping update - new code check failed: ${viewName}`);
-      }
+      // Update
+      logger?.debug(`Updating view DDL source: ${viewName}`);
+      await client.getView().update(
+        {
+          viewName,
+          ddlSource: args.ddl_source,
+          transportRequest: args.transport_request,
+        },
+        { lockHandle },
+      );
+      logger?.info(`View DDL source updated: ${viewName}`);
     } finally {
       if (lockHandle) {
         try {
@@ -152,28 +133,21 @@ export async function handleUpdateView(context: HandlerContext, params: any) {
       }
     }
 
-    // Check inactive version (after unlock)
-    logger?.debug(`Checking inactive version: ${viewName}`);
+    // Post-write inactive check — non-fatal, warnings only (the
+    // pre-write check already gated the upload).
+    logger?.debug(`Post-write inactive check: ${viewName}`);
     try {
-      await safeCheckOperation(
-        () =>
-          client
-            .getView()
-            .check({ viewName, ddlSource: args.ddl_source }, 'inactive'),
-        viewName,
-        {
-          debug: (message: string) => logger?.debug(message),
-        },
+      await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'view', name: viewName },
       );
       logger?.debug(`Inactive version check completed: ${viewName}`);
     } catch (checkError: any) {
-      if ((checkError as any).isAlreadyChecked) {
-        logger?.debug(`View ${viewName} was already checked - continuing`);
-      } else {
-        logger?.warn(
-          `Inactive version check had issues: ${viewName} - ${checkError instanceof Error ? checkError.message : String(checkError)}`,
-        );
-      }
+      logger?.warn(
+        `Inactive version check had issues: ${viewName} - ${
+          checkError instanceof Error ? checkError.message : String(checkError)
+        }`,
+      );
     }
 
     // Activate if requested
@@ -248,6 +222,13 @@ export async function handleUpdateView(context: HandlerContext, params: any) {
       config: {} as any,
     } as AxiosResponse);
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error updating view ${viewName}: ${error.message}`);
+      return return_error(error);
+    }
+
     // Parse error message
     let errorMessage = error instanceof Error ? error.message : String(error);
 

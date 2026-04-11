@@ -8,6 +8,10 @@ import type {
 } from '@mcp-abap-adt/adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { return_error, return_response } from '../../../lib/utils';
 import { validateTransportRequest } from '../../../utils/transportValidation.js';
 
@@ -120,11 +124,13 @@ export async function handleCreateBehaviorDefinition(
     const lockHandle = await client.getBehaviorDefinition().lock(lockConfig);
 
     try {
-      // Check (optional, but good practice) - using types from adt-clients
-      const checkConfig: Pick<IBehaviorDefinitionConfig, 'name'> = {
-        name,
-      };
-      await client.getBehaviorDefinition().check(checkConfig);
+      // Post-create syntax check on the staged inactive version.
+      // Surfaces ALL compile errors with structured diagnostics.
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'behaviorDefinition', name },
+      );
+      assertNoCheckErrors(checkResult, 'Behavior Definition', name);
 
       // Unlock - using types from adt-clients
       const unlockConfig: Pick<IBehaviorDefinitionConfig, 'name'> = {
@@ -174,6 +180,12 @@ export async function handleCreateBehaviorDefinition(
       config: {} as any,
     });
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error creating BDEF ${name}: ${error.message}`);
+      return return_error(error);
+    }
     logger?.error(`Error creating BDEF ${name}: ${error?.message || error}`);
     return return_error(error);
   }

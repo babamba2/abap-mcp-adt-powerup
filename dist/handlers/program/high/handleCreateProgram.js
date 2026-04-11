@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateProgram = handleCreateProgram;
 const clients_1 = require("../../../lib/clients");
-const preflightCheck_1 = require("../../../lib/preflightCheck");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -114,14 +114,14 @@ async function handleCreateProgram(context, params) {
         let checkWarnings = [];
         try {
             logger?.debug(`Post-create syntax check: ${programName}`);
-            const checkResult = await (0, preflightCheck_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
-            (0, preflightCheck_1.assertNoCheckErrors)(checkResult, 'Program', programName);
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'program', name: programName });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Program', programName);
             checkWarnings = checkResult.warnings;
             stepsCompleted.push('check');
             logger?.debug(`Post-create syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
         }
         catch (checkErr) {
-            if (checkErr?.isPreflightCheckFailure) {
+            if (checkErr?.isPreCheckFailure) {
                 logger?.error(`Program ${programName} was created but failed post-create syntax check: ${checkErr.message}`);
                 return (0, utils_1.return_error)(checkErr);
             }

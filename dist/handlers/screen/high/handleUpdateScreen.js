@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateScreen = handleUpdateScreen;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
@@ -80,6 +81,12 @@ async function handleUpdateScreen(context, params) {
             dynpro: args.screen_number,
             dynpro_data: args.dynpro_data,
         });
+        // Post-write syntax check on the parent program tree. Dynpros
+        // have no standalone check — flow-logic errors surface as errors
+        // in the parent program's compile. Runs while still locked so the
+        // unlock/activate path sees the same inactive version.
+        const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'screen', name: programName, parentProgramName: programName });
+        (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Screen', `${programName}/${args.screen_number}`);
         // Unlock
         if (lockHandle) {
             await (0, utils_1.makeAdtRequestWithTimeout)(connection, `${programUrl}?_action=UNLOCK&lockHandle=${encodeURIComponent(lockHandle)}`, 'POST', 'default');
@@ -124,6 +131,12 @@ async function handleUpdateScreen(context, params) {
             catch {
                 /* ignore */
             }
+        }
+        // PreCheck syntax-check failures carry full structured diagnostics —
+        // forward them as-is so the caller sees every error with line numbers.
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error updating screen: ${error.message}`);
+            return (0, utils_1.return_error)(error);
         }
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger?.error(`Error updating screen: ${errorMessage}`);

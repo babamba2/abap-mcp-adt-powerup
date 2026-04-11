@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateMetadataExtension = handleCreateMetadataExtension;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -66,8 +67,12 @@ async function handleCreateMetadataExtension(context, params) {
         // Lock
         const lockHandle = await client.getMetadataExtension().lock({ name: name });
         try {
-            // Check
-            await client.getMetadataExtension().check({ name: name });
+            // Post-create syntax check on the staged inactive version.
+            // Surfaces ALL compile errors with structured diagnostics.
+            // NOTE: SAP's /checkruns reporter is known to be weak for DDLX
+            // — this may return empty for some error classes.
+            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'metadataExtension', name });
+            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Metadata Extension', name);
             // Unlock
             await client.getMetadataExtension().unlock({ name: name }, lockHandle);
             // Activate if requested
@@ -104,6 +109,12 @@ async function handleCreateMetadataExtension(context, params) {
         });
     }
     catch (error) {
+        // PreCheck syntax-check failures carry full structured diagnostics —
+        // forward them as-is so the caller sees every error with line numbers.
+        if (error?.isPreCheckFailure) {
+            logger?.error(`Error creating DDLX ${name}: ${error.message}`);
+            return (0, utils_1.return_error)(error);
+        }
         logger?.error(`Error creating DDLX ${name}: ${error?.message || error}`);
         return (0, utils_1.return_error)(error);
     }

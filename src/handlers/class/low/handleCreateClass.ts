@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   return_error,
   return_response,
@@ -55,6 +59,11 @@ export const TOOL_DEFINITION = {
         type: 'boolean',
         description: 'Create protected section (optional, default: false).',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-create syntax check. Default: false. When false, runs a syntax check on the newly created class shell and surfaces any errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -84,6 +93,7 @@ interface CreateClassArgs {
   final?: boolean;
   abstract?: boolean;
   create_protected?: boolean;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -112,6 +122,7 @@ export async function handleCreateClass(
       final,
       abstract,
       create_protected,
+      skip_check,
       session_id,
       session_state,
     } = args;
@@ -159,6 +170,17 @@ export async function handleCreateClass(
         );
       }
 
+      // Post-create syntax check on the freshly created empty class
+      // shell (unless skipped). Belt-and-suspenders — catches cases
+      // where the shell landed in a broken state.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'class', name: className },
+        );
+        assertNoCheckErrors(checkResult, 'Class', className);
+      }
+
       // Get updated session state after create
 
       logger?.info(`✅ CreateClass completed: ${className}`);
@@ -180,6 +202,13 @@ export async function handleCreateClass(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(`Error creating class ${className}: ${error.message}`);
+        return return_error(error);
+      }
+
       logger?.error(
         `Error creating class ${className}: ${error.message || String(error)}`,
       );

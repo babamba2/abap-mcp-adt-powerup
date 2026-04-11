@@ -111,7 +111,7 @@ async function handleValidateObject(context, args) {
         if (!validTypes.includes(normalizedType)) {
             return (0, utils_1.return_error)(new Error(`Invalid object_type. Must be one of: ${validTypes.join(', ')}`));
         }
-        const validationClient = (0, clients_1.createAdtClient)(connection);
+        const validationClient = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);

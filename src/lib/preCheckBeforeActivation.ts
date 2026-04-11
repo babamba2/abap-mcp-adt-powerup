@@ -1,5 +1,5 @@
 /**
- * Preflight syntax check helper
+ * PreCheck syntax check helper
  *
  * Wraps `/sap/bc/adt/checkruns` calls (and the per-type `client.getXxx().check()`
  * methods) in a single dispatcher so Create/Update handlers across every ABAP
@@ -49,14 +49,14 @@ import {
   safeCheckOperation,
 } from './utils';
 
-type PreflightLogger = {
+type PreCheckLogger = {
   debug?: (msg: string) => void;
   info?: (msg: string) => void;
   warn?: (msg: string) => void;
   error?: (msg: string) => void;
 };
 
-export type PreflightCheckKind =
+export type PreCheckKind =
   | 'program'
   | 'programTree'
   | 'programTreeInline'
@@ -68,10 +68,11 @@ export type PreflightCheckKind =
   | 'behaviorDefinition'
   | 'behaviorImplementation'
   | 'serviceDefinition'
-  | 'screen';
+  | 'screen'
+  | 'view';
 
 export interface RunSyntaxCheckArgs {
-  kind: PreflightCheckKind;
+  kind: PreCheckKind;
   /** Target object name (uppercased internally). */
   name: string;
   /**
@@ -96,6 +97,20 @@ export interface RunSyntaxCheckArgs {
    * nothing is written to the server.
    */
   inlineSourceCode?: string;
+  /**
+   * Optional override for the OUTER `<chkrun:checkObject adtcore:uri>`
+   * when running a `programTreeInline` check. If omitted, the outer URI
+   * is derived by stripping `/source/main` from `inlineArtifactUri`
+   * (matching AdtClient's standard same-object substitution pattern).
+   *
+   * Set this when you want SAP to compile the PARENT program tree with
+   * the inline source substituted at a CHILD URI — e.g. compiling
+   * `/sap/bc/adt/programs/programs/zfoo` with the source of an include
+   * `/sap/bc/adt/programs/includes/zfoo_inc1/source/main` replaced by
+   * the proposed new content. This enables true program-wide multi-error
+   * detection for include updates.
+   */
+  parentObjectUri?: string;
 }
 
 const EMPTY_RESULT: ParsedCheckRunResult = {
@@ -111,12 +126,12 @@ const EMPTY_RESULT: ParsedCheckRunResult = {
 };
 
 /**
- * Preflight syntax check dispatcher.
+ * PreCheck syntax check dispatcher.
  * Returns a ParsedCheckRunResult; throws only on transport/unknown errors.
  * "Already checked" responses are normalised to an empty-success result.
  */
 export async function runSyntaxCheck(
-  context: { connection: IAbapConnection; logger?: PreflightLogger },
+  context: { connection: IAbapConnection; logger?: PreCheckLogger },
   args: RunSyntaxCheckArgs,
 ): Promise<ParsedCheckRunResult> {
   const { connection, logger } = context;
@@ -129,14 +144,23 @@ export async function runSyntaxCheck(
 
     switch (args.kind) {
       case 'program': {
+        // When sourceCode is provided, run a raw inline-artifact
+        // /checkruns ourselves so we get the FULL parsed response
+        // (every error with line number) instead of AdtClient's
+        // throw-on-first-error wrapper. Without sourceCode, fall back
+        // to the AdtClient post-write check.
+        if (args.sourceCode !== undefined) {
+          const programUri = `/sap/bc/adt/programs/programs/${encodeSapObjectName(name).toLowerCase()}`;
+          return await runInlineArtifactCheck(
+            connection,
+            programUri,
+            `${programUri}/source/main`,
+            args.sourceCode,
+            logger,
+          );
+        }
         const state: any = await safeCheckOperation(
-          () =>
-            client
-              .getProgram()
-              .check(
-                { programName: name, sourceCode: args.sourceCode },
-                'inactive',
-              ),
+          () => client.getProgram().check({ programName: name }, 'inactive'),
           name,
           debugLogger,
         );
@@ -145,14 +169,18 @@ export async function runSyntaxCheck(
       }
 
       case 'class': {
+        if (args.sourceCode !== undefined) {
+          const classUri = `/sap/bc/adt/oo/classes/${encodeSapObjectName(name).toLowerCase()}`;
+          return await runInlineArtifactCheck(
+            connection,
+            classUri,
+            `${classUri}/source/main`,
+            args.sourceCode,
+            logger,
+          );
+        }
         const state: any = await safeCheckOperation(
-          () =>
-            client
-              .getClass()
-              .check(
-                { className: name, sourceCode: args.sourceCode },
-                'inactive',
-              ),
+          () => client.getClass().check({ className: name }, 'inactive'),
           name,
           debugLogger,
         );
@@ -161,14 +189,19 @@ export async function runSyntaxCheck(
       }
 
       case 'interface': {
+        if (args.sourceCode !== undefined) {
+          const interfaceUri = `/sap/bc/adt/oo/interfaces/${encodeSapObjectName(name).toLowerCase()}`;
+          return await runInlineArtifactCheck(
+            connection,
+            interfaceUri,
+            `${interfaceUri}/source/main`,
+            args.sourceCode,
+            logger,
+          );
+        }
         const state: any = await safeCheckOperation(
           () =>
-            client
-              .getInterface()
-              .check(
-                { interfaceName: name, sourceCode: args.sourceCode },
-                'inactive',
-              ),
+            client.getInterface().check({ interfaceName: name }, 'inactive'),
           name,
           debugLogger,
         );
@@ -182,37 +215,44 @@ export async function runSyntaxCheck(
             'functionGroupName is required for functionModule syntax check',
           );
         }
-        const state: any = await safeCheckOperation(
-          () =>
-            client.getFunctionModule().check({
-              functionModuleName: name,
-              functionGroupName: args.functionGroupName!.toUpperCase(),
-            }),
-          name,
-          debugLogger,
+        // Raw /checkruns POST on the function module URI. Bypasses
+        // AdtClient's throw-on-first-error wrapper so that all compile
+        // errors come back in one parsed response with line numbers.
+        const fgEncoded = encodeSapObjectName(
+          args.functionGroupName.toUpperCase(),
+        ).toLowerCase();
+        const fmEncoded = encodeSapObjectName(name).toLowerCase();
+        return await runRawCheckRun(
+          connection,
+          `/sap/bc/adt/functions/groups/${fgEncoded}/fmodules/${fmEncoded}`,
+          logger,
         );
-        rawResponse = state?.checkResult;
-        break;
       }
 
       case 'metadataExtension': {
-        const state: any = await safeCheckOperation(
-          () => client.getMetadataExtension().check({ name }),
-          name,
-          debugLogger,
+        // Raw /checkruns POST on the metadata extension URI. Bypasses
+        // AdtClient's throw-on-first-error wrapper. NOTE: SAP's
+        // /checkruns reporter is known to be weak for DDLX — it may
+        // return empty results for broken metadata extensions. If this
+        // proves insufficient, the handler should fall back to
+        // activation-as-check (parse chkl:messages from activation
+        // response) similar to the include handler.
+        return await runRawCheckRun(
+          connection,
+          `/sap/bc/adt/ddic/ddlx/sources/${encodeSapObjectName(name).toLowerCase()}`,
+          logger,
         );
-        rawResponse = state?.checkResult;
-        break;
       }
 
       case 'behaviorDefinition': {
-        const state: any = await safeCheckOperation(
-          () => client.getBehaviorDefinition().check({ name }),
-          name,
-          debugLogger,
+        // Raw /checkruns POST on the BDEF URI. Bypasses AdtClient's
+        // throw-on-first-error wrapper so that all compile errors come
+        // back in one parsed response.
+        return await runRawCheckRun(
+          connection,
+          `/sap/bc/adt/bo/behaviordefinitions/${encodeSapObjectName(name).toLowerCase()}`,
+          logger,
         );
-        rawResponse = state?.checkResult;
-        break;
       }
 
       case 'behaviorImplementation': {
@@ -238,16 +278,14 @@ export async function runSyntaxCheck(
       }
 
       case 'serviceDefinition': {
-        const state: any = await safeCheckOperation(
-          () =>
-            client
-              .getServiceDefinition()
-              .check({ serviceDefinitionName: name }),
-          name,
-          debugLogger,
+        // Raw /checkruns POST on the service definition URI. Bypasses
+        // AdtClient's throw-on-first-error wrapper so all compile
+        // errors come back in one parsed response.
+        return await runRawCheckRun(
+          connection,
+          `/sap/bc/adt/ddic/srvd/sources/${encodeSapObjectName(name).toLowerCase()}`,
+          logger,
         );
-        rawResponse = state?.checkResult;
-        break;
       }
 
       case 'include': {
@@ -278,16 +316,22 @@ export async function runSyntaxCheck(
         // compiles it in-place, and returns real errors if the new
         // content is broken.
         //
-        // The `inlineArtifactUri` is the child source URI (e.g.
-        // `.../includes/zxyz/source/main`). AdtClient's convention is
-        // that the outer checkObject URI is the parent of the artifact
-        // URI — we derive it by stripping the trailing `/source/main`.
+        // - When `parentObjectUri` is set, the outer checkObject URI is
+        //   the PARENT (e.g. main program), enabling program-wide
+        //   compilation with the include source substituted. This is the
+        //   only known path that returns multi-error responses for
+        //   include updates.
+        // - Otherwise, the outer URI is derived by stripping
+        //   `/source/main` from `inlineArtifactUri` — AdtClient's
+        //   standard same-object substitution.
         if (!args.inlineArtifactUri || args.inlineSourceCode === undefined) {
           throw new Error(
             'programTreeInline requires inlineArtifactUri and inlineSourceCode',
           );
         }
-        const outerUri = args.inlineArtifactUri.replace(/\/source\/main$/, '');
+        const outerUri =
+          args.parentObjectUri ??
+          args.inlineArtifactUri.replace(/\/source\/main$/, '');
         return await runInlineArtifactCheck(
           connection,
           outerUri,
@@ -298,26 +342,43 @@ export async function runSyntaxCheck(
       }
 
       case 'screen': {
-        // Dynpros have no standalone syntax check — run a program-scoped
+        // Dynpros have no standalone syntax check — run a program-tree
         // check on the parent so flow-logic errors surface there.
+        // Uses raw /checkruns to bypass AdtClient's throw-on-first-error
+        // wrapper so that all compile errors come back in one response.
         const parent = (args.parentProgramName || '').toUpperCase();
         if (!parent) {
           throw new Error(
             'parentProgramName is required for screen syntax check',
           );
         }
-        const state: any = await safeCheckOperation(
-          () => client.getProgram().check({ programName: parent }, 'inactive'),
-          parent,
-          debugLogger,
-        );
-        rawResponse = state?.checkResult;
-        break;
+        return await runProgramTreeCheck(connection, parent, logger);
+      }
+
+      case 'view': {
+        // CDS views (DDLS). Pre-write: inline-artifact check with
+        // proposed DDL source substituted into the view URI so we
+        // never write broken source to the server. Post-write / no
+        // sourceCode: raw /checkruns on the view URI to validate
+        // whatever is currently staged. Both paths bypass the
+        // AdtClient throw-on-first-error wrapper so that ALL compile
+        // errors come back in one parsed response.
+        const viewUri = `/sap/bc/adt/ddic/ddl/sources/${encodeSapObjectName(name).toLowerCase()}`;
+        if (args.sourceCode !== undefined) {
+          return await runInlineArtifactCheck(
+            connection,
+            viewUri,
+            `${viewUri}/source/main`,
+            args.sourceCode,
+            logger,
+          );
+        }
+        return await runRawCheckRun(connection, viewUri, logger);
       }
 
       default: {
         const unknown: never = args.kind;
-        throw new Error(`Unsupported preflight check kind: ${String(unknown)}`);
+        throw new Error(`Unsupported preCheck kind: ${String(unknown)}`);
       }
     }
 
@@ -361,7 +422,7 @@ async function runInlineArtifactCheck(
   outerUri: string,
   artifactUri: string,
   sourceCode: string,
-  logger?: PreflightLogger,
+  logger?: PreCheckLogger,
 ): Promise<ParsedCheckRunResult> {
   const base64Source = Buffer.from(sourceCode, 'utf-8').toString('base64');
 
@@ -411,7 +472,7 @@ async function runInlineArtifactCheck(
 async function runRawCheckRun(
   connection: IAbapConnection,
   objectUri: string,
-  logger?: PreflightLogger,
+  logger?: PreCheckLogger,
   version: 'active' | 'inactive' = 'inactive',
 ): Promise<ParsedCheckRunResult> {
   const body =
@@ -453,7 +514,7 @@ async function runRawCheckRun(
 async function listIncludesOfProgram(
   connection: IAbapConnection,
   mainProgramName: string,
-  logger?: PreflightLogger,
+  logger?: PreCheckLogger,
 ): Promise<string[]> {
   const programUpper = mainProgramName.toUpperCase();
   // NOTE: Data Preview freestyle doesn't support `<>` — filter client-side.
@@ -557,7 +618,7 @@ async function listIncludesOfProgram(
 async function runProgramTreeCheck(
   connection: IAbapConnection,
   mainProgramName: string,
-  logger?: PreflightLogger,
+  logger?: PreCheckLogger,
 ): Promise<ParsedCheckRunResult> {
   const programUpper = mainProgramName.toUpperCase();
   const programUri = `/sap/bc/adt/programs/programs/${encodeSapObjectName(programUpper).toLowerCase()}`;
@@ -588,7 +649,7 @@ async function perIncludeSweep(
   connection: IAbapConnection,
   mainProgramName: string,
   seed: ParsedCheckRunResult,
-  logger?: PreflightLogger,
+  logger?: PreCheckLogger,
 ): Promise<ParsedCheckRunResult> {
   const includes = await listIncludesOfProgram(
     connection,
@@ -704,12 +765,12 @@ export function assertNoCheckErrors(
     })
     .join(' | ');
 
-  const message = `${kind} ${name} preflight syntax check failed (${realErrors.length} error${
+  const message = `${kind} ${name} preCheck syntax check failed (${realErrors.length} error${
     realErrors.length === 1 ? '' : 's'
   }): ${full}`;
 
   const error: any = new Error(message);
-  error.isPreflightCheckFailure = true;
+  error.isPreCheckFailure = true;
   error.checkErrors = realErrors;
   error.checkWarnings = result.warnings;
   throw error;

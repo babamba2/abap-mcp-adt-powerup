@@ -154,7 +154,7 @@ async function handleUpdateDataElement(context, args) {
             };
             const typeKind = typeKindMap[rawTypeKind] || 'domain';
             // Create client
-            const client = (0, clients_1.createAdtClient)(connection);
+            const client = (0, clients_1.createAdtClient)(connection, logger);
             const shouldActivate = typedArgs.activate !== false; // Default to true if not specified
             // Validate (for update, "already exists" is expected - object must exist)
             let updateState;

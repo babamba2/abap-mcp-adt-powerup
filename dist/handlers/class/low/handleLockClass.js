@@ -38,7 +38,7 @@ async function handleLockClass(context, args) {
         if (!class_name) {
             return (0, utils_1.return_error)(new Error('class_name is required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         const className = class_name.toUpperCase();
         logger?.info(`Starting class lock: ${className}`);
         try {

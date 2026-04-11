@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateInterface = handleCreateInterface;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -70,6 +71,23 @@ async function handleCreateInterface(context, args) {
                 transportRequest,
             });
             logger?.info(`Interface created: ${interfaceName}`);
+            // Post-create sanity syntax check on the empty interface shell.
+            const stepsCompleted = ['create'];
+            let checkWarnings = [];
+            try {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'interface', name: interfaceName });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Interface', interfaceName);
+                checkWarnings = checkResult.warnings;
+                stepsCompleted.push('check');
+                logger?.debug(`Post-create syntax check passed: ${interfaceName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+            }
+            catch (checkErr) {
+                if (checkErr?.isPreCheckFailure) {
+                    logger?.error(`Interface ${interfaceName} was created but failed post-create syntax check: ${checkErr.message}`);
+                    return (0, utils_1.return_error)(checkErr);
+                }
+                logger?.warn(`Post-create check had issues for ${interfaceName}: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+            }
             const result = {
                 success: true,
                 interface_name: interfaceName,
@@ -78,7 +96,8 @@ async function handleCreateInterface(context, args) {
                 type: 'INTF/OI',
                 message: `Interface ${interfaceName} created successfully. Use UpdateInterface to set source code.`,
                 uri: `/sap/bc/adt/oo/interfaces/${(0, utils_1.encodeSapObjectName)(interfaceName).toLowerCase()}`,
-                steps_completed: ['create'],
+                steps_completed: stepsCompleted,
+                check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
             };
             return (0, utils_1.return_response)({
                 data: JSON.stringify(result, null, 2),
@@ -89,6 +108,9 @@ async function handleCreateInterface(context, args) {
             });
         }
         catch (error) {
+            if (error?.isPreCheckFailure) {
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Interface creation failed: ${error instanceof Error ? error.message : String(error)}`);
             return (0, utils_1.return_error)(error);
         }

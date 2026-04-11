@@ -100,7 +100,7 @@ async function handleRunClassUnitTests(context, args) {
                 testClass: test.test_class.toUpperCase(),
             };
         });
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
         }

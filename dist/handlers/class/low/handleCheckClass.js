@@ -71,7 +71,7 @@ async function handleCheckClass(context, args) {
         const className = class_name.toUpperCase();
         logger?.info(`Starting class check: ${className} (version: ${checkVersion}, has source: ${!!source_code})`);
         try {
-            const client = (0, clients_1.createAdtClient)(connection);
+            const client = (0, clients_1.createAdtClient)(connection, logger);
             const checkState = await client
                 .getClass()
                 .check({ className, sourceCode: source_code }, checkVersion);

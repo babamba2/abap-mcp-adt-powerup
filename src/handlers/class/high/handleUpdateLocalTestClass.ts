@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   extractAdtErrorMessage,
   return_error,
@@ -106,6 +110,36 @@ export async function handleUpdateLocalTestClass(
         `✅ UpdateLocalTestClass completed successfully: ${className}`,
       );
 
+      // Post-update class-level syntax check (see handleUpdateLocalDefinitions for rationale).
+      let checkWarnings: Array<{
+        type: string;
+        text: string;
+        line?: string | number;
+      }> = [];
+      try {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'class', name: className },
+        );
+        assertNoCheckErrors(checkResult, 'Class', className);
+        checkWarnings = checkResult.warnings;
+        logger?.debug(
+          `Post-update syntax check passed: ${className} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+        );
+      } catch (checkErr: any) {
+        if (checkErr?.isPreCheckFailure) {
+          logger?.error(
+            `Local test class of ${className} was updated but the class failed post-update syntax check: ${checkErr.message}`,
+          );
+          return return_error(checkErr);
+        }
+        logger?.warn(
+          `Post-update check had issues for ${className}: ${
+            checkErr instanceof Error ? checkErr.message : String(checkErr)
+          }`,
+        );
+      }
+
       return return_response({
         data: JSON.stringify(
           {
@@ -114,12 +148,17 @@ export async function handleUpdateLocalTestClass(
             transport_request: transport_request || null,
             activated: activate_on_update,
             message: `Local test class updated successfully in ${className}.`,
+            check_warnings:
+              checkWarnings.length > 0 ? checkWarnings : undefined,
           },
           null,
           2,
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      if (error?.isPreCheckFailure) {
+        return return_error(error);
+      }
       logger?.error(
         `Error updating local test class for ${className}: ${error?.message || error}`,
       );

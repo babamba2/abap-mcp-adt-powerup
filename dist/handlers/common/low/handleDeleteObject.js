@@ -41,7 +41,7 @@ async function handleDeleteObject(context, args) {
         if (!object_name || !object_type) {
             return (0, utils_1.return_error)(new Error('object_name and object_type are required'));
         }
-        const crudClient = (0, clients_1.createAdtClient)(connection);
+        const crudClient = (0, clients_1.createAdtClient)(connection, logger);
         const objectName = object_name.toUpperCase();
         const objectType = object_type.toLowerCase();
         logger?.info(`Starting object deletion: ${objectName} (type: ${object_type})`);

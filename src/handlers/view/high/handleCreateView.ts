@@ -93,6 +93,13 @@ export async function handleCreateView(context: HandlerContext, params: any) {
     });
     logger?.info(`View created: ${viewName}`);
 
+    // NOTE: No post-create syntax check. Unlike classes/interfaces,
+    // the empty DDL shell that AdtClient.create() leaves on the server
+    // is NOT syntactically valid ("DDIC source code does not contain a
+    // valid definition"), so a post-create check would always fail.
+    // The pre-write check in UpdateView is where view DDL gets
+    // validated for real.
+
     const result = {
       success: true,
       view_name: viewName,
@@ -112,6 +119,12 @@ export async function handleCreateView(context: HandlerContext, params: any) {
       config: {} as any,
     });
   } catch (error: any) {
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error creating view ${viewName}: ${error.message}`);
+      return return_error(error);
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger?.error(`Error creating view ${viewName}: ${errorMessage}`);
     return return_error(new Error(errorMessage));

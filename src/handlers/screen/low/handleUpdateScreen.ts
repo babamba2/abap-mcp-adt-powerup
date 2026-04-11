@@ -6,6 +6,10 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { callDispatch } from '../../../lib/soapRfc';
 import {
   type AxiosResponse,
@@ -37,6 +41,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'Lock handle from LockScreenLow.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description: 'Session ID from GetSession.',
@@ -60,6 +69,7 @@ interface UpdateScreenArgs {
   screen_number: string;
   dynpro_data: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -79,6 +89,7 @@ export async function handleUpdateScreen(
       screen_number,
       dynpro_data,
       lock_handle,
+      skip_check,
       session_id,
       session_state,
     } = args;
@@ -117,6 +128,19 @@ export async function handleUpdateScreen(
       dynpro_data: dynpro_data,
     });
 
+    // Post-write syntax check on the parent program tree (unless skipped).
+    if (skip_check !== true) {
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'screen', name: programName, parentProgramName: programName },
+      );
+      assertNoCheckErrors(
+        checkResult,
+        'Screen',
+        `${programName}/${screen_number}`,
+      );
+    }
+
     logger?.info(`✅ Screen updated: ${programName}/${screen_number}`);
 
     return return_response({
@@ -133,6 +157,10 @@ export async function handleUpdateScreen(
       ),
     } as AxiosResponse);
   } catch (error: any) {
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error updating screen: ${error.message}`);
+      return return_error(error);
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger?.error(`Error updating screen: ${errorMessage}`);
     return return_error(new Error(`Failed to update screen: ${errorMessage}`));

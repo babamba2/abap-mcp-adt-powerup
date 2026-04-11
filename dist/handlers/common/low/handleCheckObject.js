@@ -87,7 +87,7 @@ async function handleCheckObject(context, args) {
         const checkVersion = validVersions.includes(version.toLowerCase())
             ? version.toLowerCase()
             : 'active';
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
         }

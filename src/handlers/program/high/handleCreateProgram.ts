@@ -11,7 +11,7 @@ import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
-} from '../../../lib/preflightCheck';
+} from '../../../lib/preCheckBeforeActivation';
 import {
   encodeSapObjectName,
   isCloudConnection,
@@ -174,7 +174,7 @@ export async function handleCreateProgram(
         `Post-create syntax check passed: ${programName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
       );
     } catch (checkErr: any) {
-      if (checkErr?.isPreflightCheckFailure) {
+      if (checkErr?.isPreCheckFailure) {
         logger?.error(
           `Program ${programName} was created but failed post-create syntax check: ${checkErr.message}`,
         );

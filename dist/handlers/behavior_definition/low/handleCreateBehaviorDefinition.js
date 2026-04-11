@@ -83,7 +83,7 @@ async function handleCreateBehaviorDefinition(context, args) {
             !implementation_type) {
             return (0, utils_1.return_error)(new Error('name, description, package_name, root_entity, and implementation_type are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);

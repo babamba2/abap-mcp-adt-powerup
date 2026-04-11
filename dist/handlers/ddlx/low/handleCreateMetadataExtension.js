@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateMetadataExtension = handleCreateMetadataExtension;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'CreateMetadataExtensionLow',
@@ -37,6 +38,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: "Master language (optional, e.g., 'EN').",
             },
+            skip_check: {
+                type: 'boolean',
+                description: "Skip post-create syntax check. Default: false. NOTE: SAP's /checkruns reporter is weak for DDLX — may return empty results for some error classes.",
+            },
             session_id: {
                 type: 'string',
                 description: 'Session ID from GetSession. If not provided, a new session will be created.',
@@ -62,7 +67,7 @@ exports.TOOL_DEFINITION = {
 async function handleCreateMetadataExtension(context, args) {
     const { connection, logger } = context;
     try {
-        const { name, description, package_name, transport_request, master_language, session_id, session_state, } = args;
+        const { name, description, package_name, transport_request, master_language, skip_check, session_id, session_state, } = args;
         // Validation
         if (!name || !description || !package_name) {
             return (0, utils_1.return_error)(new Error('name, description, and package_name are required'));
@@ -86,6 +91,13 @@ async function handleCreateMetadataExtension(context, args) {
             if (!createResult) {
                 throw new Error(`Create did not return a response for metadata extension ${ddlxName}`);
             }
+            // Post-create syntax check (unless skipped). Surfaces ALL compile
+            // errors with structured diagnostics. NOTE: SAP's /checkruns
+            // reporter is weak for DDLX — may return empty for some errors.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'metadataExtension', name: ddlxName });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Metadata Extension', ddlxName);
+            }
             // Get updated session state after create
             logger?.info(`✅ CreateMetadataExtension completed: ${ddlxName}`);
             return (0, utils_1.return_response)({
@@ -102,6 +114,12 @@ async function handleCreateMetadataExtension(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error creating metadata extension ${ddlxName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error creating metadata extension ${ddlxName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to create metadata extension: ${error.message || String(error)}`;

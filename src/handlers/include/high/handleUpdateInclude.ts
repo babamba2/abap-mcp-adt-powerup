@@ -9,6 +9,10 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   encodeSapObjectName,
   isCloudConnection,
@@ -105,6 +109,37 @@ export async function handleUpdateInclude(
   }> = [];
 
   try {
+    // PRE-WRITE syntax check via /sap/bc/adt/checkruns with the
+    // proposed source embedded as a base64 inline artifact under the
+    // PARENT program's checkObject. This compiles the full program tree
+    // in a single SAP call and returns ALL errors it can detect (with
+    // line numbers), without writing anything to the server. Only fires
+    // when main_program is provided.
+    if (args.main_program) {
+      currentStep = 'check_new_code';
+      const mainProgram = args.main_program.toUpperCase();
+      const programUri = `/sap/bc/adt/programs/programs/${encodeSapObjectName(mainProgram).toLowerCase()}`;
+      const includeArtifactUri = `${baseUrl}/source/main`;
+      logger?.debug(
+        `Pre-write inline check: program=${mainProgram}, include=${includeName}`,
+      );
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        {
+          kind: 'programTreeInline',
+          name: mainProgram,
+          parentObjectUri: programUri,
+          inlineArtifactUri: includeArtifactUri,
+          inlineSourceCode: args.source_code,
+        },
+      );
+      assertNoCheckErrors(checkResult, 'Include', includeName);
+      checkWarnings = checkResult.warnings;
+      logger?.info(
+        `Pre-write check passed: ${includeName} via ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+      );
+    }
+
     // NOTE on include syntax checking:
     //
     // SAP's /sap/bc/adt/checkruns reporter does NOT reliably catch
@@ -227,7 +262,17 @@ export async function handleUpdateInclude(
       // 200 on activation WITH errors — the errors are in the body as
       // <chkl:messages> with type="E". If any E-type messages are
       // present, the activation didn't actually promote the inactive
-      // version; we surface the errors to the caller.
+      // version; we surface ALL errors to the caller.
+      //
+      // Multi-error support: SAP's activation endpoint returns ALL
+      // compile errors it detects in a single call, including
+      // cross-reference errors from the parent program tree (e.g.
+      // PERFORM calls to FORMs that no longer exist in the updated
+      // include). Verified empirically — a single broken include
+      // returned 9 errors in one call. Each error has its own line
+      // number, extracted from the href fragment
+      // (`#start=line,col;end=line,col`) when SAP sets the misleading
+      // line="1" attribute.
       const activationBody =
         typeof activationResponse.data === 'string'
           ? activationResponse.data
@@ -267,8 +312,16 @@ export async function handleUpdateInclude(
               (msg.shortText['#text'] || msg.shortText.txt || msg.shortText)) ||
             msg['@_shortText'] ||
             '';
-          const line = msg['@_line'] || msg.line;
+          const rawLine = msg['@_line'] || msg.line;
           const href = msg['@_href'] || msg.href;
+          // SAP often sets line="1" as a placeholder and embeds the
+          // real line/column in the href fragment
+          // (`#start=line,col;end=line,col`). Prefer that when present.
+          let line: string | number | undefined = rawLine;
+          if (typeof href === 'string') {
+            const m = href.match(/#start=(\d+),/);
+            if (m) line = m[1];
+          }
           const entry = {
             type: msgType,
             text: String(shortText),
@@ -288,7 +341,7 @@ export async function handleUpdateInclude(
               activationErrors.length === 1 ? '' : 's'
             }): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`,
           );
-          err.isPreflightCheckFailure = true;
+          err.isPreCheckFailure = true;
           err.checkErrors = activationErrors;
           err.checkWarnings = activationWarnings;
           throw err;
@@ -371,8 +424,8 @@ export async function handleUpdateInclude(
       `Error updating include ${includeName} at step=${currentStep}${statusPart}: ${errorMessage}`,
     );
 
-    // Surface preflight-check details so the caller can fix & retry.
-    if (error?.isPreflightCheckFailure) {
+    // Surface preCheck-check details so the caller can fix & retry.
+    if (error?.isPreCheckFailure) {
       const errWithDetails: any = new Error(
         `Failed to update include ${includeName} at step=${currentStep}: ${errorMessage}`,
       );

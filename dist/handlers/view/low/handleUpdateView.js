@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateView = handleUpdateView;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateViewLow',
@@ -28,6 +29,10 @@ exports.TOOL_DEFINITION = {
             lock_handle: {
                 type: 'string',
                 description: 'Lock handle from LockObject. Required for update operation.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip pre-write syntax check on ddl_source. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.',
             },
             session_id: {
                 type: 'string',
@@ -54,7 +59,7 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateView(context, args) {
     const { connection, logger } = context;
     try {
-        const { view_name, ddl_source, lock_handle, session_id, session_state } = args;
+        const { view_name, ddl_source, lock_handle, skip_check, session_id, session_state, } = args;
         // Validation
         if (!view_name || !ddl_source || !lock_handle) {
             return (0, utils_1.return_error)(new Error('view_name, ddl_source, and lock_handle are required'));
@@ -70,6 +75,14 @@ async function handleUpdateView(context, args) {
         const viewName = view_name.toUpperCase();
         logger?.info(`Starting view update: ${viewName}`);
         try {
+            // Pre-write syntax check on the proposed DDL source (unless
+            // skipped). Surfaces ALL compile errors with line numbers via
+            // the inline /checkruns path, so the broken source never lands
+            // on SAP.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'view', name: viewName, sourceCode: ddl_source });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'View', viewName);
+            }
             // Update view with DDL source
             const updateState = await client
                 .getView()
@@ -91,6 +104,12 @@ async function handleUpdateView(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating view ${viewName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating view ${viewName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update view: ${error.message || String(error)}`;

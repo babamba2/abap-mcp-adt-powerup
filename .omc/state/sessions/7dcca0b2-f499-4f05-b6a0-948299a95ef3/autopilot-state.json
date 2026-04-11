@@ -1,0 +1,10 @@
+{
+  "active": true,
+  "started_at": "2026-04-11T13:42:09.044Z",
+  "original_prompt": "  .omc/specs/deep-interview-zpaek_test004.md 스펙대로 ZPAEK_TEST004\n  프로그램을 지금 세션에서 직접 MCP 툴로 생성해줘.\n  deep-interview / ralplan / autopilot 거치지 말고 executor 모드로\n  곧바로 실행. 질문 없이 스펙에 적힌 결정을 그대로 따라.\n\n  진행 순서:\n  1. GetSession 으로 연결 확인 (onprem / 패키지 ZPAEK / TR S4HK904224)\n  2. GetProgram ZPAEK_TEST004 / GetInclude ZPAEK_TEST004_* 로 충돌 확인\n  3. CreateInclude 6개 순서대로: TOP → SEL → F01 → CLS → O01 → I01\n  4. CreateProgram ZPAEK_TEST004 (INCLUDE 선언 + START-OF-SELECTION + CALL SCREEN 0100)\n  5. CreateScreen 0100 (PBO: status_0100, PAI: user_command_0100)\n  6. CreateGuiStatus STATUS_0100 (BACK/EXIT/CANCEL + REFRESH) + TITLE_0100\n  7. Activate 전체 + GetInactiveObjects 로 0개 확인\n  8. RunUnitTest 로 ltc_app 7 메서드 통과 확인\n  9. Notion Team2↔Team3 Code History 에 Before/After 포함 엔트리 등록\n\n  규칙:\n  - CLAUDE.md Rule [1]: Update 전 Before/After diff 표시 (Create는 생성 전 소스 미리보기)\n  - CLAUDE.md Rule [2]: 활성화 완료 후 Notion 로깅 (before/after 블록 필수)\n  - 7.40+ 문법 강제 (Inline DATA, VALUE#, NEW#, REDUCE FOR IN WHERE)\n  - Open SQL 최적화 (SELECT * 금지, 필요 필드만, FOR ALL ENTRIES)\n  - Syntax Check 실패 시 즉시 수정 후 재시도 (우회 금지)\n  - TaskCreate 로 13단계 task 리스트 만들고 진행률 추적\n\n  시작해.\n",
+  "session_id": "7dcca0b2-f499-4f05-b6a0-948299a95ef3",
+  "project_path": "C:\\Users\\pssps\\Documents\\Claude\\Projects\\ABAP MCP\\mcp-abap-adt",
+  "reinforcement_count": 0,
+  "awaiting_confirmation": true,
+  "last_checked_at": "2026-04-11T13:42:09.044Z"
+}

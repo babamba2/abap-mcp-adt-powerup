@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateFunctionModule = handleUpdateFunctionModule;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateFunctionModule',
@@ -72,6 +73,7 @@ async function handleUpdateFunctionModule(context, args) {
             const shouldActivate = args.activate === true;
             // Execute operation chain: lock -> update -> check -> unlock -> (activate)
             let lockHandle;
+            let checkWarnings = [];
             try {
                 lockHandle = await client.getFunctionModule().lock({
                     functionModuleName,
@@ -83,10 +85,15 @@ async function handleUpdateFunctionModule(context, args) {
                     sourceCode: args.source_code,
                     transportRequest: args.transport_request,
                 }, { lockHandle });
-                await client.getFunctionModule().check({
-                    functionModuleName,
+                // Post-write syntax check on the staged inactive version.
+                // Surfaces ALL compile errors with line numbers via assertNoCheckErrors.
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, {
+                    kind: 'functionModule',
+                    name: functionModuleName,
                     functionGroupName,
                 });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Function module', functionModuleName);
+                checkWarnings = checkResult.warnings;
             }
             finally {
                 // Always unlock if we got a lock handle
@@ -116,6 +123,7 @@ async function handleUpdateFunctionModule(context, args) {
                 transport_request: args.transport_request || null,
                 activated: shouldActivate,
                 message: `Function module ${functionModuleName} source code updated successfully${shouldActivate ? ' and activated' : ''}`,
+                check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
             };
             return (0, utils_1.return_response)({
                 data: JSON.stringify(result, null, 2),
@@ -126,6 +134,12 @@ async function handleUpdateFunctionModule(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating function module ${functionModuleName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating function module source ${functionModuleName}: ${error?.message || error}`);
             let errorMessage = error.response?.data
                 ? typeof error.response.data === 'string'

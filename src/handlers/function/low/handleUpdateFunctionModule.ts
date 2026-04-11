@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   restoreSessionInConnection,
   return_error,
@@ -46,6 +50,11 @@ export const TOOL_DEFINITION = {
         description:
           'Lock handle from LockFunctionModule. Required for update operation.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -77,6 +86,7 @@ interface UpdateFunctionModuleArgs {
   source_code: string;
   transport_request?: string;
   lock_handle: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -102,6 +112,7 @@ export async function handleUpdateFunctionModule(
       source_code,
       transport_request,
       lock_handle,
+      skip_check,
       session_id,
       session_state,
     } = args as UpdateFunctionModuleArgs;
@@ -154,6 +165,26 @@ export async function handleUpdateFunctionModule(
         );
       }
 
+      // Post-write syntax check on the staged inactive version (unless
+      // explicitly skipped). Surfaces ALL compile errors with line numbers.
+      let checkWarnings: Array<{
+        type: string;
+        text: string;
+        line?: string | number;
+      }> = [];
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          {
+            kind: 'functionModule',
+            name: functionModuleName,
+            functionGroupName,
+          },
+        );
+        assertNoCheckErrors(checkResult, 'Function module', functionModuleName);
+        checkWarnings = checkResult.warnings;
+      }
+
       // Get updated session state after update
 
       logger?.info(`✅ UpdateFunctionModule completed: ${functionModuleName}`);
@@ -169,12 +200,23 @@ export async function handleUpdateFunctionModule(
             session_id: session_id || null,
             session_state: null, // Session state management is now handled by auth-broker,
             message: `Function module ${functionModuleName} updated successfully. Remember to unlock using UnlockFunctionModule.`,
+            check_warnings:
+              checkWarnings.length > 0 ? checkWarnings : undefined,
           },
           null,
           2,
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating function module ${functionModuleName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating function module ${functionModuleName}: ${error?.message || error}`,
       );

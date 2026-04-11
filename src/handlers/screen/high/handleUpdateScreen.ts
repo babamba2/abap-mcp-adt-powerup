@@ -6,6 +6,10 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { callDispatch } from '../../../lib/soapRfc';
 import {
   type AxiosResponse,
@@ -121,6 +125,20 @@ export async function handleUpdateScreen(context: HandlerContext, params: any) {
       dynpro_data: args.dynpro_data,
     });
 
+    // Post-write syntax check on the parent program tree. Dynpros
+    // have no standalone check — flow-logic errors surface as errors
+    // in the parent program's compile. Runs while still locked so the
+    // unlock/activate path sees the same inactive version.
+    const checkResult = await runSyntaxCheck(
+      { connection, logger },
+      { kind: 'screen', name: programName, parentProgramName: programName },
+    );
+    assertNoCheckErrors(
+      checkResult,
+      'Screen',
+      `${programName}/${args.screen_number}`,
+    );
+
     // Unlock
     if (lockHandle) {
       await makeAdtRequestWithTimeout(
@@ -189,6 +207,12 @@ export async function handleUpdateScreen(context: HandlerContext, params: any) {
       } catch {
         /* ignore */
       }
+    }
+    // PreCheck syntax-check failures carry full structured diagnostics —
+    // forward them as-is so the caller sees every error with line numbers.
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error updating screen: ${error.message}`);
+      return return_error(error);
     }
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger?.error(`Error updating screen: ${errorMessage}`);

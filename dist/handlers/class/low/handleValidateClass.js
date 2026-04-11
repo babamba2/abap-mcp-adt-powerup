@@ -67,7 +67,7 @@ async function handleValidateClass(context, args) {
         const className = class_name.toUpperCase();
         logger?.info(`Starting class validation: ${className}`);
         try {
-            const builder = (0, clients_1.createAdtClient)(connection);
+            const builder = (0, clients_1.createAdtClient)(connection, logger);
             // validateClass may throw for non-400 errors, but returns response for 400
             let validationResponse;
             let validationState;

@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateMetadataExtension = handleUpdateMetadataExtension;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateMetadataExtensionLow',
@@ -28,6 +29,10 @@ exports.TOOL_DEFINITION = {
             lock_handle: {
                 type: 'string',
                 description: 'Lock handle from LockObject. Required for update operation.',
+            },
+            skip_check: {
+                type: 'boolean',
+                description: "Skip post-write syntax check. Default: false. NOTE: SAP's /checkruns reporter is weak for DDLX — may return empty results for some error classes.",
             },
             session_id: {
                 type: 'string',
@@ -54,7 +59,7 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateMetadataExtension(context, args) {
     const { connection, logger } = context;
     try {
-        const { name, source_code, lock_handle, session_id, session_state } = args;
+        const { name, source_code, lock_handle, skip_check, session_id, session_state, } = args;
         // Validation
         if (!name || !source_code || !lock_handle) {
             return (0, utils_1.return_error)(new Error('name, source_code, and lock_handle are required'));
@@ -79,6 +84,13 @@ async function handleUpdateMetadataExtension(context, args) {
             if (!updateResult) {
                 throw new Error(`Update did not return a response for metadata extension ${metadataExtensionName}`);
             }
+            // Post-write syntax check (unless skipped). Surfaces ALL compile
+            // errors with structured diagnostics. NOTE: SAP's /checkruns
+            // reporter is weak for DDLX — may return empty for some errors.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'metadataExtension', name: metadataExtensionName });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Metadata Extension', metadataExtensionName);
+            }
             // Get updated session state after update
             logger?.info(`✅ UpdateMetadataExtension completed: ${metadataExtensionName}`);
             return (0, utils_1.return_response)({
@@ -92,6 +104,12 @@ async function handleUpdateMetadataExtension(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating metadata extension ${metadataExtensionName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating metadata extension ${metadataExtensionName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update metadata extension: ${error.message || String(error)}`;

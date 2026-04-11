@@ -11,10 +11,13 @@ import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   encodeSapObjectName,
   return_error,
   return_response,
-  safeCheckOperation,
 } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
@@ -116,24 +119,17 @@ export async function handleUpdateServiceDefinition(
           { lockHandle },
         );
 
-        // Check
-        try {
-          await safeCheckOperation(
-            () =>
-              client.getServiceDefinition().check({ serviceDefinitionName }),
-            serviceDefinitionName,
-            {
-              debug: (message: string) =>
-                logger?.debug(`[UpdateServiceDefinition] ${message}`),
-            },
-          );
-        } catch (checkError: any) {
-          // If error was marked as "already checked", continue silently
-          if (!(checkError as any).isAlreadyChecked) {
-            // Real check error - rethrow
-            throw checkError;
-          }
-        }
+        // Post-write syntax check on the staged inactive version.
+        // Surfaces ALL compile errors with structured diagnostics.
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'serviceDefinition', name: serviceDefinitionName },
+        );
+        assertNoCheckErrors(
+          checkResult,
+          'Service Definition',
+          serviceDefinitionName,
+        );
       } finally {
         if (lockHandle) {
           try {
@@ -215,6 +211,15 @@ export async function handleUpdateServiceDefinition(
         config: {} as any,
       });
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating service definition ${serviceDefinitionName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating service definition source ${serviceDefinitionName}:`,
         error,

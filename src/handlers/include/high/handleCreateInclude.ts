@@ -18,7 +18,7 @@ import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
-} from '../../../lib/preflightCheck';
+} from '../../../lib/preCheckBeforeActivation';
 import {
   type AxiosResponse,
   encodeSapObjectName,
@@ -421,7 +421,7 @@ export async function handleCreateInclude(
       }
     }
 
-    // ---- Step 3: Preflight syntax check on the main program tree ----
+    // ---- Step 3: PreCheck syntax check on the main program tree ----
     // Runs after any insert+activate on the main program so we catch:
     //   (a) a pre-existing broken state of the main program that we
     //       exposed by touching it,
@@ -451,13 +451,13 @@ export async function handleCreateInclude(
     } catch (checkErr: any) {
       // Include WAS created and main program WAS modified — cannot roll
       // back from here. Surface the error with a clear note.
-      if (checkErr?.isPreflightCheckFailure) {
+      if (checkErr?.isPreCheckFailure) {
         const wrapped: any = new Error(
           `Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
             `${checkErr.message}. ` +
             `Fix the main program or call DeleteInclude to roll back.`,
         );
-        wrapped.isPreflightCheckFailure = true;
+        wrapped.isPreCheckFailure = true;
         wrapped.checkErrors = checkErr.checkErrors;
         wrapped.checkWarnings = checkErr.checkWarnings;
         wrapped.include_name = includeName;
@@ -492,9 +492,9 @@ export async function handleCreateInclude(
       config: {} as any,
     } as AxiosResponse);
   } catch (error: any) {
-    // Preflight syntax-check failures carry a full, pre-formatted message
+    // PreCheck syntax-check failures carry a full, pre-formatted message
     // and structured checkErrors/checkWarnings — surface them as-is.
-    if (error?.isPreflightCheckFailure) {
+    if (error?.isPreCheckFailure) {
       logger?.error(`Error creating include ${includeName}: ${error.message}`);
       return return_error(error);
     }

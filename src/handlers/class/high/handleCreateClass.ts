@@ -9,6 +9,10 @@ import { AdtObjectErrorCodes } from '@mcp-abap-adt/interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   return_error,
   return_response,
@@ -204,6 +208,40 @@ export async function handleCreateClass(
       logger?.info(`CreateClass completed successfully: ${className}`);
     }
 
+    // Post-create sanity syntax check.
+    // AdtClass.create() already runs internal checks during its
+    // workflow, so this is a belt-and-suspenders pass for consistency
+    // with the other Create*High handlers. Catches any leftover state
+    // issues and surfaces them with structured line-level diagnostics.
+    let checkWarnings: Array<{
+      type: string;
+      text: string;
+      line?: string | number;
+    }> = [];
+    try {
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'class', name: className },
+      );
+      assertNoCheckErrors(checkResult, 'Class', className);
+      checkWarnings = checkResult.warnings;
+      logger?.debug(
+        `Post-create syntax check passed: ${className} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+      );
+    } catch (checkErr: any) {
+      if (checkErr?.isPreCheckFailure) {
+        logger?.error(
+          `Class ${className} was created but failed post-create syntax check: ${checkErr.message}`,
+        );
+        return return_error(checkErr);
+      }
+      logger?.warn(
+        `Post-create check had issues for ${className}: ${
+          checkErr instanceof Error ? checkErr.message : String(checkErr)
+        }`,
+      );
+    }
+
     return return_response({
       data: JSON.stringify(
         {
@@ -221,6 +259,7 @@ export async function handleCreateClass(
           activated: false,
           errors: errors,
           message: `Class ${className} created successfully${errorCount > 0 ? ` (with ${errorCount} error(s))` : ''}. Use UpdateClass to set source code.`,
+          check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         },
         null,
         2,

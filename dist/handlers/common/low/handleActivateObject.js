@@ -48,7 +48,7 @@ async function handleActivateObject(context, params) {
             return (0, utils_1.return_error)(new Error('Missing required parameter: objects (must be non-empty array)'));
         }
         const preaudit = args.preaudit !== false; // default true
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         logger?.info(`Starting activation of ${args.objects.length} object(s)`);
         try {
             const activationObjects = args.objects.map((obj) => ({

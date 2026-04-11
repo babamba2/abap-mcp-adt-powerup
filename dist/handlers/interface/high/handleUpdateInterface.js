@@ -12,6 +12,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateInterface = handleUpdateInterface;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateInterface',
@@ -79,44 +80,29 @@ async function handleUpdateInterface(context, args) {
             const shouldActivate = activate !== false; // Default to true if not specified
             let activateResponse;
             let lockHandle;
+            let checkWarnings = [];
             try {
                 // Lock
                 lockHandle = await client.getInterface().lock({ interfaceName });
-                // Step 1: Check new code BEFORE update (with sourceCode and version='inactive')
-                logger?.info(`[UpdateInterface] Checking new code before update: ${interfaceName}`);
-                let checkNewCodePassed = false;
-                try {
-                    await (0, utils_1.safeCheckOperation)(() => client
-                        .getInterface()
-                        .check({ interfaceName, sourceCode: source_code }, 'inactive'), interfaceName, {
-                        debug: (message) => logger?.debug(`[UpdateInterface] ${message}`),
-                    });
-                    checkNewCodePassed = true;
-                    logger?.info(`[UpdateInterface] New code check passed: ${interfaceName}`);
-                }
-                catch (checkError) {
-                    // If error was marked as "already checked", continue silently
-                    if (checkError.isAlreadyChecked) {
-                        logger?.info(`[UpdateInterface] Interface ${interfaceName} was already checked - continuing`);
-                        checkNewCodePassed = true;
-                    }
-                    else {
-                        // Real check error - don't update if check failed
-                        logger?.error(`[UpdateInterface] New code check failed: ${interfaceName} | ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                        throw new Error(`New code check failed: ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                    }
-                }
-                // Step 2: Update (only if check passed)
-                if (checkNewCodePassed) {
-                    logger?.info(`[UpdateInterface] Updating interface source code: ${interfaceName}`);
-                    await client
-                        .getInterface()
-                        .update({ interfaceName, sourceCode: source_code }, { lockHandle });
-                    logger?.info(`[UpdateInterface] Interface source code updated: ${interfaceName}`);
-                }
-                else {
-                    logger?.info(`[UpdateInterface] Skipping update - new code check failed: ${interfaceName}`);
-                }
+                // Pre-write syntax check on the proposed source. If errors are
+                // found we never PUT the broken code; the active interface
+                // stays in its previous working state and the lock is released
+                // by the finally block below.
+                logger?.debug(`[UpdateInterface] Pre-write syntax check: ${interfaceName}`);
+                const preCheckResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, {
+                    kind: 'interface',
+                    name: interfaceName,
+                    sourceCode: source_code,
+                });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(preCheckResult, 'Interface', interfaceName);
+                checkWarnings = preCheckResult.warnings;
+                logger?.info(`[UpdateInterface] Pre-write check passed: ${interfaceName}`);
+                // Update
+                logger?.info(`[UpdateInterface] Updating interface source code: ${interfaceName}`);
+                await client
+                    .getInterface()
+                    .update({ interfaceName, sourceCode: source_code }, { lockHandle });
+                logger?.info(`[UpdateInterface] Interface source code updated: ${interfaceName}`);
             }
             finally {
                 if (lockHandle) {
@@ -129,23 +115,20 @@ async function handleUpdateInterface(context, args) {
                     }
                 }
             }
-            // Step 4: Check inactive version (after unlock)
-            logger?.info(`[UpdateInterface] Checking inactive version: ${interfaceName}`);
+            // Post-write inactive check — non-fatal: warnings flow into
+            // check_warnings, transport/tooling issues are logged and ignored.
+            logger?.debug(`[UpdateInterface] Checking inactive version: ${interfaceName}`);
             try {
-                await (0, utils_1.safeCheckOperation)(() => client.getInterface().check({ interfaceName }, 'inactive'), interfaceName, {
-                    debug: (message) => logger?.debug(`[UpdateInterface] ${message}`),
-                });
+                const postCheckResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'interface', name: interfaceName });
+                if (postCheckResult.warnings.length > 0) {
+                    checkWarnings = [...checkWarnings, ...postCheckResult.warnings];
+                }
                 logger?.info(`[UpdateInterface] Inactive version check completed: ${interfaceName}`);
             }
             catch (checkError) {
-                // If error was marked as "already checked", continue silently
-                if (checkError.isAlreadyChecked) {
-                    logger?.info(`[UpdateInterface] Interface ${interfaceName} was already checked - continuing`);
-                }
-                else {
-                    // Log warning but don't fail - inactive check is informational
-                    logger?.warn(`[UpdateInterface] Inactive version check had issues: ${interfaceName} | ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                }
+                logger?.warn(`[UpdateInterface] Inactive version check had issues: ${interfaceName} | ${checkError instanceof Error
+                    ? checkError.message
+                    : String(checkError)}`);
             }
             // Activate if requested
             if (shouldActivate) {
@@ -191,11 +174,18 @@ async function handleUpdateInterface(context, args) {
                     activated: shouldActivate,
                     message: `Interface ${interfaceName} updated successfully${shouldActivate ? ' and activated' : ''}`,
                     activation_warnings: activationWarnings.length > 0 ? activationWarnings : undefined,
+                    check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
                     steps_completed: stepsCompleted,
                 }),
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating interface ${interfaceName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating interface source ${interfaceName}: ${error?.message || error}`);
             const errorMessage = error.response?.data
                 ? typeof error.response.data === 'string'

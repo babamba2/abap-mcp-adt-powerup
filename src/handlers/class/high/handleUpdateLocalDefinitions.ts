@@ -5,6 +5,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   extractAdtErrorMessage,
   return_error,
@@ -91,6 +95,41 @@ export async function handleUpdateLocalDefinitions(
         `✅ UpdateLocalDefinitions completed successfully: ${className}`,
       );
 
+      // Post-update syntax check on the parent class. Catches the case
+      // where the new local definitions break the class as a whole
+      // (e.g. unknown type referenced in a method signature). The
+      // update has already been applied at this point — if the check
+      // fails the local definitions stay on SAP as inactive and the
+      // active class version is preserved.
+      let checkWarnings: Array<{
+        type: string;
+        text: string;
+        line?: string | number;
+      }> = [];
+      try {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'class', name: className },
+        );
+        assertNoCheckErrors(checkResult, 'Class', className);
+        checkWarnings = checkResult.warnings;
+        logger?.debug(
+          `Post-update syntax check passed: ${className} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+        );
+      } catch (checkErr: any) {
+        if (checkErr?.isPreCheckFailure) {
+          logger?.error(
+            `Local definitions of ${className} were updated but the class failed post-update syntax check: ${checkErr.message}`,
+          );
+          return return_error(checkErr);
+        }
+        logger?.warn(
+          `Post-update check had issues for ${className}: ${
+            checkErr instanceof Error ? checkErr.message : String(checkErr)
+          }`,
+        );
+      }
+
       return return_response({
         data: JSON.stringify(
           {
@@ -99,12 +138,18 @@ export async function handleUpdateLocalDefinitions(
             transport_request: transport_request || null,
             activated: activate_on_update,
             message: `Local definitions updated successfully in ${className}.`,
+            check_warnings:
+              checkWarnings.length > 0 ? checkWarnings : undefined,
           },
           null,
           2,
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // Forward preCheck failures directly so structured diagnostics survive.
+      if (error?.isPreCheckFailure) {
+        return return_error(error);
+      }
       logger?.error(
         `Error updating local definitions for ${className}: ${error?.message || error}`,
       );

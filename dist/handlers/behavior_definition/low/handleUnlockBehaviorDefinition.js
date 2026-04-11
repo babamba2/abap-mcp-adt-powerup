@@ -55,7 +55,7 @@ async function handleUnlockBehaviorDefinition(context, args) {
         if (!name || !lock_handle || !session_id) {
             return (0, utils_1.return_error)(new Error('name, lock_handle, and session_id are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         // Restore session state if provided
         if (session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);

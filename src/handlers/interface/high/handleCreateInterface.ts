@@ -8,6 +8,10 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   encodeSapObjectName,
   return_error,
   return_response,
@@ -94,6 +98,38 @@ export async function handleCreateInterface(
 
       logger?.info(`Interface created: ${interfaceName}`);
 
+      // Post-create sanity syntax check on the empty interface shell.
+      const stepsCompleted = ['create'];
+      let checkWarnings: Array<{
+        type: string;
+        text: string;
+        line?: string | number;
+      }> = [];
+      try {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'interface', name: interfaceName },
+        );
+        assertNoCheckErrors(checkResult, 'Interface', interfaceName);
+        checkWarnings = checkResult.warnings;
+        stepsCompleted.push('check');
+        logger?.debug(
+          `Post-create syntax check passed: ${interfaceName} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`,
+        );
+      } catch (checkErr: any) {
+        if (checkErr?.isPreCheckFailure) {
+          logger?.error(
+            `Interface ${interfaceName} was created but failed post-create syntax check: ${checkErr.message}`,
+          );
+          return return_error(checkErr);
+        }
+        logger?.warn(
+          `Post-create check had issues for ${interfaceName}: ${
+            checkErr instanceof Error ? checkErr.message : String(checkErr)
+          }`,
+        );
+      }
+
       const result = {
         success: true,
         interface_name: interfaceName,
@@ -102,7 +138,8 @@ export async function handleCreateInterface(
         type: 'INTF/OI',
         message: `Interface ${interfaceName} created successfully. Use UpdateInterface to set source code.`,
         uri: `/sap/bc/adt/oo/interfaces/${encodeSapObjectName(interfaceName).toLowerCase()}`,
-        steps_completed: ['create'],
+        steps_completed: stepsCompleted,
+        check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
       };
 
       return return_response({
@@ -113,6 +150,9 @@ export async function handleCreateInterface(
         config: {} as any,
       });
     } catch (error: any) {
+      if (error?.isPreCheckFailure) {
+        return return_error(error);
+      }
       logger?.error(
         `Interface creation failed: ${error instanceof Error ? error.message : String(error)}`,
       );

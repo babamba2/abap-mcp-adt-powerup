@@ -41,6 +41,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: "Application area (optional, default: '*').",
             },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip post-create syntax check. Default: false. When false, runs a syntax check on the freshly created view shell and surfaces any errors with line numbers.',
+            },
             session_id: {
                 type: 'string',
                 description: 'Session ID from GetSession. If not provided, a new session will be created.',
@@ -66,7 +70,7 @@ exports.TOOL_DEFINITION = {
 async function handleCreateView(context, args) {
     const { connection, logger } = context;
     try {
-        const { view_name, description, package_name, transport_request, session_id, session_state, } = args;
+        const { view_name, description, package_name, transport_request, skip_check, session_id, session_state, } = args;
         // Validation
         if (!view_name || !description || !package_name) {
             return (0, utils_1.return_error)(new Error('view_name, description, and package_name are required'));
@@ -94,6 +98,13 @@ async function handleCreateView(context, args) {
             if (!createResult) {
                 throw new Error(`Create did not return a response for view ${viewName}`);
             }
+            // NOTE: No post-create syntax check. The empty DDL shell that
+            // AdtClient.create() leaves on the server is NOT syntactically
+            // valid ("DDIC source code does not contain a valid
+            // definition"), so a post-create check would always fail. The
+            // pre-write check in UpdateView is where view DDL gets validated
+            // for real. `skip_check` is still accepted for API parity with
+            // other low-level handlers but has no effect here.
             // Get updated session state after create
             logger?.info(`✅ CreateView completed: ${viewName}`);
             return (0, utils_1.return_response)({
@@ -110,6 +121,12 @@ async function handleCreateView(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error creating view ${viewName}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error creating view ${viewName}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to create view: ${error.message || String(error)}`;

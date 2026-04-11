@@ -49,7 +49,7 @@ async function handleUnlockClassTestClasses(context, args) {
         if (!class_name || !lock_handle) {
             return (0, utils_1.return_error)(new Error('class_name and lock_handle are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         if (session_id && session_state) {
             await (0, utils_1.restoreSessionInConnection)(connection, session_id, session_state);
         }

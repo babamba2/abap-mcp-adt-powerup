@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateClass = handleUpdateClass;
 const clients_1 = require("../../../lib/clients");
+const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateClassLow',
@@ -29,6 +30,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'Lock handle from LockClass operation. Required for update operation.',
             },
+            skip_check: {
+                type: 'boolean',
+                description: 'Skip pre-write syntax check on source_code. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.',
+            },
         },
         required: ['class_name', 'source_code', 'lock_handle'],
     },
@@ -41,15 +46,23 @@ exports.TOOL_DEFINITION = {
 async function handleUpdateClass(context, args) {
     const { connection, logger } = context;
     try {
-        const { class_name, source_code, lock_handle } = args;
+        const { class_name, source_code, lock_handle, skip_check } = args;
         // Validation
         if (!class_name || !source_code || !lock_handle) {
             return (0, utils_1.return_error)(new Error('class_name, source_code, and lock_handle are required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection);
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         const className = class_name.toUpperCase();
         logger?.info(`Starting class update: ${className}`);
         try {
+            // Pre-write syntax check on the proposed source (unless skipped).
+            // Surfaces ALL compile errors with line numbers via the raw
+            // /checkruns inline-artifact path, so the broken source never
+            // lands on SAP.
+            if (skip_check !== true) {
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'class', name: className, sourceCode: source_code });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Class', className);
+            }
             // Update class with source code
             const updateState = await client
                 .getClass()
@@ -68,6 +81,12 @@ async function handleUpdateClass(context, args) {
             });
         }
         catch (error) {
+            // PreCheck syntax-check failures carry full structured diagnostics —
+            // forward them as-is so the caller sees every error with line numbers.
+            if (error?.isPreCheckFailure) {
+                logger?.error(`Error updating class ${className}: ${error.message}`);
+                return (0, utils_1.return_error)(error);
+            }
             logger?.error(`Error updating class ${className}: ${error?.message || error}`);
             // Parse error message
             let errorMessage = `Failed to update class: ${error.message || String(error)}`;

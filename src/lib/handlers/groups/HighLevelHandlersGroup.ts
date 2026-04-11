@@ -334,6 +334,23 @@ import {
   handleUpdateTable as handleUpdateTableHigh,
   TOOL_DEFINITION as UpdateTableHigh_Tool,
 } from '../../../handlers/table/high/handleUpdateTable';
+// Import high-level handlers - Text Element (TEXTPOOL)
+import {
+  TOOL_DEFINITION as CreateTextElement_Tool,
+  handleCreateTextElement,
+} from '../../../handlers/text_element/high/handleCreateTextElement';
+import {
+  TOOL_DEFINITION as DeleteTextElement_Tool,
+  handleDeleteTextElement,
+} from '../../../handlers/text_element/high/handleDeleteTextElement';
+import {
+  TOOL_DEFINITION as GetTextElement_Tool,
+  handleGetTextElement,
+} from '../../../handlers/text_element/high/handleGetTextElement';
+import {
+  handleUpdateTextElement,
+  TOOL_DEFINITION as UpdateTextElement_Tool,
+} from '../../../handlers/text_element/high/handleUpdateTextElement';
 import {
   TOOL_DEFINITION as CreateTransport_Tool,
   handleCreateTransport,
@@ -832,6 +849,23 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: DeleteGuiStatus_Tool,
         handler: withContext(handleDeleteGuiStatus),
+      },
+      // Text Element (TEXTPOOL) high-level handlers
+      {
+        toolDefinition: GetTextElement_Tool,
+        handler: withContext(handleGetTextElement),
+      },
+      {
+        toolDefinition: CreateTextElement_Tool,
+        handler: withContext(handleCreateTextElement),
+      },
+      {
+        toolDefinition: UpdateTextElement_Tool,
+        handler: withContext(handleUpdateTextElement),
+      },
+      {
+        toolDefinition: DeleteTextElement_Tool,
+        handler: withContext(handleDeleteTextElement),
       },
     ];
   }

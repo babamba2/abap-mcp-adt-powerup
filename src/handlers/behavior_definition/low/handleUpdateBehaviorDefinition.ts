@@ -9,6 +9,10 @@ import type { IBehaviorDefinitionConfig } from '@mcp-abap-adt/adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
+import {
   type AxiosResponse,
   restoreSessionInConnection,
   return_error,
@@ -42,6 +46,11 @@ export const TOOL_DEFINITION = {
         description:
           'Transport request number (required for transportable packages).',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description:
@@ -67,6 +76,7 @@ interface UpdateBehaviorDefinitionArgs {
   source_code: string;
   lock_handle: string;
   transport_request?: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -91,6 +101,7 @@ export async function handleUpdateBehaviorDefinition(
       source_code,
       lock_handle,
       transport_request,
+      skip_check,
       session_id,
       session_state,
     } = args as UpdateBehaviorDefinitionArgs;
@@ -138,6 +149,20 @@ export async function handleUpdateBehaviorDefinition(
         );
       }
 
+      // Post-write syntax check on the staged inactive version (unless
+      // explicitly skipped). Surfaces ALL compile errors with line numbers.
+      if (skip_check !== true) {
+        const checkResult = await runSyntaxCheck(
+          { connection, logger },
+          { kind: 'behaviorDefinition', name: behaviorDefinitionName },
+        );
+        assertNoCheckErrors(
+          checkResult,
+          'Behavior Definition',
+          behaviorDefinitionName,
+        );
+      }
+
       // Get updated session state after update
 
       logger?.info(
@@ -158,6 +183,15 @@ export async function handleUpdateBehaviorDefinition(
         ),
       } as AxiosResponse);
     } catch (error: any) {
+      // PreCheck syntax-check failures carry full structured diagnostics —
+      // forward them as-is so the caller sees every error with line numbers.
+      if (error?.isPreCheckFailure) {
+        logger?.error(
+          `Error updating behavior definition ${behaviorDefinitionName}: ${error.message}`,
+        );
+        return return_error(error);
+      }
+
       logger?.error(
         `Error updating behavior definition ${behaviorDefinitionName}: ${error?.message || error}`,
       );

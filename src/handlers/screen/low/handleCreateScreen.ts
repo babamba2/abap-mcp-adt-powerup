@@ -5,6 +5,10 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  assertNoCheckErrors,
+  runSyntaxCheck,
+} from '../../../lib/preCheckBeforeActivation';
 import { callDispatch } from '../../../lib/soapRfc';
 import {
   type AxiosResponse,
@@ -33,6 +37,11 @@ export const TOOL_DEFINITION = {
         description:
           'Full screen definition as JSON (header, containers, fields_to_containers, flow_logic). If omitted, creates a minimal empty screen.',
       },
+      skip_check: {
+        type: 'boolean',
+        description:
+          'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
+      },
       session_id: {
         type: 'string',
         description: 'Session ID from GetSession.',
@@ -56,6 +65,7 @@ interface CreateScreenArgs {
   screen_number: string;
   description?: string;
   dynpro_data?: string;
+  skip_check?: boolean;
   session_id?: string;
   session_state?: {
     cookies?: string;
@@ -75,6 +85,7 @@ export async function handleCreateScreen(
       screen_number,
       description,
       dynpro_data,
+      skip_check,
       session_id,
       session_state,
     } = args;
@@ -127,6 +138,19 @@ export async function handleCreateScreen(
       dynpro_data: screenData,
     });
 
+    // Post-write syntax check on the parent program tree (unless skipped).
+    if (skip_check !== true) {
+      const checkResult = await runSyntaxCheck(
+        { connection, logger },
+        { kind: 'screen', name: programName, parentProgramName: programName },
+      );
+      assertNoCheckErrors(
+        checkResult,
+        'Screen',
+        `${programName}/${screen_number}`,
+      );
+    }
+
     logger?.info(`✅ Screen created: ${programName}/${screen_number}`);
 
     return return_response({
@@ -143,6 +167,10 @@ export async function handleCreateScreen(
       ),
     } as AxiosResponse);
   } catch (error: any) {
+    if (error?.isPreCheckFailure) {
+      logger?.error(`Error creating screen: ${error.message}`);
+      return return_error(error);
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger?.error(`Error creating screen: ${errorMessage}`);
     return return_error(new Error(`Failed to create screen: ${errorMessage}`));

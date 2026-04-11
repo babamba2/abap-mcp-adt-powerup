@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775775582852,
+  "lastScanned": 1775887548153,
   "projectRoot": "C:\\Users\\pssps\\Documents\\Claude\\Projects\\ABAP MCP\\mcp-abap-adt",
   "techStack": {
     "languages": [
@@ -116,7 +116,10 @@
       "src",
       "tests"
     ],
-    "gitBranches": null
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
   },
   "customNotes": [],
   "directoryMap": {
@@ -124,7 +127,7 @@
       "path": "bin",
       "purpose": "Executable scripts",
       "fileCount": 1,
-      "lastAccessed": 1775775582770,
+      "lastAccessed": 1775887548078,
       "keyFiles": [
         "mcp-abap-adt.js"
       ]
@@ -133,7 +136,7 @@
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 1,
-      "lastAccessed": 1775775582782,
+      "lastAccessed": 1775887548089,
       "keyFiles": [
         "index.js"
       ]
@@ -142,7 +145,7 @@
       "path": "docker",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1775775582783,
+      "lastAccessed": 1775887548090,
       "keyFiles": [
         "docker-compose.headerless.yml",
         "docker-compose.inspect.yml",
@@ -155,7 +158,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1775775582783,
+      "lastAccessed": 1775887548090,
       "keyFiles": [
         "adt-discovery.xml",
         "discovery.json",
@@ -166,14 +169,14 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 0,
-      "lastAccessed": 1775775582783,
+      "lastAccessed": 1775887548091,
       "keyFiles": []
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 2,
-      "lastAccessed": 1775775582784,
+      "lastAccessed": 1775887548091,
       "keyFiles": [
         "README.md",
         "test-config.yaml.template"
@@ -182,8 +185,8 @@
     "tools": {
       "path": "tools",
       "purpose": null,
-      "fileCount": 19,
-      "lastAccessed": 1775775582784,
+      "fileCount": 20,
+      "lastAccessed": 1775887548092,
       "keyFiles": [
         "bulk-update-interface-handlers.sh",
         "check-exports.js",
@@ -195,8 +198,8 @@
     "dist\\lib": {
       "path": "dist\\lib",
       "purpose": "Library code",
-      "fileCount": 48,
-      "lastAccessed": 1775775582785,
+      "fileCount": 56,
+      "lastAccessed": 1775887548093,
       "keyFiles": [
         "checkRunParser.d.ts",
         "checkRunParser.d.ts.map",
@@ -207,7 +210,7 @@
       "path": "dist\\utils",
       "purpose": "Utility functions",
       "fileCount": 8,
-      "lastAccessed": 1775775582786,
+      "lastAccessed": 1775887548093,
       "keyFiles": [
         "StdioLogger.d.ts",
         "StdioLogger.d.ts.map",
@@ -217,8 +220,8 @@
     "src\\lib": {
       "path": "src\\lib",
       "purpose": "Library code",
-      "fileCount": 12,
-      "lastAccessed": 1775775582786,
+      "fileCount": 14,
+      "lastAccessed": 1775887548094,
       "keyFiles": [
         "checkRunParser.ts",
         "clients.ts",
@@ -229,7 +232,7 @@
       "path": "src\\utils",
       "purpose": "Utility functions",
       "fileCount": 2,
-      "lastAccessed": 1775775582787,
+      "lastAccessed": 1775887548094,
       "keyFiles": [
         "StdioLogger.ts",
         "transportValidation.ts"
@@ -239,7 +242,7 @@
       "path": "src\\__tests__",
       "purpose": "Test files",
       "fileCount": 4,
-      "lastAccessed": 1775775582788,
+      "lastAccessed": 1775887548095,
       "keyFiles": [
         "compactRouter.test.ts",
         "handlers.test.ts",
@@ -249,33 +252,39 @@
   },
   "hotPaths": [
     {
-      "path": "src\\lib\\handlers\\groups\\LowLevelHandlersGroup.ts",
-      "accessCount": 39,
-      "lastAccessed": 1775783863668,
-      "type": "file"
-    },
-    {
-      "path": "src\\lib\\handlers\\groups\\HighLevelHandlersGroup.ts",
-      "accessCount": 25,
-      "lastAccessed": 1775793341618,
-      "type": "file"
-    },
-    {
       "path": "src\\handlers\\include\\high\\handleUpdateInclude.ts",
-      "accessCount": 22,
-      "lastAccessed": 1775794051135,
+      "accessCount": 60,
+      "lastAccessed": 1775916117848,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\handlers\\groups\\LowLevelHandlersGroup.ts",
+      "accessCount": 41,
+      "lastAccessed": 1775808402447,
       "type": "file"
     },
     {
       "path": "src",
-      "accessCount": 21,
-      "lastAccessed": 1775794057813,
+      "accessCount": 34,
+      "lastAccessed": 1775917634510,
       "type": "directory"
+    },
+    {
+      "path": "src\\lib\\handlers\\groups\\HighLevelHandlersGroup.ts",
+      "accessCount": 29,
+      "lastAccessed": 1775918324136,
+      "type": "file"
     },
     {
       "path": "src\\handlers\\include\\high\\handleDeleteInclude.ts",
       "accessCount": 17,
       "lastAccessed": 1775794909463,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\high\\handleUpdateProgram.ts",
+      "accessCount": 16,
+      "lastAccessed": 1775889097063,
       "type": "file"
     },
     {
@@ -286,14 +295,74 @@
     },
     {
       "path": "src\\lib\\utils.ts",
+      "accessCount": 14,
+      "lastAccessed": 1775901004364,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\low\\handleUpdateProgram.ts",
       "accessCount": 13,
-      "lastAccessed": 1775786838154,
+      "lastAccessed": 1775889098869,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleCreateScreen.ts",
+      "accessCount": 13,
+      "lastAccessed": 1775915516227,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleCreateScreen.ts",
+      "accessCount": 13,
+      "lastAccessed": 1775917683959,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\low\\handleUpdateScreen.ts",
+      "accessCount": 12,
+      "lastAccessed": 1775915484588,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleUpdateScreen.ts",
+      "accessCount": 12,
+      "lastAccessed": 1775915491040,
       "type": "file"
     },
     {
       "path": "src\\handlers\\gui_status\\readonly\\handleGetGuiStatusList.ts",
-      "accessCount": 11,
-      "lastAccessed": 1775785781055,
+      "accessCount": 12,
+      "lastAccessed": 1775917659846,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib",
+      "accessCount": 9,
+      "lastAccessed": 1775808341489,
+      "type": "directory"
+    },
+    {
+      "path": "src\\handlers\\screen\\high\\handleGetScreen.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775847227588,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\high\\handleCreateProgram.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775888960952,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\program\\low\\handleCreateProgram.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775888963245,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\screen\\readonly\\handleReadScreen.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775917684164,
       "type": "file"
     },
     {
@@ -309,9 +378,33 @@
       "type": "file"
     },
     {
-      "path": "src\\lib",
+      "path": "src\\handlers\\class\\low\\handleCreateClass.ts",
       "accessCount": 8,
-      "lastAccessed": 1775789373226,
+      "lastAccessed": 1775903673714,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleCreateGuiStatus.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775917643640,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\readonly\\handleReadGuiStatus.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775917644336,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleDeleteGuiStatus.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775917656217,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 8,
+      "lastAccessed": 1775917704181,
       "type": "directory"
     },
     {
@@ -321,9 +414,15 @@
       "type": "file"
     },
     {
-      "path": "src\\handlers\\screen\\high\\handleGetScreen.ts",
+      "path": "src\\handlers\\class\\high\\handleCreateClass.ts",
       "accessCount": 7,
-      "lastAccessed": 1775788871517,
+      "lastAccessed": 1775888955174,
+      "type": "file"
+    },
+    {
+      "path": "src\\handlers\\gui_status\\low\\handleActivateGuiStatus.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775917655428,
       "type": "file"
     },
     {
@@ -333,57 +432,9 @@
       "type": "file"
     },
     {
-      "path": "",
+      "path": "src\\handlers\\gui_status\\low\\handleUpdateGuiStatus.ts",
       "accessCount": 6,
-      "lastAccessed": 1775786287718,
-      "type": "directory"
-    },
-    {
-      "path": "src\\handlers\\gui_status\\readonly\\handleReadGuiStatus.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775788643792,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\screen\\readonly\\handleReadScreen.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775788862557,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\screen\\high\\handleCreateScreen.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775794063341,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\screen\\high\\handleUpdateScreen.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775794064484,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\gui_status\\low\\handleActivateGuiStatus.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775794069404,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\gui_status\\low\\handleCreateGuiStatus.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775788714900,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\gui_status\\low\\handleDeleteGuiStatus.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775788765754,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\program\\high\\handleUpdateProgram.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775792220072,
+      "lastAccessed": 1775917644168,
       "type": "file"
     },
     {
@@ -394,26 +445,20 @@
     },
     {
       "path": "src\\handlers",
-      "accessCount": 4,
-      "lastAccessed": 1775786341038,
+      "accessCount": 5,
+      "lastAccessed": 1775808331697,
       "type": "directory"
     },
     {
       "path": "src\\handlers\\gui_status\\low\\handleLockGuiStatus.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775788671741,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\gui_status\\low\\handleUpdateGuiStatus.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775788724934,
+      "accessCount": 5,
+      "lastAccessed": 1775917654172,
       "type": "file"
     },
     {
       "path": "src\\handlers\\gui_status\\low\\handleUnlockGuiStatus.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775788754977,
+      "accessCount": 5,
+      "lastAccessed": 1775917655049,
       "type": "file"
     },
     {
@@ -429,33 +474,9 @@
       "type": "file"
     },
     {
-      "path": "src\\handlers\\screen\\low\\handleCreateScreen.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775788921008,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\screen\\low\\handleUpdateScreen.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775788931808,
-      "type": "file"
-    },
-    {
       "path": "src\\handlers\\screen\\low\\handleDeleteScreen.ts",
       "accessCount": 4,
       "lastAccessed": 1775788947075,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\program\\low\\handleUpdateProgram.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775776750118,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\program\\high\\handleCreateProgram.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775793255846,
       "type": "file"
     },
     {
@@ -481,24 +502,6 @@
       "accessCount": 2,
       "lastAccessed": 1775793525866,
       "type": "directory"
-    },
-    {
-      "path": "src\\handlers\\program\\low\\handleCreateProgram.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775775985074,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\class\\high\\handleCreateClass.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775775985140,
-      "type": "file"
-    },
-    {
-      "path": "src\\handlers\\class\\low\\handleCreateClass.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775775985608,
-      "type": "file"
     },
     {
       "path": "src\\lib\\handlers\\base\\BaseHandlerGroup.ts",
