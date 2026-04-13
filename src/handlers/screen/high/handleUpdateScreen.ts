@@ -6,6 +6,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { normalizeDynproData } from '../../../lib/normalizeDynproData';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
@@ -119,10 +120,16 @@ export async function handleUpdateScreen(context: HandlerContext, params: any) {
       /* screen might not exist */
     }
 
+    const normalizedData = normalizeDynproData(
+      args.dynpro_data,
+      programName,
+      args.screen_number,
+    );
+
     await callDispatch(connection, 'DYNPRO_INSERT', {
       program: programName,
       dynpro: args.screen_number,
-      dynpro_data: args.dynpro_data,
+      dynpro_data: normalizedData,
     });
 
     // Post-write syntax check on the parent program tree. Dynpros

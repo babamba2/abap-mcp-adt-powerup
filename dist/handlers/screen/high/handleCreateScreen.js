@@ -7,6 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateScreen = handleCreateScreen;
+const normalizeDynproData_1 = require("../../../lib/normalizeDynproData");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
@@ -54,8 +55,9 @@ async function handleCreateScreen(context, params) {
     try {
         // /ui2/cl_json=>deserialize default requires UPPERCASE JSON keys to
         // map into ABAP structure fields (HEADER, CONTAINERS, ...).
-        const screenData = args.dynpro_data ||
-            JSON.stringify({
+        const screenData = args.dynpro_data
+            ? (0, normalizeDynproData_1.normalizeDynproData)(args.dynpro_data, programName, args.screen_number)
+            : JSON.stringify({
                 HEADER: {
                     PROGRAM: programName,
                     SCREEN: args.screen_number,

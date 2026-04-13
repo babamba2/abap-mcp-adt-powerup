@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateScreen = handleUpdateScreen;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const normalizeDynproData_1 = require("../../../lib/normalizeDynproData");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const soapRfc_1 = require("../../../lib/soapRfc");
 const utils_1 = require("../../../lib/utils");
@@ -76,10 +77,11 @@ async function handleUpdateScreen(context, params) {
         catch {
             /* screen might not exist */
         }
+        const normalizedData = (0, normalizeDynproData_1.normalizeDynproData)(args.dynpro_data, programName, args.screen_number);
         await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_INSERT', {
             program: programName,
             dynpro: args.screen_number,
-            dynpro_data: args.dynpro_data,
+            dynpro_data: normalizedData,
         });
         // Post-write syntax check on the parent program tree. Dynpros
         // have no standalone check — flow-logic errors surface as errors

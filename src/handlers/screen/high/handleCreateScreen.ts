@@ -5,6 +5,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { normalizeDynproData } from '../../../lib/normalizeDynproData';
 import {
   assertNoCheckErrors,
   runSyntaxCheck,
@@ -83,28 +84,28 @@ export async function handleCreateScreen(context: HandlerContext, params: any) {
   try {
     // /ui2/cl_json=>deserialize default requires UPPERCASE JSON keys to
     // map into ABAP structure fields (HEADER, CONTAINERS, ...).
-    const screenData =
-      args.dynpro_data ||
-      JSON.stringify({
-        HEADER: {
-          PROGRAM: programName,
-          SCREEN: args.screen_number,
-          LANGUAGE: 'E',
-          DESCRIPT: args.description || `Screen ${args.screen_number}`,
-          TYPE: 'N',
-          LINES: 20,
-          COLUMNS: 83,
-        },
-        CONTAINERS: [],
-        FIELDS_TO_CONTAINERS: [],
-        FLOW_LOGIC: [
-          { LINE: 'PROCESS BEFORE OUTPUT.' },
-          { LINE: `* MODULE STATUS_${args.screen_number}.` },
-          { LINE: '' },
-          { LINE: 'PROCESS AFTER INPUT.' },
-          { LINE: `* MODULE USER_COMMAND_${args.screen_number}.` },
-        ],
-      });
+    const screenData = args.dynpro_data
+      ? normalizeDynproData(args.dynpro_data, programName, args.screen_number)
+      : JSON.stringify({
+          HEADER: {
+            PROGRAM: programName,
+            SCREEN: args.screen_number,
+            LANGUAGE: 'E',
+            DESCRIPT: args.description || `Screen ${args.screen_number}`,
+            TYPE: 'N',
+            LINES: 20,
+            COLUMNS: 83,
+          },
+          CONTAINERS: [],
+          FIELDS_TO_CONTAINERS: [],
+          FLOW_LOGIC: [
+            { LINE: 'PROCESS BEFORE OUTPUT.' },
+            { LINE: `* MODULE STATUS_${args.screen_number}.` },
+            { LINE: '' },
+            { LINE: 'PROCESS AFTER INPUT.' },
+            { LINE: `* MODULE USER_COMMAND_${args.screen_number}.` },
+          ],
+        });
 
     await callDispatch(connection, 'DYNPRO_INSERT', {
       program: programName,
