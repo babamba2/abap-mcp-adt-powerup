@@ -64,7 +64,7 @@ jobs:
             ## Installation
 
             ```bash
-            npm install @mcp-abap-adt/core
+            npm install @babamba2/abap-mcp-adt-powerup
             ```
 
             See [Installation Guide](https://github.com/${{ github.repository }}/blob/main/doc/installation/INSTALLATION.md) for details.
