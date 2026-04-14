@@ -4,6 +4,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.parseSqlQueryXml = parseSqlQueryXml;
 exports.handleGetSqlQuery = handleGetSqlQuery;
 const clients_1 = require("../../../lib/clients");
+const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
 exports.TOOL_DEFINITION = {
@@ -21,6 +22,11 @@ exports.TOOL_DEFINITION = {
                 type: 'number',
                 description: '[read-only] Maximum number of rows to return',
                 default: 100,
+            },
+            acknowledge_risk: {
+                type: 'boolean',
+                description: 'Set to true ONLY after the user has explicitly authorized row extraction from an \'ask\'-tier protected table. The approval is logged to stderr for audit. Has no effect on \'deny\'-tier tables.',
+                default: false,
             },
         },
         required: ['sql_query'],
@@ -130,6 +136,23 @@ async function handleGetSqlQuery(context, args) {
         }
         const sqlQuery = args.sql_query;
         const rowNumber = args.row_number || 100; // Default to 100 rows if not specified
+        const tables = (0, tableBlocklist_1.extractTablesFromSql)(sqlQuery);
+        if (tables.length > 0 && !(0, tableBlocklist_1.isAggregateOnly)(sqlQuery)) {
+            const hits = (0, tableBlocklist_1.checkTables)(tables);
+            const verdict = (0, tableBlocklist_1.evaluateHits)(hits, args.acknowledge_risk === true, (0, tableBlocklist_1.activeProfile)());
+            if (verdict.kind === 'deny') {
+                logger?.warn(`Blocked GetSqlQuery: ${tables.join(',')}`);
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidRequest, verdict.message);
+            }
+            if (verdict.kind === 'ask') {
+                logger?.warn(`GetSqlQuery requires user acknowledgement: ${tables.join(',')}`);
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidRequest, verdict.message);
+            }
+            if (verdict.kind === 'approved') {
+                process.stderr.write(`[mcp-abap-adt][blocklist] AUDIT: user-acknowledged GetSqlQuery on ${verdict.tables.join(',')}\n`);
+                logger?.warn(`AUDIT: user-acknowledged GetSqlQuery on ${verdict.tables.join(',')}`);
+            }
+        }
         logger?.info(`Executing SQL query (rows=${rowNumber})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
         const response = await client

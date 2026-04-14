@@ -37,6 +37,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleGetTableContents = handleGetTableContents;
 const z = __importStar(require("zod"));
 const clients_1 = require("../../../lib/clients");
+const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const handleGetSqlQuery_1 = require("../../system/readonly/handleGetSqlQuery");
 exports.TOOL_DEFINITION = {
@@ -49,6 +50,10 @@ exports.TOOL_DEFINITION = {
             .number()
             .optional()
             .describe('Maximum number of rows to retrieve'),
+        acknowledge_risk: z
+            .boolean()
+            .optional()
+            .describe("Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables."),
     },
 };
 async function handleGetTableContents(context, args) {
@@ -59,6 +64,20 @@ async function handleGetTableContents(context, args) {
         }
         const tableName = args.table_name;
         const maxRows = args.max_rows || 100;
+        const hits = (0, tableBlocklist_1.checkTables)([tableName]);
+        const verdict = (0, tableBlocklist_1.evaluateHits)(hits, args.acknowledge_risk === true, (0, tableBlocklist_1.activeProfile)());
+        if (verdict.kind === 'deny') {
+            logger?.warn(`Blocked GetTableContents: ${tableName}`);
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidRequest, verdict.message);
+        }
+        if (verdict.kind === 'ask') {
+            logger?.warn(`GetTableContents requires user acknowledgement: ${tableName}`);
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidRequest, verdict.message);
+        }
+        if (verdict.kind === 'approved') {
+            process.stderr.write(`[mcp-abap-adt][blocklist] AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}\n`);
+            logger?.warn(`AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}`);
+        }
         logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
         const response = await client

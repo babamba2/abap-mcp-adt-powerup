@@ -1,6 +1,11 @@
 import * as z from 'zod';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  activeProfile,
+  checkTables,
+  evaluateHits,
+} from '../../../lib/policy/tableBlocklist';
 import { ErrorCode, McpError } from '../../../lib/utils';
 import { parseSqlQueryXml } from '../../system/readonly/handleGetSqlQuery';
 
@@ -15,6 +20,12 @@ export const TOOL_DEFINITION = {
       .number()
       .optional()
       .describe('Maximum number of rows to retrieve'),
+    acknowledge_risk: z
+      .boolean()
+      .optional()
+      .describe(
+        "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.",
+      ),
   },
 } as const;
 
@@ -30,6 +41,31 @@ export async function handleGetTableContents(
 
     const tableName = args.table_name;
     const maxRows = args.max_rows || 100;
+
+    const hits = checkTables([tableName]);
+    const verdict = evaluateHits(
+      hits,
+      args.acknowledge_risk === true,
+      activeProfile(),
+    );
+    if (verdict.kind === 'deny') {
+      logger?.warn(`Blocked GetTableContents: ${tableName}`);
+      throw new McpError(ErrorCode.InvalidRequest, verdict.message);
+    }
+    if (verdict.kind === 'ask') {
+      logger?.warn(
+        `GetTableContents requires user acknowledgement: ${tableName}`,
+      );
+      throw new McpError(ErrorCode.InvalidRequest, verdict.message);
+    }
+    if (verdict.kind === 'approved') {
+      process.stderr.write(
+        `[mcp-abap-adt][blocklist] AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}\n`,
+      );
+      logger?.warn(
+        `AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}`,
+      );
+    }
 
     logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
 

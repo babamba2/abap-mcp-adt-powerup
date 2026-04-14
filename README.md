@@ -1,16 +1,18 @@
-<p align="center">
-  <img src="logo.png" alt="MCP ABAP ADT" width="160" />
-</p>
-
 # MCP ABAP ADT
 
-**🌐 Language / 언어**: **English** · [한국어](README.ko.md)
+**🌐 Language / 언어 / 言語**: **English** · [한국어](README.ko.md) · [日本語](README.ja.md)
 
 [![npm version](https://img.shields.io/npm/v/@mcp-abap-adt/core)](https://www.npmjs.com/package/@mcp-abap-adt/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-purple)](https://claude.com/claude-code)
+
+## Acknowledgments
+
+This project was originally inspired by [mario-andreschak/mcp-abap-adt](https://github.com/mario-andreschak/mcp-abap-adt) and [fr0ster/mcp-abap-adt](https://github.com/fr0ster/mcp-abap-adt/tree/main/src). We started with the core concept and evolved it into an independent project with our own architecture and features. Huge thanks to the original authors and all [contributors](#contributors) whose work made this possible.
+
+---
 
 **Model Context Protocol (MCP) server for SAP ABAP development** — enables AI assistants and code editors to interact with SAP systems via ABAP Developer Toolkit (ADT) APIs.
 
@@ -37,8 +39,8 @@ Read, create, update, and delete ABAP objects directly from Claude Code, Cline, 
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
 - [Documentation](#documentation)
+- [Optional: Data Fetch Prevention](#optional-data-fetch-prevention)
 - [Contributing](#contributing)
-- [Acknowledgments](#acknowledgments)
 - [License](#license)
 
 ---
@@ -55,6 +57,7 @@ Read, create, update, and delete ABAP objects directly from Claude Code, Cline, 
 - **Embeddable**: Use as a standalone server or embed handlers into existing MCP servers
 - **Auto-configurator**: `@mcp-abap-adt/configurator` for automated client setup
 - **Health endpoint**: `GET /mcp/health` for HTTP/SSE transports
+- **Optional data-fetch prevention**: opt-in server-side blocklist (`SC4SAP_POLICY=on`) that blocks row extraction from sensitive tables (PII, credentials, payroll, banking) regardless of caller — see [Optional: Data Fetch Prevention](#optional-data-fetch-prevention)
 
 ---
 
@@ -683,12 +686,47 @@ Yes, for legacy systems where ADT HTTP APIs are unavailable. Set `connection_typ
 
 ---
 
+## Optional: Data Fetch Prevention
+
+Row-returning tools (`GetTableContents`, `GetSqlQuery`) can expose sensitive business data — PII, credentials, payroll, banking, transactional finance. This server ships with an **opt-in server-side blocklist** that stops such calls before they ever reach SAP, regardless of the caller (Claude, other LLMs, direct JSON-RPC, external scripts).
+
+The feature is **disabled by default** — nothing is blocked unless you explicitly turn it on.
+
+### Enable
+
+```bash
+export SC4SAP_POLICY=on                    # or: strict | standard | minimal | custom
+export SC4SAP_POLICY_PROFILE=strict        # optional, default when SC4SAP_POLICY=on
+export SC4SAP_BLOCKLIST_PATH=/path/to/table_exception.md   # optional extra list
+export SC4SAP_ALLOW_TABLE=TAB1,TAB2        # session-scoped emergency exemption (logged)
+```
+
+### Profiles
+
+| Profile | Blocks |
+|---------|--------|
+| `strict` (default when `SC4SAP_POLICY=on`) | PII + credentials + HR + transactional finance + audit logs + workflow |
+| `standard` | PII + credentials + HR + transactional finance |
+| `minimal` | PII + credentials + HR + Tax (business tables allowed) |
+| `custom` | User-supplied list only (`blocklist-custom.txt`) |
+
+### Behavior
+
+When a blocked table is accessed, the server responds with `isError: true` and a categorized reason — **no SAP round-trip occurs**. Schema/DDIC metadata calls (`GetTable`, `GetStructure`, `GetView`, `GetDataElement`, `GetDomain`), existence checks (`SearchObject`), and aggregate-only `GetSqlQuery` remain allowed.
+
+Built-in blocklist covers 100+ tables / patterns across Banking (BNKA, KNBK, LFBK, REGUH), Customer/Vendor PII (KNA1, LFA1, BUT000, BUT0ID), Addresses (ADRC, ADR6, ADRP), Authentication (USR02, RFCDES, AGR_1251), HR/Payroll (`PA*` / `HRP*` / `PCL*`), Tax IDs, Protected Business Data (VBAK/BKPF/ACDOCA), Audit logs, and customer `Z*` PII patterns.
+
+This feature is **designed for but not coupled to** the [sc4sap](https://github.com/babamba2/superclaude-for-sap) plugin — any MCP client can benefit from it.
+
+---
+
 ## Contributing
 
 We welcome contributions! Please see the [development documentation](docs/development/) for setup instructions.
 
 ### Contributors
 
+- **Paek Seunghyun** ([@babamba2](https://github.com/babamba2)) - Enhanced features addition
 - **Oleksii Kyslytsia** ([@fr0ster](https://github.com/fr0ster)) - Main maintainer (539+ commits)
 - **mario-andreschak** ([@mario-andreschak](https://github.com/mario-andreschak)) - Original project maintainer
 - **Henry Mao** ([@calclavia](https://github.com/calclavia)) - Contributor
@@ -697,12 +735,6 @@ We welcome contributions! Please see the [development documentation](docs/develo
 
 ---
 
-## Acknowledgments
-
-This project was originally inspired by [mario-andreschak/mcp-abap-adt](https://github.com/mario-andreschak/mcp-abap-adt) and [fr0ster/mcp-abap-adt](https://github.com/fr0ster/mcp-abap-adt/tree/main/src). We started with the core concept and evolved it into an independent project with our own architecture and features.
-
----
-
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 백승현 (Paek Seunghyun)
+[MIT](LICENSE) — Copyright (c) 2026 백승현 (Paek Seunghyun) & Oleksii Kyslytsia
