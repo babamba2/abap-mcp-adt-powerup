@@ -1,3 +1,4 @@
+// Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as crypto from 'node:crypto';
 import { randomUUID } from 'node:crypto';

@@ -1,6 +1,6 @@
 {
-  "name": "@mcp-abap-adt/core",
-  "mcpName": "io.github.fr0ster/mcp-abap-adt",
+  "name": "@babamba2/abap-mcp-adt-powerup",
+  "mcpName": "io.github.babamba2/abap-mcp-adt-powerup",
   "version": "4.5.3",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -104,12 +104,12 @@
     "service-key",
     "crud"
   ],
-  "author": "Oleksii Kyslytsia <oleksij.kyslytsja@gmail.com>",
+  "author": "babamba2 <psspss1122@gmail.com>",
   "description": "SAP ABAP ADT MCP server with full CRUD for on-prem and ABAP Cloud (BTP), plus JWT/XSUAA and service-key destination auth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fr0ster/mcp-abap-adt.git"
+    "url": "git+https://github.com/babamba2/abap-mcp-adt-powerup.git"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
@@ -169,8 +169,8 @@
     "CHANGELOG.md"
   ],
   "bin": {
-    "mcp-abap-adt": "./bin/mcp-abap-adt.js",
-    "mcp-abap-adt-v2": "./bin/mcp-abap-adt-v2.js"
+    "mcp-abap-adt": "bin/mcp-abap-adt.js",
+    "mcp-abap-adt-v2": "bin/mcp-abap-adt-v2.js"
   },
   "jest": {
     "preset": "ts-jest",
@@ -215,5 +215,14 @@
       "biome check --write"
     ]
   },
-  "private": false
+  "private": false,
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/babamba2/abap-mcp-adt-powerup/issues"
+  },
+  "homepage": "https://github.com/babamba2/abap-mcp-adt-powerup#readme"
 }

@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Client Configuration Guide
 
 This guide explains how to configure MCP clients to connect to the `mcp-abap-adt` server.

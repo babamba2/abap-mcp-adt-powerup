@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # MCP ABAP ADT Server - Installation Guide
 
 Complete installation guide for MCP ABAP ADT Server across different platforms.

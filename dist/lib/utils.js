@@ -75,6 +75,7 @@ exports.getConfig = getConfig;
 exports.maskSensitiveValue = maskSensitiveValue;
 exports.formatAuthConfigForDisplay = formatAuthConfigForDisplay;
 exports.parseActivationResponse = parseActivationResponse;
+// Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster
 const node_async_hooks_1 = require("node:async_hooks");
 const crypto = __importStar(require("node:crypto"));
 const node_crypto_1 = require("node:crypto");

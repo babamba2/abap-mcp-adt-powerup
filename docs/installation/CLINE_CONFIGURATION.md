@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Cline MCP Configuration
 
 This guide shows how to configure Cline to connect to the MCP ABAP ADT server using different transport protocols.

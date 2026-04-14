@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Contributors
 
 Thank you to all contributors who have helped make mcp-abap-adt better!

@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # MCP Registry Publishing
 
 This project is published in the official MCP Registry.

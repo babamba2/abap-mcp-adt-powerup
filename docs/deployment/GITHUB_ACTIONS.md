@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # GitHub Configuration
 
 This directory contains GitHub-specific configuration files.

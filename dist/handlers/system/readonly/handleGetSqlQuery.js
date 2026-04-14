@@ -25,7 +25,7 @@ exports.TOOL_DEFINITION = {
             },
             acknowledge_risk: {
                 type: 'boolean',
-                description: 'Set to true ONLY after the user has explicitly authorized row extraction from an \'ask\'-tier protected table. The approval is logged to stderr for audit. Has no effect on \'deny\'-tier tables.',
+                description: "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.",
                 default: false,
             },
         },

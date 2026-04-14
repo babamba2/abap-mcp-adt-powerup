@@ -34,7 +34,11 @@ exports.formatAskPrompt = formatAskPrompt;
 exports.partitionHits = partitionHits;
 exports.evaluateHits = evaluateHits;
 exports.activeProfile = activeProfile;
-const TIER_ORDER = { minimal: 1, standard: 2, strict: 3 };
+const TIER_ORDER = {
+    minimal: 1,
+    standard: 2,
+    strict: 3,
+};
 const RAW = [
     {
         category: 'Banking / Payment',
@@ -42,9 +46,23 @@ const RAW = [
         action: 'deny',
         why: 'Customer/vendor bank account credentials',
         names: [
-            'BNKA', 'KNBK', 'LFBK', 'BUT0BK', 'T012K', 'REGUH', 'REGUP', 'PAYR',
-            'FPLT', 'FPLTC', 'CCARD', 'TCRCO', 'BSEGC',
-            'FPAYH', 'FPAYHX', 'FPAYP', 'FPAYPX',
+            'BNKA',
+            'KNBK',
+            'LFBK',
+            'BUT0BK',
+            'T012K',
+            'REGUH',
+            'REGUP',
+            'PAYR',
+            'FPLT',
+            'FPLTC',
+            'CCARD',
+            'TCRCO',
+            'BSEGC',
+            'FPAYH',
+            'FPAYHX',
+            'FPAYP',
+            'FPAYPX',
         ],
     },
     {
@@ -53,10 +71,24 @@ const RAW = [
         action: 'deny',
         why: 'Name, address, tax ID, DUNS, BP core PII',
         names: [
-            'KNA1', 'KNB1', 'KNVK', 'KNVV', 'KNVL',
-            'LFA1', 'LFB1', 'LFM1', 'LFM2',
-            'BUT000', 'BUT020', 'BUT021', 'BUT021_FS', 'BUT050', 'BUT051',
-            'BUT100', 'BUT0ID', 'BUT0BANK',
+            'KNA1',
+            'KNB1',
+            'KNVK',
+            'KNVV',
+            'KNVL',
+            'LFA1',
+            'LFB1',
+            'LFM1',
+            'LFM2',
+            'BUT000',
+            'BUT020',
+            'BUT021',
+            'BUT021_FS',
+            'BUT050',
+            'BUT051',
+            'BUT100',
+            'BUT0ID',
+            'BUT0BANK',
         ],
     },
     {
@@ -65,8 +97,18 @@ const RAW = [
         action: 'deny',
         why: 'Address, phone, fax, email, URL — PII',
         names: [
-            'ADRC', 'ADRP', 'ADR2', 'ADR3', 'ADR6', 'ADR7', 'ADR9',
-            'ADR11', 'ADR12', 'ADR13', 'ADRT', 'ADRCT',
+            'ADRC',
+            'ADRP',
+            'ADR2',
+            'ADR3',
+            'ADR6',
+            'ADR7',
+            'ADR9',
+            'ADR11',
+            'ADR12',
+            'ADR13',
+            'ADRT',
+            'ADRCT',
         ],
     },
     {
@@ -75,10 +117,27 @@ const RAW = [
         action: 'deny',
         why: 'Password hashes, auth values, RFC secrets, crypto keys',
         names: [
-            'USR02', 'USH02', 'USRBF2', 'USR01', 'USR04', 'USR10', 'USR12',
-            'USR21', 'USR22', 'USR40', 'USR41', 'USR_CUST',
-            'AGR_1251', 'AGR_USERS', 'AGR_AGRS', 'PRGN_CUST',
-            'RFCDES', 'RSECACTB', 'RSECTAB', 'SNCSYSACL', 'SSF_PSE_D',
+            'USR02',
+            'USH02',
+            'USRBF2',
+            'USR01',
+            'USR04',
+            'USR10',
+            'USR12',
+            'USR21',
+            'USR22',
+            'USR40',
+            'USR41',
+            'USR_CUST',
+            'AGR_1251',
+            'AGR_USERS',
+            'AGR_AGRS',
+            'PRGN_CUST',
+            'RFCDES',
+            'RSECACTB',
+            'RSECTAB',
+            'SNCSYSACL',
+            'SSF_PSE_D',
         ],
     },
     {
@@ -87,8 +146,15 @@ const RAW = [
         action: 'deny',
         why: 'Employee PII, salary, payroll results, medical data',
         names: [
-            'PA*', 'PB9*', 'PD9*', 'HRP*',
-            'PCL1', 'PCL2', 'PCL3', 'PCL4', 'PCL5',
+            'PA*',
+            'PB9*',
+            'PD9*',
+            'HRP*',
+            'PCL1',
+            'PCL2',
+            'PCL3',
+            'PCL4',
+            'PCL5',
             'T526',
         ],
     },
@@ -98,8 +164,13 @@ const RAW = [
         action: 'deny',
         why: 'Tax IDs, VAT registrations, national IDs',
         names: [
-            'DFKKBPTAXNUM', 'TFKTAXNUMTYPE', 'J_1BTXIC3', 'J_1BNFDOC',
-            'KNAS', 'LFAS', 'BUT0TX',
+            'DFKKBPTAXNUM',
+            'TFKTAXNUMTYPE',
+            'J_1BTXIC3',
+            'J_1BNFDOC',
+            'KNAS',
+            'LFAS',
+            'BUT0TX',
         ],
     },
     {
@@ -108,10 +179,22 @@ const RAW = [
         action: 'ask',
         why: 'Transactional data with linked customer/vendor PII; allow only with user-authorized scope and anonymization',
         names: [
-            'VBRK', 'VBRP', 'VBAK', 'VBAP', 'VBPA',
-            'EKKO', 'EKPO', 'BKPF', 'BSEG',
-            'ACDOCA', 'FAGLFLEXA', 'FAGLFLEXT',
-            'CDHDR', 'CDPOS', 'STXH', 'STXL',
+            'VBRK',
+            'VBRP',
+            'VBAK',
+            'VBAP',
+            'VBPA',
+            'EKKO',
+            'EKPO',
+            'BKPF',
+            'BSEG',
+            'ACDOCA',
+            'FAGLFLEXA',
+            'FAGLFLEXT',
+            'CDHDR',
+            'CDPOS',
+            'STXH',
+            'STXL',
         ],
     },
     {
@@ -120,9 +203,18 @@ const RAW = [
         action: 'deny',
         why: 'May contain PII in message vars, user activity traces',
         names: [
-            'BALDAT', 'BALHDR', 'SLG1', 'SLGD', 'RSAU_BUF_DATA',
-            'SNAP', 'SMONI', 'SWNCMONI', 'SWNCT*',
-            'STAD', 'STATTRACE', 'DBTABLOG',
+            'BALDAT',
+            'BALHDR',
+            'SLG1',
+            'SLGD',
+            'RSAU_BUF_DATA',
+            'SNAP',
+            'SMONI',
+            'SWNCMONI',
+            'SWNCT*',
+            'STAD',
+            'STATTRACE',
+            'DBTABLOG',
         ],
     },
     {
@@ -131,9 +223,15 @@ const RAW = [
         action: 'deny',
         why: 'Mail body, workflow context, broadcast records',
         names: [
-            'SOOD', 'SOC3', 'SOST', 'SOFM',
-            'SWWWIHEAD', 'SWWCONT', 'SWWLOGHIST',
-            'BCST_SR', 'BCST_CAM',
+            'SOOD',
+            'SOC3',
+            'SOST',
+            'SOFM',
+            'SWWWIHEAD',
+            'SWWCONT',
+            'SWWLOGHIST',
+            'BCST_SR',
+            'BCST_CAM',
         ],
     },
 ];
@@ -160,7 +258,10 @@ const COMPILED = RAW.map((e) => {
 });
 function readProfile() {
     const raw = (process.env.MCP_BLOCKLIST_PROFILE || '').toLowerCase().trim();
-    if (raw === 'off' || raw === 'minimal' || raw === 'standard' || raw === 'strict') {
+    if (raw === 'off' ||
+        raw === 'minimal' ||
+        raw === 'standard' ||
+        raw === 'strict') {
         return raw;
     }
     return 'standard';
@@ -254,7 +355,13 @@ function matchOne(name, profile) {
         if (TIER_ORDER[e.tier] > maxTier)
             continue;
         if (e.exact.has(upper) || e.patterns.some((p) => p.test(upper))) {
-            return { table: upper, category: e.category, tier: e.tier, action: e.action, why: e.why };
+            return {
+                table: upper,
+                category: e.category,
+                tier: e.tier,
+                action: e.action,
+                why: e.why,
+            };
         }
     }
     return null;
@@ -283,7 +390,8 @@ function checkTables(names) {
         }
         let m = matchOne(upper, profile);
         if (!m) {
-            if (extend.exact.has(upper) || extend.patterns.some((p) => p.test(upper))) {
+            if (extend.exact.has(upper) ||
+                extend.patterns.some((p) => p.test(upper))) {
                 m = {
                     table: upper,
                     category: 'User-extended blocklist',
@@ -302,7 +410,9 @@ function checkTables(names) {
  * Build a human-readable refusal message for a set of blocklist hits.
  */
 function formatRefusal(hits, profile = readProfile()) {
-    const lines = hits.map((h) => `  - ${h.table} — ${h.category} (${h.action}): ${h.why}`).join('\n');
+    const lines = hits
+        .map((h) => `  - ${h.table} — ${h.category} (${h.action}): ${h.why}`)
+        .join('\n');
     return (`mcp-abap-adt blocklist (profile: ${profile}) — row extraction refused:\n${lines}\n\n` +
         `Schema metadata is allowed (GetTable / GetStructure / GetView / GetDataElement / GetDomain). ` +
         `For row data, use a released CDS view that masks PII, anonymized test data, or COUNT/SUM aggregates. ` +
@@ -314,7 +424,9 @@ function formatRefusal(hits, profile = readProfile()) {
  * `acknowledge_risk: true` once the user has authorized the extraction.
  */
 function formatAskPrompt(hits, profile = readProfile()) {
-    const lines = hits.map((h) => `  - ${h.table} — ${h.category}: ${h.why}`).join('\n');
+    const lines = hits
+        .map((h) => `  - ${h.table} — ${h.category}: ${h.why}`)
+        .join('\n');
     return (`mcp-abap-adt blocklist (profile: ${profile}) — user confirmation required for row extraction:\n${lines}\n\n` +
         `These tables contain sensitive business data. If the user has authorized this extraction, ` +
         `re-invoke the tool with \`acknowledge_risk: true\` to proceed. ` +

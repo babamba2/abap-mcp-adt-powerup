@@ -3,6 +3,6 @@
   "name": "mcp-abap-adt",
   "description": "MCP server for ABAP ADT in SAP ECC/S/4HANA (on-premise) and SAP BTP ABAP Cloud systems: deep repository analysis and high-level CRUD for RAP and classic ABAP artifacts",
   "maintainers": [
-    "fr0ster"
+    "babamba2"
   ]
 }

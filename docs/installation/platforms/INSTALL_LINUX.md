@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Linux Installation Guide
 
 Complete guide for installing MCP ABAP ADT Server on Linux distributions.

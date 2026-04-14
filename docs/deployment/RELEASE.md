@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Release Process
 
 This document describes how to create a new release of MCP ABAP ADT Server.

@@ -1,3 +1,5 @@
+<!-- Fork of https://github.com/fr0ster/mcp-abap-adt — original project by fr0ster -->
+
 # Handler Exporter Guide
 
 This guide explains how to use the `HandlerExporter` class to integrate ABAP ADT handlers into your own MCP server.
