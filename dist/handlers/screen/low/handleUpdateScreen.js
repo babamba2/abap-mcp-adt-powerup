@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateScreen = handleUpdateScreen;
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'UpdateScreenLow',
@@ -69,7 +69,7 @@ async function handleUpdateScreen(context, args) {
         logger?.info(`Updating screen: ${programName} / ${screen_number}`);
         // Delete existing screen first, then re-insert with new data
         try {
-            await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_DELETE', {
+            await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
                 program: programName,
                 dynpro: screen_number,
             });
@@ -77,7 +77,7 @@ async function handleUpdateScreen(context, args) {
         catch {
             // Screen might not exist yet - that's ok for insert
         }
-        await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_INSERT', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_INSERT', {
             program: programName,
             dynpro: screen_number,
             dynpro_data: dynpro_data,

@@ -8,7 +8,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callTextpool } from '../../../lib/soapRfc';
+import { callTextpool } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   isCloudConnection,

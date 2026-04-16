@@ -5,7 +5,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteScreen = handleDeleteScreen;
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'DeleteScreenLow',
@@ -55,7 +55,7 @@ async function handleDeleteScreen(context, args) {
         }
         const programName = program_name.toUpperCase();
         logger?.info(`Deleting screen: ${programName} / ${screen_number}`);
-        await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_DELETE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
             program: programName,
             dynpro: screen_number,
         });

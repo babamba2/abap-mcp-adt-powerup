@@ -10,7 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteTextElement = handleDeleteTextElement;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -91,7 +91,7 @@ async function handleDeleteTextElement(context, params) {
         if (!lockHandle) {
             throw new Error(`Failed to obtain lock handle for program ${programName}`);
         }
-        const { result: fetched } = await (0, soapRfc_1.callTextpool)(connection, 'READ', {
+        const { result: fetched } = await (0, rfcBackend_1.callTextpool)(connection, 'READ', {
             program: programName,
             language,
         });
@@ -117,7 +117,7 @@ async function handleDeleteTextElement(context, params) {
         if (removed === 0) {
             throw new Error(`Text element not found: ${programName} ${textType}/${rowKey || '(wipe)'}`);
         }
-        await (0, soapRfc_1.callTextpool)(connection, 'WRITE', {
+        await (0, rfcBackend_1.callTextpool)(connection, 'WRITE', {
             program: programName,
             language,
             textpool_json: JSON.stringify(kept),

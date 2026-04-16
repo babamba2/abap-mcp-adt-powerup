@@ -8,7 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateGuiStatus = handleCreateGuiStatus;
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'CreateGuiStatusLow',
@@ -90,7 +90,7 @@ async function handleCreateGuiStatus(context, args) {
             BIV: [],
         };
         try {
-            const { result } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
+            const { result } = await (0, rfcBackend_1.callDispatch)(connection, 'CUA_FETCH', {
                 program: programName,
             });
             if (result && typeof result === 'object') {
@@ -115,7 +115,7 @@ async function handleCreateGuiStatus(context, args) {
             cuaData.TIT.push({ CODE: sName, TEXT: description });
         }
         // Write back
-        await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
             cua_data: JSON.stringify(cuaData),
         });

@@ -6,7 +6,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDispatch } from '../../../lib/soapRfc';
+import { callDispatch } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   encodeSapObjectName,

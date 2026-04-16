@@ -9,7 +9,7 @@ import {
   assertNoCheckErrors,
   runSyntaxCheck,
 } from '../../../lib/preCheckBeforeActivation';
-import { callDispatch } from '../../../lib/soapRfc';
+import { callDispatch } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   isCloudConnection,

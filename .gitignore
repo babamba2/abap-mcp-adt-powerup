@@ -86,3 +86,9 @@ dev.json
 desktop.ini
 .vscode/mcp.json
 .claude/settings.local.json
+
+# OMC runtime state (never commit)
+.omc/
+
+# sc4sap HUD telemetry (if this repo is opened in a Claude Code session)
+.sc4sap/

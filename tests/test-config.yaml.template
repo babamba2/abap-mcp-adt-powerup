@@ -102,6 +102,35 @@ environment:
     transport: "stdio"
     mcp_destination: ""                      # MCP destination (optional, for hard mode)
 
+# RFC backend parity — validates that SAP_RFC_BACKEND=soap and =native
+# produce equivalent results against the same SAP system. Exercised by
+# src/__tests__/integration/rfc-backend/RfcBackendParity.test.ts.
+#
+# Leave backends=['soap'] on CI hosts without the NW RFC SDK. Adding
+# 'native' requires:
+#   • SAP NW RFC SDK 7.50+ installed on this host
+#   • SAPNWRFC_HOME env var pointing to the extracted SDK
+#   • `npm rebuild node-rfc` succeeds
+#   • The SAP_RFC_* block below populated (mirrors .sc4sap/sap.env)
+#
+# If a backend is listed but its preconditions fail, the parity test
+# logs and skips that backend — it does NOT fail the suite.
+rfc_backend:
+  enabled: true                              # Master switch for the parity suite
+  backends: ["soap"]                         # ← CHANGE to ["soap", "native"] when native is ready
+  probe_program: "RSPARAM"                   # Standard SAP program guaranteed to exist; used for TEXTPOOL READ parity
+  probe_language: "EN"
+  native:                                    # Only read when 'native' is in backends[]
+    ashost: ""                               # e.g. "s4h.example.com"   (mutually exclusive with mshost)
+    sysnr: ""                                # e.g. "00"
+    mshost: ""                               # e.g. "msrv.example.com"  (leave blank if using ashost)
+    sysid: ""                                # e.g. "S4H"               (required when mshost is set)
+    group: "PUBLIC"
+    client: ""                               # 3-digit, usually same as SAP_CLIENT
+    user: ""                                 # Dedicated RFC user with S_RFC auth recommended
+    passwd: ""                               # ⚠️ plain text in local config — do not commit
+    lang: "EN"
+
 # ============================================================================
 # SHARED DEPENDENCIES — persistent Lego library for integration tests
 # ============================================================================

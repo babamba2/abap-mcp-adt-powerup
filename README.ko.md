@@ -1,4 +1,4 @@
-# MCP ABAP ADT
+# MCP ABAP ADT ( For sc4sap application )
 
 **🌐 Language / 언어 / 言語**: [English](README.md) · **한국어** · [日本語](README.ja.md)
 

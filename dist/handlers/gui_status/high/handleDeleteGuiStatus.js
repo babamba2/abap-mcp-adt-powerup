@@ -8,7 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteGuiStatus = handleDeleteGuiStatus;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -65,7 +65,7 @@ async function handleDeleteGuiStatus(context, params) {
         // it does NOT edit rsmpe_stat/rsmpe_titt/rsmpe_staf. To actually
         // remove a status from the source we fetch the current CUA, drop
         // the matching STA/TIT/SET rows, and CUA_WRITE the result back.
-        const { result: cuaResult } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
+        const { result: cuaResult } = await (0, rfcBackend_1.callDispatch)(connection, 'CUA_FETCH', {
             program: programName,
         });
         if (!cuaResult || typeof cuaResult !== 'object') {
@@ -81,7 +81,7 @@ async function handleDeleteGuiStatus(context, params) {
         if (cua.STA.length === staBefore.length) {
             throw new Error(`GUI Status ${statusName} not found in program ${programName}.`);
         }
-        await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
             cua_data: JSON.stringify(cua),
         });

@@ -7,7 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteGuiStatus = handleDeleteGuiStatus;
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'DeleteGuiStatusLow',
@@ -69,7 +69,7 @@ async function handleDeleteGuiStatus(context, args) {
         // from RS38L_INCL; it does NOT edit rsmpe_stat/rsmpe_titt. So we
         // fetch, drop the matching STA/TIT/SET rows, and CUA_WRITE back.
         // status_name === '*' means "delete all statuses" (source wipe).
-        const { result: cuaResult } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
+        const { result: cuaResult } = await (0, rfcBackend_1.callDispatch)(connection, 'CUA_FETCH', {
             program: programName,
         });
         if (!cuaResult || typeof cuaResult !== 'object') {
@@ -92,7 +92,7 @@ async function handleDeleteGuiStatus(context, args) {
                 throw new Error(`GUI Status ${statusName} not found in program ${programName}.`);
             }
         }
-        await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
             cua_data: JSON.stringify(cua),
         });

@@ -7,7 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleReadGuiStatus = handleReadGuiStatus;
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'ReadGuiStatus',
@@ -35,7 +35,7 @@ async function handleReadGuiStatus(context, args) {
         }
         const programName = args.program_name.toUpperCase();
         logger?.info(`Reading GUI status data for program: ${programName}`);
-        const { result } = await (0, soapRfc_1.callDispatch)(connection, 'CUA_FETCH', {
+        const { result } = await (0, rfcBackend_1.callDispatch)(connection, 'CUA_FETCH', {
             program: programName,
         });
         logger?.info(`✅ ReadGuiStatus completed: ${programName}`);

@@ -7,7 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetScreen = handleGetScreen;
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'GetScreen',
@@ -40,7 +40,7 @@ async function handleGetScreen(context, params) {
     const programName = args.program_name.toUpperCase();
     logger?.info(`Getting screen: ${programName} / ${args.screen_number}`);
     try {
-        const { result } = await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_READ', {
+        const { result } = await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_READ', {
             program: programName,
             dynpro: args.screen_number,
         });

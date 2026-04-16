@@ -8,7 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteScreen = handleDeleteScreen;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -57,7 +57,7 @@ async function handleDeleteScreen(context, params) {
             parsed?.['asx:abap']?.['asx:values']?.DATA?.LOCK_HANDLE ||
                 lockResponse.headers?.['x-sap-adt-lock-handle'];
         // Delete via RFC
-        await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_DELETE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
             program: programName,
             dynpro: args.screen_number,
         });

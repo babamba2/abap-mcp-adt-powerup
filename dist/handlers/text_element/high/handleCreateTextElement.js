@@ -11,7 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateTextElement = handleCreateTextElement;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 const MAX_ENTRY_LEN = 132;
@@ -103,7 +103,7 @@ async function handleCreateTextElement(context, params) {
             throw new Error(`Failed to obtain lock handle for program ${programName}`);
         }
         // Fetch current text pool (may be empty — FM returns []).
-        const { result: fetched } = await (0, soapRfc_1.callTextpool)(connection, 'READ', {
+        const { result: fetched } = await (0, rfcBackend_1.callTextpool)(connection, 'READ', {
             program: programName,
             language,
         });
@@ -127,7 +127,7 @@ async function handleCreateTextElement(context, params) {
             ENTRY: args.text,
             LENGTH: args.text.length,
         });
-        await (0, soapRfc_1.callTextpool)(connection, 'WRITE', {
+        await (0, rfcBackend_1.callTextpool)(connection, 'WRITE', {
             program: programName,
             language,
             textpool_json: JSON.stringify(rows),

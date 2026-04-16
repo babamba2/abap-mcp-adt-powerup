@@ -8,7 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateGuiStatus = handleUpdateGuiStatus;
 const fast_xml_parser_1 = require("fast-xml-parser");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -68,7 +68,7 @@ async function handleUpdateGuiStatus(context, params) {
             throw new Error(`Failed to obtain lock handle for program ${programName}`);
         }
         // Write CUA data via RFC
-        await (0, soapRfc_1.callDispatch)(connection, 'CUA_WRITE', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'CUA_WRITE', {
             program: programName,
             cua_data: args.cua_data,
         });

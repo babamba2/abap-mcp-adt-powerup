@@ -10,7 +10,7 @@ exports.handleUpdateScreen = handleUpdateScreen;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const normalizeDynproData_1 = require("../../../lib/normalizeDynproData");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
-const soapRfc_1 = require("../../../lib/soapRfc");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -69,7 +69,7 @@ async function handleUpdateScreen(context, params) {
                 lockResponse.headers?.['x-sap-adt-lock-handle'];
         // Delete + re-insert screen via RFC
         try {
-            await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_DELETE', {
+            await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
                 program: programName,
                 dynpro: args.screen_number,
             });
@@ -78,7 +78,7 @@ async function handleUpdateScreen(context, params) {
             /* screen might not exist */
         }
         const normalizedData = (0, normalizeDynproData_1.normalizeDynproData)(args.dynpro_data, programName, args.screen_number);
-        await (0, soapRfc_1.callDispatch)(connection, 'DYNPRO_INSERT', {
+        await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_INSERT', {
             program: programName,
             dynpro: args.screen_number,
             dynpro_data: normalizedData,
