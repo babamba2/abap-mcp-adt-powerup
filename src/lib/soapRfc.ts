@@ -200,12 +200,15 @@ export async function callDispatch(
  * so the text pool becomes active in one round-trip (matching the
  * CUA/DYNPRO dispatcher semantics).
  *
- * @param action 'READ' | 'WRITE'
+ * @param action 'READ' | 'WRITE' | 'WRITE_INACTIVE' — WRITE_INACTIVE stages
+ *   the whole pool with STATE 'I' so the parent program's activation
+ *   promotes the pool atomically. Use it when registering many elements
+ *   on a not-yet-activated program.
  * @param params program/language/textpool_json
  */
 export async function callTextpool(
   connection: IAbapConnection,
-  action: 'READ' | 'WRITE',
+  action: 'READ' | 'WRITE' | 'WRITE_INACTIVE',
   params: {
     program: string;
     language?: string;

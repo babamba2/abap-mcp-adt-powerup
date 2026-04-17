@@ -83,6 +83,10 @@ import {
   TOOL_DEFINITION as RuntimeGetDumpById_Tool,
 } from '../../../handlers/system/readonly/handleRuntimeGetDumpById';
 import {
+  handleRuntimeGetGatewayErrorLog,
+  TOOL_DEFINITION as RuntimeGetGatewayErrorLog_Tool,
+} from '../../../handlers/system/readonly/handleRuntimeGetGatewayErrorLog';
+import {
   handleRuntimeGetProfilerTraceData,
   TOOL_DEFINITION as RuntimeGetProfilerTraceData_Tool,
 } from '../../../handlers/system/readonly/handleRuntimeGetProfilerTraceData';
@@ -91,9 +95,17 @@ import {
   TOOL_DEFINITION as RuntimeListDumps_Tool,
 } from '../../../handlers/system/readonly/handleRuntimeListDumps';
 import {
+  handleRuntimeListFeeds,
+  TOOL_DEFINITION as RuntimeListFeeds_Tool,
+} from '../../../handlers/system/readonly/handleRuntimeListFeeds';
+import {
   handleRuntimeListProfilerTraceFiles,
   TOOL_DEFINITION as RuntimeListProfilerTraceFiles_Tool,
 } from '../../../handlers/system/readonly/handleRuntimeListProfilerTraceFiles';
+import {
+  handleRuntimeListSystemMessages,
+  TOOL_DEFINITION as RuntimeListSystemMessages_Tool,
+} from '../../../handlers/system/readonly/handleRuntimeListSystemMessages';
 import {
   handleRuntimeRunClassWithProfiling,
   TOOL_DEFINITION as RuntimeRunClassWithProfiling_Tool,
@@ -165,6 +177,20 @@ export class SystemHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: RuntimeAnalyzeDump_Tool,
         handler: (args: any) => handleRuntimeAnalyzeDump(this.context, args),
+      },
+      {
+        toolDefinition: RuntimeListSystemMessages_Tool,
+        handler: (args: any) =>
+          handleRuntimeListSystemMessages(this.context, args),
+      },
+      {
+        toolDefinition: RuntimeGetGatewayErrorLog_Tool,
+        handler: (args: any) =>
+          handleRuntimeGetGatewayErrorLog(this.context, args),
+      },
+      {
+        toolDefinition: RuntimeListFeeds_Tool,
+        handler: (args: any) => handleRuntimeListFeeds(this.context, args),
       },
       {
         toolDefinition: GetSqlQuery_Tool,

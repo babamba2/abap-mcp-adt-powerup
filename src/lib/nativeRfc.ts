@@ -164,7 +164,7 @@ export async function callDispatch(
  */
 export async function callTextpool(
   _connection: IAbapConnection,
-  action: 'READ' | 'WRITE',
+  action: 'READ' | 'WRITE' | 'WRITE_INACTIVE',
   params: {
     program: string;
     language?: string;

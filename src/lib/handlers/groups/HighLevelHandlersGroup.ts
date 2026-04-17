@@ -95,6 +95,10 @@ import {
   TOOL_DEFINITION as UpdateLocalTypes_Tool,
 } from '../../../handlers/class/high/handleUpdateLocalTypes';
 import {
+  TOOL_DEFINITION as ActivateObjects_Tool,
+  handleActivateObjects,
+} from '../../../handlers/common/high/handleActivateObjects';
+import {
   TOOL_DEFINITION as CreateDataElement_Tool,
   handleCreateDataElement,
 } from '../../../handlers/data_element/high/handleCreateDataElement';
@@ -179,6 +183,10 @@ import {
   TOOL_DEFINITION as GetGuiStatus_Tool,
   handleGetGuiStatus,
 } from '../../../handlers/gui_status/high/handleGetGuiStatus';
+import {
+  handlePatchGuiStatus,
+  TOOL_DEFINITION as PatchGuiStatus_Tool,
+} from '../../../handlers/gui_status/high/handlePatchGuiStatus';
 import {
   handleUpdateGuiStatus as handleUpdateGuiStatusHigh,
   TOOL_DEFINITION as UpdateGuiStatusHigh_Tool,
@@ -348,9 +356,17 @@ import {
   handleGetTextElement,
 } from '../../../handlers/text_element/high/handleGetTextElement';
 import {
+  handleReadTextElementsBulk,
+  TOOL_DEFINITION as ReadTextElementsBulk_Tool,
+} from '../../../handlers/text_element/high/handleReadTextElementsBulk';
+import {
   handleUpdateTextElement,
   TOOL_DEFINITION as UpdateTextElement_Tool,
 } from '../../../handlers/text_element/high/handleUpdateTextElement';
+import {
+  handleWriteTextElementsBulk,
+  TOOL_DEFINITION as WriteTextElementsBulk_Tool,
+} from '../../../handlers/text_element/high/handleWriteTextElementsBulk';
 import {
   TOOL_DEFINITION as CreateTransport_Tool,
   handleCreateTransport,
@@ -705,6 +721,10 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
         handler: withContext(handleDeleteInclude),
       },
       {
+        toolDefinition: ActivateObjects_Tool,
+        handler: withContext(handleActivateObjects),
+      },
+      {
         toolDefinition: CreateProgram_Tool,
         handler: withContext(handleCreateProgram),
       },
@@ -847,6 +867,10 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
         handler: withContext(handleUpdateGuiStatusHigh),
       },
       {
+        toolDefinition: PatchGuiStatus_Tool,
+        handler: withContext(handlePatchGuiStatus),
+      },
+      {
         toolDefinition: DeleteGuiStatus_Tool,
         handler: withContext(handleDeleteGuiStatus),
       },
@@ -866,6 +890,14 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: DeleteTextElement_Tool,
         handler: withContext(handleDeleteTextElement),
+      },
+      {
+        toolDefinition: WriteTextElementsBulk_Tool,
+        handler: withContext(handleWriteTextElementsBulk),
+      },
+      {
+        toolDefinition: ReadTextElementsBulk_Tool,
+        handler: withContext(handleReadTextElementsBulk),
       },
     ];
   }

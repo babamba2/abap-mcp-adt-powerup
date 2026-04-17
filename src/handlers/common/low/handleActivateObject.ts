@@ -3,13 +3,9 @@
  */
 
 import type { ObjectReference } from '@mcp-abap-adt/adt-clients';
-import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import {
-  parseActivationResponse,
-  return_error,
-  return_response,
-} from '../../../lib/utils';
+import { activateObjectsLocal } from '../../../lib/localGroupActivation';
+import { return_error, return_response } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
   name: 'ActivateObjectLow',
@@ -76,55 +72,53 @@ export async function handleActivateObject(
     }
 
     const preaudit = args.preaudit !== false; // default true
-    const client = createAdtClient(connection, logger);
 
     logger?.info(`Starting activation of ${args.objects.length} object(s)`);
 
     try {
-      const activationObjects = args.objects.map((obj) => ({
+      // Route through the local mass-activation helper so an explicit
+      // `uri` on the input object is honored (upstream adt-clients
+      // v3.10.2 drops it) and so types like PROG/I resolve correctly.
+      const inputs = args.objects.map((obj) => ({
+        name: obj.name,
         type: obj.type,
-        name: obj.name.toUpperCase(),
+        uri: obj.uri,
       }));
 
       logger?.debug(
-        `Activating objects: ${activationObjects.map((o) => o.name).join(', ')}`,
+        `Activating objects: ${inputs.map((o) => o.name).join(', ')}`,
       );
 
-      const response = await client
-        .getUtils()
-        .activateObjectsGroup(activationObjects, preaudit);
-      logger?.debug(`Activation response status: ${response.status}`);
-
-      const activationResult = parseActivationResponse(response.data);
-      const success = activationResult.activated && activationResult.checked;
+      const grp = await activateObjectsLocal(connection, inputs, {
+        preauditRequested: preaudit,
+      });
 
       const result = {
-        success,
-        objects_count: args.objects.length,
-        objects: activationObjects.map((obj, idx) => ({
-          name: obj.name,
-          uri: args.objects[idx].uri,
-          type: args.objects[idx].type,
+        success: grp.success,
+        objects_count: grp.objects.length,
+        endpoint: grp.endpoint,
+        run_id: grp.run_id,
+        objects: grp.objects.map((o) => ({
+          name: o.name,
+          uri: o.uri,
+          type: o.type,
+          status: o.status,
         })),
         activation: {
-          activated: activationResult.activated,
-          checked: activationResult.checked,
-          generated: activationResult.generated,
+          activated: grp.activated,
+          checked: grp.checked,
+          generated: grp.generated,
         },
-        messages: activationResult.messages,
-        warnings: activationResult.messages.filter(
-          (m) => m.type === 'warning' || m.type === 'W',
-        ),
-        errors: activationResult.messages.filter(
-          (m) => m.type === 'error' || m.type === 'E',
-        ),
-        message: success
-          ? `Successfully activated ${args.objects.length} object(s)`
-          : `Activation completed with ${activationResult.messages.length} message(s)`,
+        messages: [...grp.errors, ...grp.warnings],
+        warnings: grp.warnings,
+        errors: grp.errors,
+        message: grp.success
+          ? `Successfully activated ${grp.objects.length} object(s)`
+          : `Activation completed with ${grp.errors.length} error(s) and ${grp.warnings.length} warning(s)`,
       };
 
       logger?.info(
-        `Activation completed: ${success ? 'SUCCESS' : 'WITH ISSUES'}`,
+        `Activation completed: ${grp.success ? 'SUCCESS' : 'WITH ISSUES'}`,
       );
 
       return return_response({

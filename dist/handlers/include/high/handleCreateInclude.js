@@ -24,7 +24,7 @@ const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.a
 exports.TOOL_DEFINITION = {
     name: 'CreateInclude',
     available_in: ['onprem', 'legacy'],
-    description: 'Create a new ABAP Include program (Type I, PROG/I) in SAP system. Creates the include object and registers it under the main program in D010INC. By default also auto-inserts an `INCLUDE <name>.` statement into the main program source so the include is actually used. Use UpdateInclude to set source code afterwards. Unlike CreateProgram with program_type=include (which creates PROG/P), this creates a proper PROG/I include.',
+    description: 'Create a new ABAP Include program (Type I, PROG/I) in SAP system. Creates the include object and registers it under the main program in D010INC. By default also auto-inserts an `INCLUDE <name>.` statement into the main program source so the include is actually used. Use UpdateInclude to set source code afterwards. Unlike CreateProgram with program_type=include (which creates PROG/P), this creates a proper PROG/I include. For mass-activation scenarios (many cross-referencing includes) pass source_code inline, set activate_main_program=false and skip_program_tree_check=true, then call ActivateObjects once with the full set.',
     inputSchema: {
         type: 'object',
         properties: {
@@ -51,6 +51,18 @@ exports.TOOL_DEFINITION = {
             insert_into_main: {
                 type: 'boolean',
                 description: 'Auto-insert `INCLUDE <name>.` statement into the main program source. Default: true. Set false to skip main-program modification.',
+            },
+            source_code: {
+                type: 'string',
+                description: 'Optional include body. When provided, the handler also locks, writes the source, and unlocks the new include in a single call. Never activates — caller must run a separate activation (ActivateObjects for batch scenarios).',
+            },
+            activate_main_program: {
+                type: 'boolean',
+                description: 'When inserting INCLUDE statement into the main program, also activate the main program afterwards. Default: true (existing behavior). Set false when batching many includes so that activation is deferred to a single ActivateObjects call.',
+            },
+            skip_program_tree_check: {
+                type: 'boolean',
+                description: 'Skip the post-create program-tree syntax check. Default: false (existing behavior). Set true when batching many cross-referencing includes — an intermediate include in a cycle will necessarily fail the tree check while its siblings are still missing.',
             },
         },
         required: ['include_name', 'main_program', 'package_name'],
@@ -149,7 +161,7 @@ function extractSapError(error) {
  * Uses direct ADT HTTP calls with stateful session for lock/update/unlock/activate.
  * Returns a human-readable note describing what happened.
  */
-async function insertIntoMainProgram(connection, mainProgram, includeName, transportRequest, logger, stepsCompleted) {
+async function insertIntoMainProgram(connection, mainProgram, includeName, transportRequest, logger, stepsCompleted, activateMainProgram) {
     const encodedMain = (0, utils_1.encodeSapObjectName)(mainProgram);
     const programBaseUrl = `/sap/bc/adt/programs/programs/${encodedMain}`;
     const sourceUrl = `${programBaseUrl}/source/main`;
@@ -210,7 +222,13 @@ async function insertIntoMainProgram(connection, mainProgram, includeName, trans
             logger?.warn(`Failed to unlock main program ${mainProgram}: ${unlockErr instanceof Error ? unlockErr.message : String(unlockErr)}`);
         }
     }
-    // 6. Activate main program (best-effort)
+    // 6. Activate main program (best-effort) — unless caller opted out for
+    //    a batched mass activation flow.
+    if (!activateMainProgram) {
+        stepsCompleted.push('skip_activate_main');
+        logger?.info(`Main program ${mainProgram} activation deferred (activate_main_program=false)`);
+        return `INCLUDE ${includeName}. inserted into ${mainProgram}. Main program left inactive — call ActivateObjects to activate.`;
+    }
     try {
         const activationXml = `<?xml version="1.0" encoding="UTF-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="${programBaseUrl}" adtcore:name="${mainProgram}"/></adtcore:objectReferences>`;
         await (0, utils_1.makeAdtRequestWithTimeout)(connection, '/sap/bc/adt/activation', 'POST', 'long', activationXml, { method: 'activate', preauditRequested: 'true' }, {
@@ -223,6 +241,53 @@ async function insertIntoMainProgram(connection, mainProgram, includeName, trans
         logger?.warn(`Main program activation warning: ${activateErr instanceof Error ? activateErr.message : String(activateErr)}`);
     }
     return `INCLUDE ${includeName}. inserted into ${mainProgram}.`;
+}
+/**
+ * Lock the freshly-created include, PUT its body, unlock. Never activates —
+ * that is deferred to the caller (typically a single ActivateObjects for an
+ * entire include set). Mirrors the lock/update/unlock flow in
+ * handleUpdateInclude but without its activation branch.
+ */
+async function writeIncludeSourceInline(connection, includeName, sourceCode, transportRequest, logger, stepsCompleted) {
+    const encoded = (0, utils_1.encodeSapObjectName)(includeName);
+    const baseUrl = `/sap/bc/adt/programs/includes/${encoded}`;
+    // 1. Lock (stateful)
+    logger?.debug(`Locking include for inline source write: ${includeName}`);
+    connection.setSessionType('stateful');
+    const lockResp = await (0, utils_1.makeAdtRequestWithTimeout)(connection, `${baseUrl}?_action=LOCK&accessMode=MODIFY`, 'POST', 'default', null, undefined, { Accept: ACCEPT_LOCK });
+    connection.setSessionType('stateless');
+    const parser = new fast_xml_parser_1.XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '',
+    });
+    const parsed = parser.parse(lockResp.data || '');
+    const lockHandle = parsed?.['asx:abap']?.['asx:values']?.DATA?.LOCK_HANDLE ||
+        lockResp.headers?.['x-sap-adt-lock-handle'];
+    if (!lockHandle) {
+        throw new Error(`Failed to obtain lock handle for include ${includeName}`);
+    }
+    try {
+        // 2. PUT source body
+        let updateUrl = `${baseUrl}/source/main?lockHandle=${encodeURIComponent(String(lockHandle))}`;
+        if (transportRequest) {
+            updateUrl += `&corrNr=${transportRequest}`;
+        }
+        await (0, utils_1.makeAdtRequestWithTimeout)(connection, updateUrl, 'PUT', 'default', sourceCode, undefined, { 'Content-Type': 'text/plain; charset=utf-8' });
+        stepsCompleted.push('inline_source');
+        logger?.info(`Inline source_code written for include ${includeName} (${sourceCode.length} bytes)`);
+    }
+    finally {
+        // 3. Unlock (best-effort)
+        try {
+            connection.setSessionType('stateful');
+            await (0, utils_1.makeAdtRequestWithTimeout)(connection, `${baseUrl}?_action=UNLOCK&lockHandle=${encodeURIComponent(String(lockHandle))}`, 'POST', 'default', null);
+            connection.setSessionType('stateless');
+        }
+        catch (unlockErr) {
+            connection.setSessionType('stateless');
+            logger?.warn(`Failed to unlock include ${includeName}: ${unlockErr instanceof Error ? unlockErr.message : String(unlockErr)}`);
+        }
+    }
 }
 async function handleCreateInclude(context, params) {
     const { connection, logger } = context;
@@ -240,6 +305,11 @@ async function handleCreateInclude(context, params) {
     const encodedMain = (0, utils_1.encodeSapObjectName)(mainProgram).toLowerCase();
     const mainProgramUri = `/sap/bc/adt/programs/programs/${encodedMain}`;
     const shouldInsertIntoMain = args.insert_into_main !== false; // default true
+    const activateMainProgram = args.activate_main_program !== false; // default true
+    const skipProgramTreeCheck = args.skip_program_tree_check === true; // default false
+    const inlineSourceCode = typeof args.source_code === 'string' && args.source_code.length > 0
+        ? args.source_code
+        : undefined;
     logger?.info(`Starting include creation: ${includeName} (main program: ${mainProgram})`);
     const stepsCompleted = [];
     let insertNote;
@@ -265,7 +335,7 @@ async function handleCreateInclude(context, params) {
         // ---- Step 2: Optionally insert INCLUDE statement into main program ----
         if (shouldInsertIntoMain) {
             try {
-                const note = await insertIntoMainProgram(connection, mainProgram, includeName, args.transport_request, logger, stepsCompleted);
+                const note = await insertIntoMainProgram(connection, mainProgram, includeName, args.transport_request, logger, stepsCompleted, activateMainProgram);
                 insertNote = note;
             }
             catch (insertErr) {
@@ -273,6 +343,25 @@ async function handleCreateInclude(context, params) {
                 const sapErrorMsg = extractSapError(insertErr);
                 insertNote = `Include created, but insert into main program failed: ${sapErrorMsg || (insertErr instanceof Error ? insertErr.message : String(insertErr))}`;
                 logger?.warn(insertNote);
+            }
+        }
+        // ---- Step 2b: If inline source_code was supplied, lock/PUT/unlock the
+        //              new include body. Never activates — caller must invoke
+        //              ActivateObjects (or another activation tool) afterwards.
+        //              Kept best-effort: if the source upload fails we surface
+        //              the error in the response but the include object itself
+        //              stays created, so the caller can retry via UpdateInclude.
+        let inlineSourceNote;
+        if (inlineSourceCode !== undefined) {
+            try {
+                await writeIncludeSourceInline(connection, includeName, inlineSourceCode, args.transport_request, logger, stepsCompleted);
+                inlineSourceNote = `Inline source_code (${inlineSourceCode.length} bytes) written — not yet activated.`;
+            }
+            catch (srcErr) {
+                const sapErrorMsg = extractSapError(srcErr);
+                inlineSourceNote = `Include created, but inline source_code write failed: ${sapErrorMsg ||
+                    (srcErr instanceof Error ? srcErr.message : String(srcErr))}. Use UpdateInclude to retry.`;
+                logger?.warn(inlineSourceNote);
             }
         }
         // ---- Step 3: PreCheck syntax check on the main program tree ----
@@ -288,31 +377,37 @@ async function handleCreateInclude(context, params) {
         // We surface the full error and leave the state as-is so the caller
         // can fix the main program, UpdateInclude the body, or DeleteInclude
         // to roll back.
-        try {
-            logger?.debug(`Running program-tree syntax check after include create: ${mainProgram}`);
-            const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
-            (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
-            checkWarnings = checkResult.warnings;
-            stepsCompleted.push('check_new_code');
-            logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
+        if (skipProgramTreeCheck) {
+            stepsCompleted.push('skip_program_tree_check');
+            logger?.info(`Program-tree syntax check skipped (skip_program_tree_check=true)`);
         }
-        catch (checkErr) {
-            // Include WAS created and main program WAS modified — cannot roll
-            // back from here. Surface the error with a clear note.
-            if (checkErr?.isPreCheckFailure) {
-                const wrapped = new Error(`Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
-                    `${checkErr.message}. ` +
-                    `Fix the main program or call DeleteInclude to roll back.`);
-                wrapped.isPreCheckFailure = true;
-                wrapped.checkErrors = checkErr.checkErrors;
-                wrapped.checkWarnings = checkErr.checkWarnings;
-                wrapped.include_name = includeName;
-                wrapped.main_program = mainProgram;
-                wrapped.steps_completed = stepsCompleted;
-                throw wrapped;
+        else
+            try {
+                logger?.debug(`Running program-tree syntax check after include create: ${mainProgram}`);
+                const checkResult = await (0, preCheckBeforeActivation_1.runSyntaxCheck)({ connection, logger }, { kind: 'programTree', name: mainProgram });
+                (0, preCheckBeforeActivation_1.assertNoCheckErrors)(checkResult, 'Program tree', mainProgram);
+                checkWarnings = checkResult.warnings;
+                stepsCompleted.push('check_new_code');
+                logger?.info(`Program-tree syntax check passed: ${mainProgram} (${checkWarnings.length} warning${checkWarnings.length === 1 ? '' : 's'})`);
             }
-            throw checkErr;
-        }
+            catch (checkErr) {
+                // Include WAS created and main program WAS modified — cannot roll
+                // back from here. Surface the error with a clear note.
+                if (checkErr?.isPreCheckFailure) {
+                    const wrapped = new Error(`Include ${includeName} was created and main program ${mainProgram} was modified, but the resulting program tree has syntax errors. ` +
+                        `${checkErr.message}. ` +
+                        `Fix the main program or call DeleteInclude to roll back.`);
+                    wrapped.isPreCheckFailure = true;
+                    wrapped.checkErrors = checkErr.checkErrors;
+                    wrapped.checkWarnings = checkErr.checkWarnings;
+                    wrapped.include_name = includeName;
+                    wrapped.main_program = mainProgram;
+                    wrapped.steps_completed = stepsCompleted;
+                    throw wrapped;
+                }
+                throw checkErr;
+            }
+        const notes = [insertNote, inlineSourceNote].filter(Boolean).join(' ');
         const result = {
             success: true,
             include_name: includeName,
@@ -320,12 +415,15 @@ async function handleCreateInclude(context, params) {
             package_name: args.package_name,
             transport_request: args.transport_request || null,
             type: 'PROG/I',
-            message: insertNote
-                ? `Include ${includeName} created. ${insertNote}`
+            source_written: inlineSourceCode !== undefined,
+            activated: false,
+            message: notes
+                ? `Include ${includeName} created. ${notes}`
                 : `Include ${includeName} created successfully under main program ${mainProgram}. Use UpdateInclude to set source code.`,
             uri: `/sap/bc/adt/programs/includes/${encodedName.toLowerCase()}`,
             steps_completed: stepsCompleted,
             insert_note: insertNote || null,
+            inline_source_note: inlineSourceNote || null,
             check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,
         };
         return (0, utils_1.return_response)({

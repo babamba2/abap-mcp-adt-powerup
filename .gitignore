@@ -22,6 +22,9 @@ coverage/
 # Test configuration (contains real transport requests and sensitive data)
 tests/test-config.yaml
 
+# Ad-hoc developer query scripts (never published, never versioned)
+scripts/adhoc/
+
 # Logs
 logs
 *.log
@@ -92,3 +95,4 @@ desktop.ini
 
 # sc4sap HUD telemetry (if this repo is opened in a Claude Code session)
 .sc4sap/
+scripts/adhoc/raw-out/

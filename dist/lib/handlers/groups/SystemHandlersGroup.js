@@ -28,9 +28,12 @@ const handleRuntimeAnalyzeDump_1 = require("../../../handlers/system/readonly/ha
 const handleRuntimeAnalyzeProfilerTrace_1 = require("../../../handlers/system/readonly/handleRuntimeAnalyzeProfilerTrace");
 const handleRuntimeCreateProfilerTraceParameters_1 = require("../../../handlers/system/readonly/handleRuntimeCreateProfilerTraceParameters");
 const handleRuntimeGetDumpById_1 = require("../../../handlers/system/readonly/handleRuntimeGetDumpById");
+const handleRuntimeGetGatewayErrorLog_1 = require("../../../handlers/system/readonly/handleRuntimeGetGatewayErrorLog");
 const handleRuntimeGetProfilerTraceData_1 = require("../../../handlers/system/readonly/handleRuntimeGetProfilerTraceData");
 const handleRuntimeListDumps_1 = require("../../../handlers/system/readonly/handleRuntimeListDumps");
+const handleRuntimeListFeeds_1 = require("../../../handlers/system/readonly/handleRuntimeListFeeds");
 const handleRuntimeListProfilerTraceFiles_1 = require("../../../handlers/system/readonly/handleRuntimeListProfilerTraceFiles");
+const handleRuntimeListSystemMessages_1 = require("../../../handlers/system/readonly/handleRuntimeListSystemMessages");
 const handleRuntimeRunClassWithProfiling_1 = require("../../../handlers/system/readonly/handleRuntimeRunClassWithProfiling");
 const handleRuntimeRunProgramWithProfiling_1 = require("../../../handlers/system/readonly/handleRuntimeRunProgramWithProfiling");
 const BaseHandlerGroup_js_1 = require("../base/BaseHandlerGroup.js");
@@ -88,6 +91,18 @@ class SystemHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleRuntimeAnalyzeDump_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleRuntimeAnalyzeDump_1.handleRuntimeAnalyzeDump)(this.context, args),
+            },
+            {
+                toolDefinition: handleRuntimeListSystemMessages_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleRuntimeListSystemMessages_1.handleRuntimeListSystemMessages)(this.context, args),
+            },
+            {
+                toolDefinition: handleRuntimeGetGatewayErrorLog_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleRuntimeGetGatewayErrorLog_1.handleRuntimeGetGatewayErrorLog)(this.context, args),
+            },
+            {
+                toolDefinition: handleRuntimeListFeeds_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleRuntimeListFeeds_1.handleRuntimeListFeeds)(this.context, args),
             },
             {
                 toolDefinition: handleGetSqlQuery_1.TOOL_DEFINITION,

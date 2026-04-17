@@ -1890,6 +1890,39 @@ runtime_readonly_handlers:
         dump_id: ""
 
 # ============================================================================
+# TEXT ELEMENTS BULK (one-call many-row write/read)
+# ============================================================================
+text_elements_bulk_handlers:
+  test_cases:
+    - name: "test_text_elements_bulk"
+      enabled: true
+      available_in: ["onprem", "legacy"]
+      description: "WriteTextElementsBulk 40 mixed R/I/S in 1 call + ReadTextElementsBulk verification"
+      params: {}
+
+# ============================================================================
+# GUI STATUS PATCH (row-level merge)
+# ============================================================================
+gui_status_patch_handlers:
+  test_cases:
+    - name: "test_patch_gui_status"
+      enabled: true
+      available_in: ["onprem", "legacy"]
+      description: "PatchGuiStatus row-level merge against live SAP"
+      params: {}
+
+# ============================================================================
+# MASS ACTIVATION (main + cyclic includes)
+# ============================================================================
+mass_activation_handlers:
+  test_cases:
+    - name: "test_mass_activation"
+      enabled: true
+      available_in: ["onprem", "legacy"]
+      description: "Mass activation of main program + N cross-referencing includes in a single ActivateObjects call"
+      params: {}
+
+# ============================================================================
 # SYSTEM LOW-LEVEL HANDLERS
 # ============================================================================
 

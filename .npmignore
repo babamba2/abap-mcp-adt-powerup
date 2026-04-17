@@ -10,6 +10,9 @@ jest.config.js
 jest.setup.js
 coverage/
 
+# Ad-hoc developer query scripts (never published)
+scripts/
+
 # Development tools
 tools/
 .clinerules/

@@ -5,7 +5,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleActivateObject = handleActivateObject;
-const clients_1 = require("../../../lib/clients");
+const localGroupActivation_1 = require("../../../lib/localGroupActivation");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'ActivateObjectLow',
@@ -48,41 +48,44 @@ async function handleActivateObject(context, params) {
             return (0, utils_1.return_error)(new Error('Missing required parameter: objects (must be non-empty array)'));
         }
         const preaudit = args.preaudit !== false; // default true
-        const client = (0, clients_1.createAdtClient)(connection, logger);
         logger?.info(`Starting activation of ${args.objects.length} object(s)`);
         try {
-            const activationObjects = args.objects.map((obj) => ({
+            // Route through the local mass-activation helper so an explicit
+            // `uri` on the input object is honored (upstream adt-clients
+            // v3.10.2 drops it) and so types like PROG/I resolve correctly.
+            const inputs = args.objects.map((obj) => ({
+                name: obj.name,
                 type: obj.type,
-                name: obj.name.toUpperCase(),
+                uri: obj.uri,
             }));
-            logger?.debug(`Activating objects: ${activationObjects.map((o) => o.name).join(', ')}`);
-            const response = await client
-                .getUtils()
-                .activateObjectsGroup(activationObjects, preaudit);
-            logger?.debug(`Activation response status: ${response.status}`);
-            const activationResult = (0, utils_1.parseActivationResponse)(response.data);
-            const success = activationResult.activated && activationResult.checked;
+            logger?.debug(`Activating objects: ${inputs.map((o) => o.name).join(', ')}`);
+            const grp = await (0, localGroupActivation_1.activateObjectsLocal)(connection, inputs, {
+                preauditRequested: preaudit,
+            });
             const result = {
-                success,
-                objects_count: args.objects.length,
-                objects: activationObjects.map((obj, idx) => ({
-                    name: obj.name,
-                    uri: args.objects[idx].uri,
-                    type: args.objects[idx].type,
+                success: grp.success,
+                objects_count: grp.objects.length,
+                endpoint: grp.endpoint,
+                run_id: grp.run_id,
+                objects: grp.objects.map((o) => ({
+                    name: o.name,
+                    uri: o.uri,
+                    type: o.type,
+                    status: o.status,
                 })),
                 activation: {
-                    activated: activationResult.activated,
-                    checked: activationResult.checked,
-                    generated: activationResult.generated,
+                    activated: grp.activated,
+                    checked: grp.checked,
+                    generated: grp.generated,
                 },
-                messages: activationResult.messages,
-                warnings: activationResult.messages.filter((m) => m.type === 'warning' || m.type === 'W'),
-                errors: activationResult.messages.filter((m) => m.type === 'error' || m.type === 'E'),
-                message: success
-                    ? `Successfully activated ${args.objects.length} object(s)`
-                    : `Activation completed with ${activationResult.messages.length} message(s)`,
+                messages: [...grp.errors, ...grp.warnings],
+                warnings: grp.warnings,
+                errors: grp.errors,
+                message: grp.success
+                    ? `Successfully activated ${grp.objects.length} object(s)`
+                    : `Activation completed with ${grp.errors.length} error(s) and ${grp.warnings.length} warning(s)`,
             };
-            logger?.info(`Activation completed: ${success ? 'SUCCESS' : 'WITH ISSUES'}`);
+            logger?.info(`Activation completed: ${grp.success ? 'SUCCESS' : 'WITH ISSUES'}`);
             return (0, utils_1.return_response)({
                 data: JSON.stringify(result, null, 2),
                 status: 200,

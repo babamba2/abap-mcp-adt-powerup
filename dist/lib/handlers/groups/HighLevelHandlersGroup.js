@@ -25,6 +25,7 @@ const handleUpdateLocalDefinitions_1 = require("../../../handlers/class/high/han
 const handleUpdateLocalMacros_1 = require("../../../handlers/class/high/handleUpdateLocalMacros");
 const handleUpdateLocalTestClass_1 = require("../../../handlers/class/high/handleUpdateLocalTestClass");
 const handleUpdateLocalTypes_1 = require("../../../handlers/class/high/handleUpdateLocalTypes");
+const handleActivateObjects_1 = require("../../../handlers/common/high/handleActivateObjects");
 const handleCreateDataElement_1 = require("../../../handlers/data_element/high/handleCreateDataElement");
 const handleDeleteDataElement_1 = require("../../../handlers/data_element/high/handleDeleteDataElement");
 const handleGetDataElement_1 = require("../../../handlers/data_element/high/handleGetDataElement");
@@ -47,6 +48,7 @@ const handleGetFunctionModule_1 = require("../../../handlers/function_module/hig
 const handleCreateGuiStatus_1 = require("../../../handlers/gui_status/high/handleCreateGuiStatus");
 const handleDeleteGuiStatus_1 = require("../../../handlers/gui_status/high/handleDeleteGuiStatus");
 const handleGetGuiStatus_1 = require("../../../handlers/gui_status/high/handleGetGuiStatus");
+const handlePatchGuiStatus_1 = require("../../../handlers/gui_status/high/handlePatchGuiStatus");
 const handleUpdateGuiStatus_1 = require("../../../handlers/gui_status/high/handleUpdateGuiStatus");
 const handleCreateInclude_1 = require("../../../handlers/include/high/handleCreateInclude");
 const handleDeleteInclude_1 = require("../../../handlers/include/high/handleDeleteInclude");
@@ -92,7 +94,9 @@ const handleUpdateTable_1 = require("../../../handlers/table/high/handleUpdateTa
 const handleCreateTextElement_1 = require("../../../handlers/text_element/high/handleCreateTextElement");
 const handleDeleteTextElement_1 = require("../../../handlers/text_element/high/handleDeleteTextElement");
 const handleGetTextElement_1 = require("../../../handlers/text_element/high/handleGetTextElement");
+const handleReadTextElementsBulk_1 = require("../../../handlers/text_element/high/handleReadTextElementsBulk");
 const handleUpdateTextElement_1 = require("../../../handlers/text_element/high/handleUpdateTextElement");
+const handleWriteTextElementsBulk_1 = require("../../../handlers/text_element/high/handleWriteTextElementsBulk");
 const handleCreateTransport_1 = require("../../../handlers/transport/high/handleCreateTransport");
 const handleCreateCdsUnitTest_1 = require("../../../handlers/unit_test/high/handleCreateCdsUnitTest");
 const handleCreateUnitTest_1 = require("../../../handlers/unit_test/high/handleCreateUnitTest");
@@ -387,6 +391,10 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
                 handler: withContext(handleDeleteInclude_1.handleDeleteInclude),
             },
             {
+                toolDefinition: handleActivateObjects_1.TOOL_DEFINITION,
+                handler: withContext(handleActivateObjects_1.handleActivateObjects),
+            },
+            {
                 toolDefinition: handleCreateProgram_1.TOOL_DEFINITION,
                 handler: withContext(handleCreateProgram_1.handleCreateProgram),
             },
@@ -529,6 +537,10 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
                 handler: withContext(handleUpdateGuiStatus_1.handleUpdateGuiStatus),
             },
             {
+                toolDefinition: handlePatchGuiStatus_1.TOOL_DEFINITION,
+                handler: withContext(handlePatchGuiStatus_1.handlePatchGuiStatus),
+            },
+            {
                 toolDefinition: handleDeleteGuiStatus_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteGuiStatus_1.handleDeleteGuiStatus),
             },
@@ -548,6 +560,14 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleDeleteTextElement_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteTextElement_1.handleDeleteTextElement),
+            },
+            {
+                toolDefinition: handleWriteTextElementsBulk_1.TOOL_DEFINITION,
+                handler: withContext(handleWriteTextElementsBulk_1.handleWriteTextElementsBulk),
+            },
+            {
+                toolDefinition: handleReadTextElementsBulk_1.TOOL_DEFINITION,
+                handler: withContext(handleReadTextElementsBulk_1.handleReadTextElementsBulk),
             },
         ];
     }
