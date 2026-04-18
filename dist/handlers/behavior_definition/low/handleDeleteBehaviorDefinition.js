@@ -2,7 +2,7 @@
 /**
  * DeleteBehaviorDefinition Handler - Delete ABAP Behavior Definition
  *
- * Uses AdtClient.deleteBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

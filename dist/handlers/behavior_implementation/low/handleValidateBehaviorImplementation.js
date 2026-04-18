@@ -2,7 +2,7 @@
 /**
  * ValidateBehaviorImplementation Handler - Validate ABAP Behavior Implementation Class Name
  *
- * Uses AdtClient.validateBehaviorImplementation from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateBehaviorImplementation from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

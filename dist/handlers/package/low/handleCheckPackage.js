@@ -2,7 +2,7 @@
 /**
  * CheckPackage Handler - Syntax check for ABAP Package
  *
- * Uses AdtClient.checkPackage from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkPackage from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

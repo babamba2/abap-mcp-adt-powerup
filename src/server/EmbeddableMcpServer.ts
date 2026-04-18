@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
-import type { AbapConnection } from '@mcp-abap-adt/connection';
-import type { Logger } from '@mcp-abap-adt/logger';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import type { HandlerContext } from '../handlers/interfaces.js';
 import { CompactHandlersGroup } from '../lib/handlers/groups/CompactHandlersGroup.js';
 import { HighLevelHandlersGroup } from '../lib/handlers/groups/HighLevelHandlersGroup.js';
@@ -162,6 +162,6 @@ export class EmbeddableMcpServer extends BaseMcpServer {
 
 function getDefaultLogger(): Logger {
   const require = createRequire(__filename);
-  const mod = require('@mcp-abap-adt/logger');
+  const mod = require('@babamba2/mcp-abap-adt-logger');
   return mod.defaultLogger ?? new mod.DefaultLogger();
 }

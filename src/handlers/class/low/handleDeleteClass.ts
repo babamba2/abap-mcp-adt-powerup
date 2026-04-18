@@ -1,7 +1,7 @@
 /**
  * DeleteClass Handler - Delete ABAP Class
  *
- * Uses AdtClient.deleteClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

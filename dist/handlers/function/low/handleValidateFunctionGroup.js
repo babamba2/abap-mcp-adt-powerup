@@ -2,7 +2,7 @@
 /**
  * ValidateFunctionGroup Handler - Validate ABAP FunctionGroup Name
  *
- * Uses AdtClient.validateFunctionGroup from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateFunctionGroup from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

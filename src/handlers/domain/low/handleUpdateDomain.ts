@@ -1,7 +1,7 @@
 /**
  * UpdateDomain Handler - Update ABAP Domain Properties
  *
- * Uses AdtClient.updateDomain from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateDomain from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

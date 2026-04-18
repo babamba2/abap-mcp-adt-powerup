@@ -1,7 +1,7 @@
 /**
  * CheckFunctionGroup Handler - Syntax check for ABAP FunctionGroup
  *
- * Uses AdtClient.checkFunctionGroup from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkFunctionGroup from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

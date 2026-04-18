@@ -2,7 +2,7 @@
 /**
  * UpdateDataElement Handler - Update ABAP Data Element Properties
  *
- * Uses AdtClient.updateDataElement from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateDataElement from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

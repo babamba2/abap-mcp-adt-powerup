@@ -1,4 +1,4 @@
-import { AdtRuntimeClient } from '@mcp-abap-adt/adt-clients';
+import { AdtRuntimeClient } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { return_error, return_response } from '../../../lib/utils';
 

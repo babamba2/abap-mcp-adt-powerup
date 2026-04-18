@@ -1,5 +1,5 @@
-import type { AuthBroker } from '@mcp-abap-adt/auth-broker';
-import type { Logger } from '@mcp-abap-adt/logger';
+import type { AuthBroker } from '@babamba2/mcp-abap-adt-auth-broker';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { noopLogger } from '../lib/handlerLogger.js';
 import type { IHandlersRegistry } from '../lib/handlers/interfaces.js';

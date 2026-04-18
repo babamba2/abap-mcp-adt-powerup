@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Logger } from '@mcp-abap-adt/logger';
-import { DefaultLogger, LogLevel } from '@mcp-abap-adt/logger';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
+import { DefaultLogger, LogLevel } from '@babamba2/mcp-abap-adt-logger';
 
 export type LoggerWithExtras = Logger & {
   browserAuth: (message: string) => void;
@@ -104,7 +104,7 @@ const resolvedLogLevel =
 
 /**
  * Create a prefixed test logger for integration tests.
- * Uses DefaultLogger from @mcp-abap-adt/logger package for beautiful formatted output with icons.
+ * Uses DefaultLogger from @babamba2/mcp-abap-adt-logger package for beautiful formatted output with icons.
  * - Honors TEST_LOG_LEVEL (error|warn|info|debug); DEBUG_* → debug.
  * - Optional file sink via TEST_LOG_FILE=/tmp/adt-tests.log.
  */

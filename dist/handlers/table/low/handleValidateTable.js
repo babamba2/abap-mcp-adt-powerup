@@ -2,7 +2,7 @@
 /**
  * ValidateTable Handler - Validate ABAP table name via ADT API
  *
- * Uses validateTableName from @mcp-abap-adt/adt-clients/core/table for table-specific validation.
+ * Uses validateTableName from @babamba2/mcp-abap-adt-clients/core/table for table-specific validation.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;

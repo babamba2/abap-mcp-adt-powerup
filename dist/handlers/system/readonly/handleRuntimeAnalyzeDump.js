@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeAnalyzeDump = handleRuntimeAnalyzeDump;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
 const runtimePayloadParser_1 = require("./runtimePayloadParser");
 exports.TOOL_DEFINITION = {
@@ -82,7 +82,7 @@ async function handleRuntimeAnalyzeDump(context, args) {
             throw new Error('Parameter "dump_id" is required');
         }
         const view = args.view ?? 'default';
-        const runtimeClient = new adt_clients_1.AdtRuntimeClient(connection, logger);
+        const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
         const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
             view,
         });

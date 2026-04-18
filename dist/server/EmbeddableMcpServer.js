@@ -91,7 +91,7 @@ class EmbeddableMcpServer extends BaseMcpServer_js_1.BaseMcpServer {
 exports.EmbeddableMcpServer = EmbeddableMcpServer;
 function getDefaultLogger() {
     const require = (0, node_module_1.createRequire)(__filename);
-    const mod = require('@mcp-abap-adt/logger');
+    const mod = require('@babamba2/mcp-abap-adt-logger');
     return mod.defaultLogger ?? new mod.DefaultLogger();
 }
 //# sourceMappingURL=EmbeddableMcpServer.js.map

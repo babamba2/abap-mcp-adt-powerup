@@ -15,7 +15,7 @@
  * Run:  npm run shared:setup
  */
 
-import type { AdtClient } from '@mcp-abap-adt/adt-clients';
+import type { AdtClient } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import {
   getSystemContext,

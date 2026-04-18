@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { SapConfig } from '@mcp-abap-adt/connection';
+import type { SapConfig } from '@babamba2/mcp-abap-connection';
 import * as dotenv from 'dotenv';
 import * as yaml from 'yaml';
 import { invalidateConnectionCache } from '../../../lib/utils';

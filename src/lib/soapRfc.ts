@@ -5,7 +5,7 @@
  * Designed for the ZMCP_ADT_DISPATCH dispatcher FM which uses JSON strings.
  */
 
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { XMLParser } from 'fast-xml-parser';
 import { makeAdtRequestWithTimeout } from './utils';
 

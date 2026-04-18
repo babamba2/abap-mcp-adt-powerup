@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeRunClassWithProfiling = handleRuntimeRunClassWithProfiling;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'RuntimeRunClassWithProfiling',
@@ -43,7 +43,7 @@ async function handleRuntimeRunClassWithProfiling(context, args) {
             throw new Error('Parameter "class_name" is required');
         }
         const className = args.class_name.trim().toUpperCase();
-        const executor = new adt_clients_1.AdtExecutor(connection, logger);
+        const executor = new mcp_abap_adt_clients_1.AdtExecutor(connection, logger);
         const classExecutor = executor.getClassExecutor();
         const result = await classExecutor.runWithProfiling({ className }, {
             profilerParameters: {

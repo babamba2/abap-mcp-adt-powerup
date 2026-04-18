@@ -1,7 +1,7 @@
 /**
  * ActivateProgram Handler - Activate ABAP Program
  *
- * Uses AdtClient.activateProgram from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateProgram from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

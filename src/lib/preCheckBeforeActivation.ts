@@ -34,7 +34,7 @@
  *   // include result.warnings in the success response
  */
 
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { XMLParser } from 'fast-xml-parser';
 import {
   type ParsedCheckRunResult,

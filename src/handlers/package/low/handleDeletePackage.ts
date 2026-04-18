@@ -1,11 +1,14 @@
 /**
  * DeletePackage Handler - Delete ABAP Package
  *
- * Uses AdtClient.deletePackage from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deletePackage from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 
-import { createAbapConnection, type SapConfig } from '@mcp-abap-adt/connection';
+import {
+  createAbapConnection,
+  type SapConfig,
+} from '@babamba2/mcp-abap-connection';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

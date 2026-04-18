@@ -1,7 +1,7 @@
 /**
  * DeleteView Handler - Delete ABAP View
  *
- * Uses AdtClient.deleteView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

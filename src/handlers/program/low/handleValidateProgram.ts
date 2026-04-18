@@ -1,7 +1,7 @@
 /**
  * ValidateProgram Handler - Validate ABAP Program Name
  *
- * Uses AdtClient.validateProgram from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateProgram from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

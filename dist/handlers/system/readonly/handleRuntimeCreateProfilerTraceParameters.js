@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeCreateProfilerTraceParameters = handleRuntimeCreateProfilerTraceParameters;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'RuntimeCreateProfilerTraceParameters',
@@ -38,7 +38,7 @@ async function handleRuntimeCreateProfilerTraceParameters(context, args) {
         if (!args?.description) {
             throw new Error('Parameter "description" is required');
         }
-        const runtimeClient = new adt_clients_1.AdtRuntimeClient(connection, logger);
+        const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
         const response = await runtimeClient.createProfilerTraceParameters({
             description: args.description,
             allMiscAbapStatements: args.all_misc_abap_statements,

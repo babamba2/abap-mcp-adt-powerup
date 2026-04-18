@@ -17,7 +17,7 @@
  * module is loaded lazily inside `getPool()`.
  */
 
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
 type NodeRfcPool = {

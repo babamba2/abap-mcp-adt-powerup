@@ -1,7 +1,7 @@
 /**
  * UpdatePackage Handler - Update ABAP Package Description
  *
- * Uses AdtClient.updatePackage from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updatePackage from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

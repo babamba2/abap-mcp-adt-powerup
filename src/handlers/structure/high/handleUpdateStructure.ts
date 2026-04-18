@@ -1,7 +1,7 @@
 /**
  * UpdateStructure Handler - Update Existing ABAP Structure DDL Source
  *
- * Uses StructureBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses StructureBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: lock -> check (new code) -> update (if check OK) -> unlock -> check (inactive version) -> (activate)
@@ -59,7 +59,7 @@ interface UpdateStructureArgs {
 /**
  * Main handler for UpdateStructure MCP tool
  *
- * Uses StructureBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses StructureBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 export async function handleUpdateStructure(

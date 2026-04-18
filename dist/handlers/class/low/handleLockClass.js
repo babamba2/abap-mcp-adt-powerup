@@ -2,7 +2,7 @@
 /**
  * LockClass Handler - Lock ABAP Class
  *
- * Uses AdtClient.lockClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

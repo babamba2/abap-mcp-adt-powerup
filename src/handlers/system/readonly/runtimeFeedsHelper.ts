@@ -4,7 +4,7 @@
  * Ported from fr0ster/mcp-abap-adt's FeedRepository (v5 adt-clients) so that
  * powerup can expose fr0ster's feed tools (RuntimeListSystemMessages,
  * RuntimeGetGatewayErrorLog, RuntimeListFeeds) while still pinned to
- * @mcp-abap-adt/adt-clients ^3.10.2, where getFeeds() returns a raw Axios
+ * @babamba2/mcp-abap-adt-clients ^3.10.2, where getFeeds() returns a raw Axios
  * response instead of the IFeedRepository facade.
  *
  * Covers three ADT feeds:
@@ -13,7 +13,7 @@
  *   - /sap/bc/adt/gw/errorlog
  */
 
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { XMLParser } from 'fast-xml-parser';
 import { makeAdtRequestWithTimeout } from '../../../lib/utils';
 

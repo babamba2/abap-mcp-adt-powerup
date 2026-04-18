@@ -1,7 +1,7 @@
 /**
  * UnlockClass Handler - Unlock ABAP Class
  *
- * Uses AdtClient.unlockClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.unlockClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

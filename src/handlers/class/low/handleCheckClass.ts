@@ -1,7 +1,7 @@
 /**
  * CheckClass Handler - Syntax check for ABAP class via ADT API
  *
- * Uses checkClass from @mcp-abap-adt/adt-clients/core/class for class-specific checking.
+ * Uses checkClass from @babamba2/mcp-abap-adt-clients/core/class for class-specific checking.
  * Supports checking existing classes or hypothetical source code.
  */
 

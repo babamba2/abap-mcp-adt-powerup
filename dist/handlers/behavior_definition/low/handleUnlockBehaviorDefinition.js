@@ -2,7 +2,7 @@
 /**
  * UnlockBehaviorDefinition Handler - Unlock ABAP Behavior Definition
  *
- * Uses AdtClient.unlockBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.unlockBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

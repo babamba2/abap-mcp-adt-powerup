@@ -1,11 +1,11 @@
 /**
  * GetClassUnitTestStatus Handler - Fetch ABAP Unit run status
  *
- * Uses AdtClient.getClassUnitTestRunStatus from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.getClassUnitTestRunStatus from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 
-import type { IAdtResponse } from '@mcp-abap-adt/interfaces';
+import type { IAdtResponse } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

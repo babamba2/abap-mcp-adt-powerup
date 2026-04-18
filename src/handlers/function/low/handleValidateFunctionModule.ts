@@ -1,7 +1,7 @@
 /**
  * ValidateFunctionModule Handler - Validate ABAP function module name via ADT API
  *
- * Uses validateFunctionModuleName from @mcp-abap-adt/adt-clients/core/functionModule for function module-specific validation.
+ * Uses validateFunctionModuleName from @babamba2/mcp-abap-adt-clients/core/functionModule for function module-specific validation.
  * Requires function group name.
  */
 

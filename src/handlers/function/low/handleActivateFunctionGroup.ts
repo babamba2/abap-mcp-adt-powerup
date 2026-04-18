@@ -1,7 +1,7 @@
 /**
  * ActivateFunctionGroup Handler - Activate ABAP Function Group
  *
- * Uses AdtClient.activateFunctionGroup from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateFunctionGroup from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

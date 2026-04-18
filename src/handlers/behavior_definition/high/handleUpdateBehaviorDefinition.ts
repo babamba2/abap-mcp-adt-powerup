@@ -2,7 +2,7 @@
  * UpdateBehaviorDefinition Handler - ABAP Behavior Definition Update via ADT API
  */
 
-import type { IBehaviorDefinitionConfig } from '@mcp-abap-adt/adt-clients';
+import type { IBehaviorDefinitionConfig } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

@@ -2,7 +2,7 @@
 /**
  * UpdateFunctionModule Handler - Update Existing ABAP Function Module Source Code
  *
- * Uses FunctionModuleBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses FunctionModuleBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: validate -> lock -> update -> check -> unlock -> (activate)
@@ -47,7 +47,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for UpdateFunctionModule MCP tool
  *
- * Uses FunctionModuleBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses FunctionModuleBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleUpdateFunctionModule(context, args) {

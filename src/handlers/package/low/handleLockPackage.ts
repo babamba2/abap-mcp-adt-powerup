@@ -1,7 +1,7 @@
 /**
  * LockPackage Handler - Lock ABAP Package
  *
- * Uses AdtClient.lockPackage from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockPackage from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

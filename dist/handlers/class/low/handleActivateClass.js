@@ -2,7 +2,7 @@
 /**
  * ActivateClass Handler - Activate ABAP Class
  *
- * Uses AdtClient.activateClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

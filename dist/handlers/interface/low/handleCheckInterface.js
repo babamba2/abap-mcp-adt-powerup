@@ -2,7 +2,7 @@
 /**
  * CheckInterface Handler - Syntax check for ABAP Interface
  *
- * Uses AdtClient.checkInterface from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkInterface from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

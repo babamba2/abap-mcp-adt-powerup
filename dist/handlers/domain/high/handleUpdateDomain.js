@@ -2,7 +2,7 @@
 /**
  * UpdateDomain Handler - Update Existing ABAP Domain
  *
- * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses DomainBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: lock -> update -> check -> unlock -> (activate)
@@ -105,7 +105,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 /**
  * Main handler for UpdateDomain tool
  *
- * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses DomainBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleUpdateDomain(context, args) {
@@ -136,6 +136,9 @@ async function handleUpdateDomain(context, args) {
                     packageName: typedArgs.package_name,
                 });
                 // Update with properties (packageName and description are required)
+                // IMPORTANT: `AdtDomain.update()` reads these 4 fields via snake_case
+                // (`config.conversion_exit`, `config.sign_exists`, `config.value_table`,
+                // `config.fixed_values`). Passing camelCase caused silent drops.
                 const properties = {
                     domainName: domainName,
                     packageName: typedArgs.package_name,
@@ -143,11 +146,11 @@ async function handleUpdateDomain(context, args) {
                     datatype: typedArgs.datatype,
                     length: typedArgs.length,
                     decimals: typedArgs.decimals,
-                    conversionExit: typedArgs.conversion_exit,
+                    conversion_exit: typedArgs.conversion_exit,
                     lowercase: typedArgs.lowercase,
-                    signExists: typedArgs.sign_exists,
-                    valueTable: typedArgs.value_table,
-                    fixedValues: typedArgs.fixed_values,
+                    sign_exists: typedArgs.sign_exists,
+                    value_table: typedArgs.value_table,
+                    fixed_values: typedArgs.fixed_values,
                     transportRequest: typedArgs.transport_request,
                 };
                 updateState = await client

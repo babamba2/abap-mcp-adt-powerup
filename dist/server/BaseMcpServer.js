@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseMcpServer = void 0;
 const node_module_1 = require("node:module");
-const connection_1 = require("@mcp-abap-adt/connection");
+const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const schemaUtils_js_1 = require("../lib/handlers/utils/schemaUtils.js");
@@ -101,7 +101,7 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                     password: connectionConfig.password || '',
                     client: connectionConfig.sapClient || '',
                 };
-            const tempConn = (0, connection_1.createAbapConnection)(tempParams);
+            const tempConn = (0, mcp_abap_connection_1.createAbapConnection)(tempParams);
             const systemCtx = await (0, systemContext_js_1.resolveSystemContext)(tempConn);
             masterSystem = systemCtx.masterSystem;
             responsible = systemCtx.responsible;
@@ -233,7 +233,7 @@ class BaseMcpServer extends mcp_js_1.McpServer {
             typeof this.authBroker.createTokenRefresher === 'function') {
             tokenRefresher = this.authBroker.createTokenRefresher(destination);
         }
-        const connection = (0, connection_1.createAbapConnection)(this.connectionContext.connectionParams, undefined, undefined, tokenRefresher);
+        const connection = (0, mcp_abap_connection_1.createAbapConnection)(this.connectionContext.connectionParams, undefined, undefined, tokenRefresher);
         // Establish session (CSRF token + cookies) before first request.
         // RFC needs this for the stateful session; HTTP needs it because some SAP systems
         // reject the very first request (403) when no session cookie is present.
@@ -372,7 +372,7 @@ class BaseMcpServer extends mcp_js_1.McpServer {
 exports.BaseMcpServer = BaseMcpServer;
 function getDefaultLogger() {
     const require = (0, node_module_1.createRequire)(__filename);
-    const mod = require('@mcp-abap-adt/logger');
+    const mod = require('@babamba2/mcp-abap-adt-logger');
     return mod.defaultLogger ?? new mod.DefaultLogger();
 }
 //# sourceMappingURL=BaseMcpServer.js.map

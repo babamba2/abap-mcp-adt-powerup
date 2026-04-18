@@ -2,7 +2,7 @@
 /**
  * CheckTable Handler - Syntax check for ABAP table via ADT API
  *
- * Uses runTableCheckRun from @mcp-abap-adt/adt-clients/core/table for table-specific checking.
+ * Uses runTableCheckRun from @babamba2/mcp-abap-adt-clients/core/table for table-specific checking.
  * Requires session_id for stateful operations.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

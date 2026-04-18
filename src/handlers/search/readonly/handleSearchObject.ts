@@ -1,5 +1,5 @@
-import type { SearchObjectsParams } from '@mcp-abap-adt/adt-clients';
-import type { IAdtResponse } from '@mcp-abap-adt/interfaces';
+import type { SearchObjectsParams } from '@babamba2/mcp-abap-adt-clients';
+import type { IAdtResponse } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import { objectsListCache } from '../../../lib/getObjectsListCache';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';

@@ -1,13 +1,13 @@
 /**
  * CreateBehaviorImplementation Handler - ABAP Behavior Implementation Creation via ADT API
  *
- * Uses AdtClient from @mcp-abap-adt/adt-clients for all operations.
+ * Uses AdtClient from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by client.
  *
  * Workflow: create -> lock -> update main source -> update implementations -> unlock -> activate
  */
 
-import type { IBehaviorImplementationConfig } from '@mcp-abap-adt/adt-clients';
+import type { IBehaviorImplementationConfig } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

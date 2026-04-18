@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdtClient = createAdtClient;
 exports.getAdtClient = getAdtClient;
 exports.resetClientCache = resetClientCache;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const connectionEvents_1 = require("./connectionEvents");
 const systemContext_1 = require("./systemContext");
 const utils_1 = require("./utils");
@@ -15,9 +15,9 @@ function createAdtClient(connection, logger) {
         ? { masterSystem: ctx.masterSystem, responsible: ctx.responsible }
         : undefined;
     if (ctx.isLegacy) {
-        return new adt_clients_1.AdtClientLegacy(connection, logger, options);
+        return new mcp_abap_adt_clients_1.AdtClientLegacy(connection, logger, options);
     }
-    return new adt_clients_1.AdtClient(connection, logger, options);
+    return new mcp_abap_adt_clients_1.AdtClient(connection, logger, options);
 }
 function getAdtClient() {
     const connection = (0, utils_1.getManagedConnection)();

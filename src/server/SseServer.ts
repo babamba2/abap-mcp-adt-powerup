@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'node:http';
-import type { Logger } from '@mcp-abap-adt/logger';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import express from 'express';
 import type { AuthBrokerFactory } from '../lib/auth/index.js';

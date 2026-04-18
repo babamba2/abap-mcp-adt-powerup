@@ -4,9 +4,9 @@ import {
   resolveSystemContext,
 } from '../../lib/systemContext';
 
-// Mock @mcp-abap-adt/adt-clients — covers both static import and dynamic import()
+// Mock @babamba2/mcp-abap-adt-clients — covers both static import and dynamic import()
 const mockGetSystemInformation = jest.fn().mockResolvedValue(undefined);
-jest.mock('@mcp-abap-adt/adt-clients', () => ({
+jest.mock('@babamba2/mcp-abap-adt-clients', () => ({
   get getSystemInformation() {
     return mockGetSystemInformation;
   },

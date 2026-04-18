@@ -1,5 +1,5 @@
-import { getSystemInformation } from '@mcp-abap-adt/adt-clients';
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import { getSystemInformation } from '@babamba2/mcp-abap-adt-clients';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { registerConnectionResetHook } from './connectionEvents';
 
 export interface IAdtSystemContext {

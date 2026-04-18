@@ -1,13 +1,13 @@
 /**
  * CreatePackage Handler - Create ABAP Package via ADT API
  *
- * Uses PackageBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses PackageBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: validate -> create -> check
  */
 
-import type { IPackageConfig } from '@mcp-abap-adt/adt-clients';
+import type { IPackageConfig } from '@babamba2/mcp-abap-adt-clients';
 import * as z from 'zod';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
@@ -91,7 +91,7 @@ interface CreatePackageArgs {
 /**
  * Main handler for CreatePackage MCP tool
  *
- * Uses PackageBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses PackageBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 export async function handleCreatePackage(

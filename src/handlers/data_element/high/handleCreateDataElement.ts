@@ -1,7 +1,7 @@
 /**
  * CreateDataElement Handler - ABAP Data Element Creation via ADT API
  *
- * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses DataElementBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: create -> activate -> verify
@@ -147,7 +147,7 @@ interface DataElementArgs {
 /**
  * Main handler for CreateDataElement MCP tool
  *
- * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses DataElementBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 export async function handleCreateDataElement(

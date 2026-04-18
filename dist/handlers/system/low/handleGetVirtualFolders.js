@@ -2,7 +2,7 @@
 /**
  * GetVirtualFolders Handler - Low-level handler for virtual folders
  *
- * Uses getVirtualFoldersContents from @mcp-abap-adt/adt-clients AdtUtils.
+ * Uses getVirtualFoldersContents from @babamba2/mcp-abap-adt-clients AdtUtils.
  * Retrieves hierarchical virtual folder contents from ADT information system.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

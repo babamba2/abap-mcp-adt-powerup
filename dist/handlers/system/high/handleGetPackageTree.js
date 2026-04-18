@@ -3,7 +3,7 @@
  * GetPackageTree Handler - High-level handler for package tree structure
  *
  * Builds a complete tree of package contents (subpackages + objects)
- * using AdtClient.getPackageHierarchy() from @mcp-abap-adt/adt-clients.
+ * using AdtClient.getPackageHierarchy() from @babamba2/mcp-abap-adt-clients.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;

@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveSystemContext = resolveSystemContext;
 exports.getSystemContext = getSystemContext;
 exports.resetSystemContextCache = resetSystemContextCache;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const connectionEvents_1 = require("./connectionEvents");
 // Singleton cache is sufficient: one MCP session always maps to one SAP system.
 // For HTTP/SSE the cache is reset before each request as a safety measure.
@@ -46,7 +46,7 @@ async function resolveSystemContext(connection, overrides) {
     }
     // Cloud: try getSystemInformation API
     try {
-        const info = await (0, adt_clients_1.getSystemInformation)(connection);
+        const info = await (0, mcp_abap_adt_clients_1.getSystemInformation)(connection);
         cached = {
             masterSystem: info?.systemID,
             responsible: info?.userName,

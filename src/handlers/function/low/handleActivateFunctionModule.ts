@@ -1,7 +1,7 @@
 /**
  * ActivateFunctionModule Handler - Activate ABAP Function Module
  *
- * Uses AdtClient.activateFunctionModule from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateFunctionModule from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

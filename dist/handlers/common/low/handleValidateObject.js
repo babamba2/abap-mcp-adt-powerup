@@ -2,7 +2,7 @@
 /**
  * ValidateObject Handler - Validate ABAP object name via ADT API
  *
- * Uses validateObjectName from @mcp-abap-adt/adt-clients/core for all operations.
+ * Uses validateObjectName from @babamba2/mcp-abap-adt-clients/core for all operations.
  * Connection management handled internally.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -80,7 +80,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for ValidateObject MCP tool
  *
- * Uses validateObjectName from @mcp-abap-adt/adt-clients/core for all operations
+ * Uses validateObjectName from @babamba2/mcp-abap-adt-clients/core for all operations
  * Connection management handled internally
  */
 async function handleValidateObject(context, args) {

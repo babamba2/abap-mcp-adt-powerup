@@ -5,9 +5,9 @@
  * Function groups are containers for function modules and don't have source code to update.
  * This handler updates function group metadata (description).
  *
- * Uses low-level updateFunctionGroup function from @mcp-abap-adt/adt-clients.
+ * Uses low-level updateFunctionGroup function from @babamba2/mcp-abap-adt-clients.
  * Session and lock management handled internally
-import { AbapConnection } from '@mcp-abap-adt/connection';.
+import { AbapConnection } from '@babamba2/mcp-abap-connection';.
  *
  * Workflow: lock -> get current -> update metadata -> unlock
  */

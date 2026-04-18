@@ -2,7 +2,7 @@
 /**
  * LockBehaviorImplementation Handler - Lock ABAP Behavior Implementation Class
  *
- * Uses AdtClient.lockClass from @mcp-abap-adt/adt-clients (BehaviorImplementation extends ClassBuilder).
+ * Uses AdtClient.lockClass from @babamba2/mcp-abap-adt-clients (BehaviorImplementation extends ClassBuilder).
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

@@ -2,7 +2,7 @@
 /**
  * CheckMetadataExtension Handler - Syntax check for ABAP MetadataExtension
  *
- * Uses AdtClient.checkMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

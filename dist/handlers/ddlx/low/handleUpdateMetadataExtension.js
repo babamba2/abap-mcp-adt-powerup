@@ -2,7 +2,7 @@
 /**
  * UpdateMetadataExtension Handler - Update ABAP Metadata Extension Source Code
  *
- * Uses AdtClient.updateMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

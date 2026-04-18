@@ -1,11 +1,11 @@
 /**
  * LockBehaviorDefinition Handler - Lock ABAP Behavior Definition
  *
- * Uses AdtClient.lockBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 
-import type { IBehaviorDefinitionConfig } from '@mcp-abap-adt/adt-clients';
+import type { IBehaviorDefinitionConfig } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

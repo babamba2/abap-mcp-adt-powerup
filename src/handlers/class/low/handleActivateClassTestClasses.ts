@@ -1,7 +1,7 @@
 /**
  * ActivateClassTestClasses Handler - Activate ABAP Unit test include for a class
  *
- * Uses AdtClient.activateTestClasses from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateTestClasses from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

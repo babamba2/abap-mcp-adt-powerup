@@ -1,7 +1,7 @@
 /**
  * GetNodeStructure Handler - Low-level handler for node structure
  *
- * Uses fetchNodeStructure from @mcp-abap-adt/adt-clients AdtUtils.
+ * Uses fetchNodeStructure from @babamba2/mcp-abap-adt-clients AdtUtils.
  * Fetches node structure from ADT repository for object tree navigation.
  */
 

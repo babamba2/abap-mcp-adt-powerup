@@ -2,14 +2,17 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as crypto from 'node:crypto';
 import { randomUUID } from 'node:crypto';
+import type {
+  IAbapConnection,
+  IAdtResponse,
+} from '@babamba2/mcp-abap-adt-interfaces';
 import {
   createAbapConnection,
   getTimeout,
   getTimeoutConfig,
   type SapConfig,
   sapConfigSignature,
-} from '@mcp-abap-adt/connection';
-import type { IAbapConnection, IAdtResponse } from '@mcp-abap-adt/interfaces';
+} from '@babamba2/mcp-abap-connection';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { AxiosError, type AxiosResponse } from 'axios';
 import {
@@ -48,7 +51,7 @@ const _SERVER_SESSION_ID = 'mcp-abap-adt-session';
 
 // Global AuthBroker registry for destination-based authentication
 // This allows JwtAbapConnection to access AuthBroker instances for token refresh
-// Store in global object so it can be accessed from @mcp-abap-adt/connection package
+// Store in global object so it can be accessed from @babamba2/mcp-abap-connection package
 declare global {
   // eslint-disable-next-line no-var
   var __mcpAbapAdtAuthBrokerRegistry: Map<string, any> | undefined;
@@ -74,7 +77,7 @@ export function registerAuthBroker(destination: string, authBroker: any): void {
 /**
  * Get AuthBroker instance for a destination
  * Returns undefined if not registered
- * This function can be called from @mcp-abap-adt/connection package via global registry
+ * This function can be called from @babamba2/mcp-abap-connection package via global registry
  */
 export function getAuthBroker(destination: string): any | undefined {
   return authBrokerRegistry.get(destination);
@@ -85,7 +88,7 @@ export type { AxiosResponse };
 
 /**
  * Encodes SAP object names for use in URLs.
- * Mirrors @mcp-abap-adt/adt-clients internal util but avoids unstable exports.
+ * Mirrors @babamba2/mcp-abap-adt-clients internal util but avoids unstable exports.
  */
 export function encodeSapObjectName(objectName: string): string {
   return encodeURIComponent(objectName);
@@ -740,7 +743,7 @@ export function removeConnectionForSession(
 /**
  * Restore session state in connection
  * Note: Session state management (getSessionState/setSessionState) was removed in connection 0.2.0
- * Session state persistence is now handled by @mcp-abap-adt/auth-broker package
+ * Session state persistence is now handled by @babamba2/mcp-abap-adt-auth-broker package
  * This function now only sets session type to stateful and session ID
  */
 export async function restoreSessionInConnection(
@@ -1345,7 +1348,7 @@ GENERATING .ENV FROM SERVICE KEY (JWT Authentication):
   To generate .env file from SAP BTP service key JSON file, install the
   connection package globally:
 
-    npm install -g @mcp-abap-adt/connection
+    npm install -g @babamba2/mcp-abap-connection
 
   Then use the sap-abap-auth command:
 
@@ -1427,7 +1430,7 @@ DOCUMENTATION:
 
 AUTHENTICATION:
   For JWT authentication with SAP BTP service keys:
-  1. Install: npm install -g @mcp-abap-adt/connection
+  1. Install: npm install -g @babamba2/mcp-abap-connection
   2. Run:     sap-abap-auth auth -k path/to/service-key.json
   3. This generates .env file with JWT tokens automatically
 
@@ -1851,7 +1854,7 @@ function debugLog(message: string): void {
 }
 
 // Re-export header constants from interfaces package
-export * from '@mcp-abap-adt/interfaces';
+export * from '@babamba2/mcp-abap-adt-interfaces';
 
 export function getConfig(): SapConfig {
   debugLog(`[MCP-CONFIG] getConfig() called\n`);

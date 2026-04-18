@@ -7,7 +7,7 @@
  * - Create temporary class with division by zero, run, then read/analyze runtime dump
  */
 
-import { AdtExecutor } from '@mcp-abap-adt/adt-clients';
+import { AdtExecutor } from '@babamba2/mcp-abap-adt-clients';
 import { handleRuntimeAnalyzeDump } from '../../../../handlers/system/readonly/handleRuntimeAnalyzeDump';
 import { handleRuntimeAnalyzeProfilerTrace } from '../../../../handlers/system/readonly/handleRuntimeAnalyzeProfilerTrace';
 import { handleRuntimeGetDumpById } from '../../../../handlers/system/readonly/handleRuntimeGetDumpById';

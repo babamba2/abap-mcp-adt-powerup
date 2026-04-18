@@ -3,7 +3,7 @@
  * Maps v2 ServerConfig to IAuthBrokerFactoryConfig
  */
 
-import type { ILogger } from '@mcp-abap-adt/interfaces';
+import type { ILogger } from '@babamba2/mcp-abap-adt-interfaces';
 import type { IAuthBrokerFactoryConfig } from '../lib/auth/IAuthBrokerFactoryConfig.js';
 import type { IServerConfig } from './IServerConfig.js';
 

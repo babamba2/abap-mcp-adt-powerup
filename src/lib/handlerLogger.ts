@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module';
-import type { Logger } from '@mcp-abap-adt/logger';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
 
 /**
  * Create a prefixed logger for handlers.
- * Honors AUTH_LOG_LEVEL from @mcp-abap-adt/logger; set to "error"/"warn"/"info"/"debug".
+ * Honors AUTH_LOG_LEVEL from @babamba2/mcp-abap-adt-logger; set to "error"/"warn"/"info"/"debug".
  * Use HANDLER_LOG_SILENT=true to force no-op logger for handlers.
  */
 export function getHandlerLogger(
@@ -36,6 +36,6 @@ export const noopLogger: Logger = {
 
 function getDefaultLogger(): Logger {
   const require = createRequire(__filename);
-  const mod = require('@mcp-abap-adt/logger');
+  const mod = require('@babamba2/mcp-abap-adt-logger');
   return mod.defaultLogger ?? new mod.DefaultLogger();
 }

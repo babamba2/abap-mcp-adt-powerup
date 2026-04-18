@@ -2,7 +2,7 @@
 /**
  * CreatePackage Handler - Create ABAP Package via ADT API
  *
- * Uses PackageBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses PackageBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: validate -> create -> check
@@ -90,7 +90,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for CreatePackage MCP tool
  *
- * Uses PackageBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses PackageBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleCreatePackage(context, args) {

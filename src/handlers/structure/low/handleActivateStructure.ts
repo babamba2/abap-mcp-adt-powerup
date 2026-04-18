@@ -1,7 +1,7 @@
 /**
  * ActivateStructure Handler - Activate ABAP Structure
  *
- * Uses AdtClient.activateStructure from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateStructure from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

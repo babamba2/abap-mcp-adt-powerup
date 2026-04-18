@@ -1,14 +1,14 @@
 /**
  * Platform-specific storage implementations for mcp-abap-adt
  *
- * Updated to use new @mcp-abap-adt/auth-stores package
+ * Updated to use new @babamba2/mcp-abap-adt-auth-stores package
  */
 
 export { getPlatformPaths } from './platformPaths';
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-// Import new stores from @mcp-abap-adt/auth-stores
+// Import new stores from @babamba2/mcp-abap-adt-auth-stores
 import {
   AbapServiceKeyStore,
   AbapSessionStore,
@@ -17,12 +17,12 @@ import {
   JsonFileHandler,
   SafeAbapSessionStore,
   SafeBtpSessionStore,
-} from '@mcp-abap-adt/auth-stores';
+} from '@babamba2/mcp-abap-adt-auth-stores';
 import type {
   ILogger,
   IServiceKeyStore,
   ISessionStore,
-} from '@mcp-abap-adt/interfaces';
+} from '@babamba2/mcp-abap-adt-interfaces';
 import { getPlatformPaths } from './platformPaths';
 
 /**

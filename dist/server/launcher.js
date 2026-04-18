@@ -169,7 +169,7 @@ SAP CONNECTION (.env file):
     x-sap-responsible                Per-request responsible user (overrides SAP_RESPONSIBLE)
 
 GENERATING .ENV FROM SERVICE KEY:
-  Install connection package: npm install -g @mcp-abap-adt/connection
+  Install connection package: npm install -g @babamba2/mcp-abap-connection
   Generate .env: sap-abap-auth auth -k path/to/service-key.json
 `;
 function showHelp() {

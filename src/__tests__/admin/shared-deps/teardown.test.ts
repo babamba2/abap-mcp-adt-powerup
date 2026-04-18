@@ -7,8 +7,8 @@
  * Run:  npm run shared:teardown
  */
 
-import type { AdtClient } from '@mcp-abap-adt/adt-clients';
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { AdtClient } from '@babamba2/mcp-abap-adt-clients';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import {
   getSystemContext,

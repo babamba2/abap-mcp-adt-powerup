@@ -5,7 +5,7 @@
 import type {
   BehaviorDefinitionImplementationType,
   IBehaviorDefinitionConfig,
-} from '@mcp-abap-adt/adt-clients';
+} from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

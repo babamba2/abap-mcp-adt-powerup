@@ -2,7 +2,7 @@
 /**
  * ValidateMetadataExtension Handler - Validate ABAP MetadataExtension Name
  *
- * Uses AdtClient.validateMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

@@ -2,7 +2,7 @@
 /**
  * CreateDomain Handler - ABAP Domain Creation via ADT API
  *
- * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses DomainBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: create -> check -> unlock -> (activate)
@@ -99,7 +99,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for CreateDomain MCP tool
  *
- * Uses DomainBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses DomainBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleCreateDomain(context, args) {

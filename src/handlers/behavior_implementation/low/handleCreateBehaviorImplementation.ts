@@ -1,11 +1,11 @@
 /**
  * CreateBehaviorImplementation Handler - Create ABAP Behavior Implementation Class
  *
- * Uses AdtClient.createBehaviorImplementation from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createBehaviorImplementation from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: full workflow (create, lock, update main source, update implementations, unlock, activate).
  */
 
-import type { IBehaviorImplementationConfig } from '@mcp-abap-adt/adt-clients';
+import type { IBehaviorImplementationConfig } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

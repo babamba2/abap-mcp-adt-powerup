@@ -2,13 +2,13 @@
 /**
  * DeletePackage Handler - Delete ABAP Package
  *
- * Uses AdtClient.deletePackage from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deletePackage from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeletePackage = handleDeletePackage;
-const connection_1 = require("@mcp-abap-adt/connection");
+const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const clients_1 = require("../../../lib/clients");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -62,7 +62,7 @@ async function handleDeletePackage(context, args) {
             }
             else {
                 try {
-                    deleteConnection = (0, connection_1.createAbapConnection)(connectionConfig, logger || null);
+                    deleteConnection = (0, mcp_abap_connection_1.createAbapConnection)(connectionConfig, logger || null);
                     // RFC connections require explicit connect() — createAbapConnection does not connect automatically
                     const deleteConnectionAny = deleteConnection;
                     if (typeof deleteConnectionAny.connect === 'function') {

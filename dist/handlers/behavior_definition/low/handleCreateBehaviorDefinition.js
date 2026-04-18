@@ -2,7 +2,7 @@
 /**
  * CreateBehaviorDefinition Handler - Create ABAP Behavior Definition
  *
- * Uses AdtClient.createBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

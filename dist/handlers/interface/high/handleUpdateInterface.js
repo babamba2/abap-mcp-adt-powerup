@@ -2,7 +2,7 @@
 /**
  * UpdateInterface Handler - Update existing ABAP Interface source code
  *
- * Uses InterfaceBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses InterfaceBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: lock -> check (new code) -> update (if check OK) -> unlock -> check (inactive version) -> (activate)
@@ -44,7 +44,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for UpdateInterface MCP tool
  *
- * Uses InterfaceBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses InterfaceBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleUpdateInterface(context, args) {

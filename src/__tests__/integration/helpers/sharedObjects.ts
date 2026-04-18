@@ -12,8 +12,11 @@
  *   npm run shared:check    — validate config consistency (offline)
  */
 
-import type { AdtClient } from '@mcp-abap-adt/adt-clients';
-import type { IAbapConnection, ILogger } from '@mcp-abap-adt/interfaces';
+import type { AdtClient } from '@babamba2/mcp-abap-adt-clients';
+import type {
+  IAbapConnection,
+  ILogger,
+} from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import {
   getSharedDependenciesConfig,

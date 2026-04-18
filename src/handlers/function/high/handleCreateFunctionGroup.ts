@@ -1,7 +1,7 @@
 /**
  * CreateFunctionGroup Handler - ABAP Function Group Creation via ADT API
  *
- * Uses FunctionGroupBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses FunctionGroupBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: validate -> create -> (activate)
@@ -63,7 +63,7 @@ interface CreateFunctionGroupArgs {
 /**
  * Main handler for CreateFunctionGroup MCP tool
  *
- * Uses FunctionGroupBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses FunctionGroupBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 export async function handleCreateFunctionGroup(

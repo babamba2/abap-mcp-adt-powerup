@@ -1,7 +1,7 @@
 /**
  * UpdateInterface Handler - Update ABAP Interface Source Code
  *
- * Uses AdtClient.updateInterface from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateInterface from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

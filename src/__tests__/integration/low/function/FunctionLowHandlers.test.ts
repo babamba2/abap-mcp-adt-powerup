@@ -14,7 +14,7 @@
  * Run: npm test -- --testPathPattern=integration/function/FunctionLowHandlers
  */
 
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { handleActivateFunctionGroup } from '../../../../handlers/function/low/handleActivateFunctionGroup';
 import { handleActivateFunctionModule } from '../../../../handlers/function/low/handleActivateFunctionModule';
 import { handleCreateFunctionGroup } from '../../../../handlers/function/low/handleCreateFunctionGroup';

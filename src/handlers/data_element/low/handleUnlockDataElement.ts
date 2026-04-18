@@ -1,7 +1,7 @@
 /**
  * UnlockDataElement Handler - Unlock ABAP DataElement
  *
- * Uses AdtClient.unlockDataElement from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.unlockDataElement from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

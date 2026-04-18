@@ -1,7 +1,7 @@
 /**
  * CreateFunctionModule Handler - Create ABAP Function Module
  *
- * Uses AdtClient.createFunctionModule from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createFunctionModule from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 
