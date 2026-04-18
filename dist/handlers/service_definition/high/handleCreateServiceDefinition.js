@@ -2,7 +2,7 @@
 /**
  * CreateServiceDefinition Handler - ABAP Service Definition Creation via ADT API
  *
- * Uses AdtClient from @mcp-abap-adt/adt-clients for all operations.
+ * Uses AdtClient from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by client.
  *
  * Workflow: validate -> create -> (activate)

@@ -1,4 +1,4 @@
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

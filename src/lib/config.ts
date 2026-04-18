@@ -5,7 +5,7 @@
  * when v2 server imports handlers that use lib/utils
  */
 
-import type { SapConfig } from '@mcp-abap-adt/connection';
+import type { SapConfig } from '@babamba2/mcp-abap-connection';
 
 // Don't import setConfigOverride from utils.ts to avoid circular dependency
 // setConfigOverride will be called lazily if needed

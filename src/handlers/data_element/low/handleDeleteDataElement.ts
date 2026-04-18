@@ -1,7 +1,7 @@
 /**
  * DeleteDataElement Handler - Delete ABAP DataElement
  *
- * Uses AdtClient.deleteDataElement from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteDataElement from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

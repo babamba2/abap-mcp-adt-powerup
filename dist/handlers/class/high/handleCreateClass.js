@@ -7,7 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateClass = handleCreateClass;
-const interfaces_1 = require("@mcp-abap-adt/interfaces");
+const mcp_abap_adt_interfaces_1 = require("@babamba2/mcp-abap-adt-interfaces");
 const clients_1 = require("../../../lib/clients");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
@@ -85,7 +85,7 @@ async function handleCreateClass(context, params) {
         catch (createError) {
             // AdtClass.create() already handles cleanup (unlock) in its catch block before throwing
             // Check if validation failed with 400 (object might already exist)
-            if (createError.code === interfaces_1.AdtObjectErrorCodes.VALIDATION_FAILED &&
+            if (createError.code === mcp_abap_adt_interfaces_1.AdtObjectErrorCodes.VALIDATION_FAILED &&
                 createError.status === 400) {
                 const errorText = createError.message?.toLowerCase() || '';
                 const isAlreadyExists = errorText.includes('already exists') ||

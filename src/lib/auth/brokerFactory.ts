@@ -10,8 +10,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { AuthBroker } from '@mcp-abap-adt/auth-broker';
-import { AuthorizationCodeProvider } from '@mcp-abap-adt/auth-providers';
+import { AuthBroker } from '@babamba2/mcp-abap-adt-auth-broker';
+import { AuthorizationCodeProvider } from '@babamba2/mcp-abap-adt-auth-providers';
 import {
   AbapServiceKeyStore,
   AbapSessionStore,
@@ -20,7 +20,7 @@ import {
   EnvFileSessionStore,
   SafeAbapSessionStore,
   SafeBtpSessionStore,
-} from '@mcp-abap-adt/auth-stores';
+} from '@babamba2/mcp-abap-adt-auth-stores';
 import type {
   IAuthorizationConfig,
   IConnectionConfig,
@@ -29,8 +29,8 @@ import type {
   ISessionStore,
   ITokenProvider,
   ITokenResult,
-} from '@mcp-abap-adt/interfaces';
-import { defaultLogger } from '@mcp-abap-adt/logger';
+} from '@babamba2/mcp-abap-adt-interfaces';
+import { defaultLogger } from '@babamba2/mcp-abap-adt-logger';
 import { detectStoreType } from '../stores';
 import { getPlatformPaths } from '../stores/platformPaths';
 import type { IAuthBrokerFactory } from './IAuthBrokerFactory.js';

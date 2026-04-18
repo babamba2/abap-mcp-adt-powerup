@@ -1,7 +1,7 @@
 /**
  * UpdateTable Handler - Update Existing ABAP Table DDL Source
  *
- * Uses TableBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses TableBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: lock -> check (new code) -> update (if check OK) -> unlock -> check (inactive version) -> (activate)
@@ -33,7 +33,7 @@ export const TOOL_DEFINITION = {
       ddl_code: {
         type: 'string',
         description:
-          "Complete DDL source code for table. Example: '@EndUserText.label : \\'My Table\\' @AbapCatalog.tableCategory : #TRANSPARENT define table ztst_table { key client : abap.clnt not null; key id : abap.char(10); name : abap.char(255); }'",
+          "Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key ('key mandt : mandt not null'), NOT 'abap.clnt' (that's CDS-view syntax). Standard SAP tables (MARA, T001, VBAK, …) all use MANDT. The annotation block CreateTable seeded must be preserved verbatim: #NOT_EXTENSIBLE enhancement category, #TRANSPARENT tableCategory, #A deliveryClass, #RESTRICTED dataMaintenance. Example: '@EndUserText.label : \\'My Table\\' @AbapCatalog.enhancement.category : #NOT_EXTENSIBLE @AbapCatalog.tableCategory : #TRANSPARENT @AbapCatalog.deliveryClass : #A @AbapCatalog.dataMaintenance : #RESTRICTED define table ztst_table { key mandt : mandt not null; key id : abap.char(10); name : abap.char(255); }'",
       },
       transport_request: {
         type: 'string',
@@ -59,7 +59,7 @@ interface UpdateTableArgs {
 /**
  * Main handler for UpdateTable MCP tool
  *
- * Uses TableBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses TableBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 export async function handleUpdateTable(

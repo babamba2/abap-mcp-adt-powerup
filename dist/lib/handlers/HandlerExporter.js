@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HandlerExporter = void 0;
 exports.createDefaultHandlerExporter = createDefaultHandlerExporter;
-const logger_1 = require("@mcp-abap-adt/logger");
+const mcp_abap_adt_logger_1 = require("@babamba2/mcp-abap-adt-logger");
 const CompactHandlersGroup_js_1 = require("./groups/CompactHandlersGroup.js");
 const HighLevelHandlersGroup_js_1 = require("./groups/HighLevelHandlersGroup.js");
 const LowLevelHandlersGroup_js_1 = require("./groups/LowLevelHandlersGroup.js");
@@ -38,7 +38,7 @@ class HandlerExporter {
     logger;
     handlerGroups;
     constructor(options) {
-        this.logger = options?.logger ?? logger_1.defaultLogger;
+        this.logger = options?.logger ?? mcp_abap_adt_logger_1.defaultLogger;
         // Create dummy context for group instantiation
         // Real context is provided by BaseMcpServer.registerHandlers() via getConnection()
         const dummyContext = {

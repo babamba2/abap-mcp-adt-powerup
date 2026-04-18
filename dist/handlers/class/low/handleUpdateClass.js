@@ -2,7 +2,7 @@
 /**
  * UpdateClass Handler - Update ABAP Class Source Code
  *
- * Uses AdtClient.updateClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

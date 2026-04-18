@@ -1,4 +1,7 @@
-import type { IAbapConnection, ILogger } from '@mcp-abap-adt/interfaces';
+import type {
+  IAbapConnection,
+  ILogger,
+} from '@babamba2/mcp-abap-adt-interfaces';
 
 /**
  * Handler context containing connection and logger

@@ -1,7 +1,7 @@
 /**
  * CreateStructure Handler - Create ABAP Structure
  *
- * Uses AdtClient.createStructure from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createStructure from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

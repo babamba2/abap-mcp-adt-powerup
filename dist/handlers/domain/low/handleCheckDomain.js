@@ -2,7 +2,7 @@
 /**
  * CheckDomain Handler - Syntax check for ABAP Domain
  *
- * Uses AdtClient.checkDomain from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkDomain from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

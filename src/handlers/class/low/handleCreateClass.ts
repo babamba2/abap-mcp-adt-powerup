@@ -1,7 +1,7 @@
 /**
  * CreateClass Handler - Create ABAP Class
  *
- * Uses AdtClient.createClass from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createClass from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

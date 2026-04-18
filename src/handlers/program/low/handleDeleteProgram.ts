@@ -1,7 +1,7 @@
 /**
  * DeleteProgram Handler - Delete ABAP Program
  *
- * Uses AdtClient.deleteProgram from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteProgram from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

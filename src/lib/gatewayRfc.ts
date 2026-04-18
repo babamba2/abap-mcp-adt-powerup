@@ -29,7 +29,7 @@
  *   GET  /health                                           → { status: "ok", ... }
  */
 
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
 const DEFAULT_TIMEOUT_MS = 60_000;

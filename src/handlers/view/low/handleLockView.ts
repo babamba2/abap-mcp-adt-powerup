@@ -1,7 +1,7 @@
 /**
  * LockView Handler - Lock ABAP View
  *
- * Uses AdtClient.lockView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

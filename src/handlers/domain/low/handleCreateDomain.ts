@@ -1,7 +1,7 @@
 /**
  * CreateDomain Handler - Create ABAP Domain
  *
- * Uses AdtClient.createDomain from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createDomain from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

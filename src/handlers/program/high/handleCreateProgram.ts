@@ -5,7 +5,7 @@
  * Source code is set via UpdateProgram handler.
  */
 
-import type { IAdtResponse } from '@mcp-abap-adt/interfaces';
+import type { IAdtResponse } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

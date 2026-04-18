@@ -2,7 +2,7 @@
 /**
  * CheckBehaviorDefinition Handler - Syntax check for ABAP BehaviorDefinition
  *
- * Uses AdtClient.checkBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

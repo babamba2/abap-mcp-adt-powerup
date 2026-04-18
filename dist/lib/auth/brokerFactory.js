@@ -45,9 +45,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthBrokerFactory = void 0;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
-const auth_broker_1 = require("@mcp-abap-adt/auth-broker");
-const auth_providers_1 = require("@mcp-abap-adt/auth-providers");
-const auth_stores_1 = require("@mcp-abap-adt/auth-stores");
+const mcp_abap_adt_auth_broker_1 = require("@babamba2/mcp-abap-adt-auth-broker");
+const mcp_abap_adt_auth_providers_1 = require("@babamba2/mcp-abap-adt-auth-providers");
+const mcp_abap_adt_auth_stores_1 = require("@babamba2/mcp-abap-adt-auth-stores");
 const stores_1 = require("../stores");
 const platformPaths_1 = require("../stores/platformPaths");
 /**
@@ -339,17 +339,17 @@ class AuthBrokerFactory {
                     case 'abap':
                         stores = {
                             serviceKeyStore: hasServiceKeyStore
-                                ? new auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger)
+                                ? new mcp_abap_adt_auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger)
                                 : undefined,
-                            sessionStore: new auth_stores_1.AbapSessionStore(sessionsDir, storeLogger),
+                            sessionStore: new mcp_abap_adt_auth_stores_1.AbapSessionStore(sessionsDir, storeLogger),
                         };
                         break;
                     case 'btp':
                         stores = {
                             serviceKeyStore: hasServiceKeyStore
-                                ? new auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger)
+                                ? new mcp_abap_adt_auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger)
                                 : undefined,
-                            sessionStore: new auth_stores_1.BtpSessionStore(sessionsDir, '', storeLogger),
+                            sessionStore: new mcp_abap_adt_auth_stores_1.BtpSessionStore(sessionsDir, '', storeLogger),
                         };
                         break;
                 }
@@ -360,17 +360,17 @@ class AuthBrokerFactory {
                         // Use safe in-memory store to avoid stale/locked files in ~/.config
                         stores = {
                             serviceKeyStore: hasServiceKeyStore
-                                ? new auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger)
+                                ? new mcp_abap_adt_auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger)
                                 : undefined,
-                            sessionStore: new auth_stores_1.SafeAbapSessionStore(storeLogger, undefined),
+                            sessionStore: new mcp_abap_adt_auth_stores_1.SafeAbapSessionStore(storeLogger, undefined),
                         };
                         break;
                     case 'btp':
                         stores = {
                             serviceKeyStore: hasServiceKeyStore
-                                ? new auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger)
+                                ? new mcp_abap_adt_auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger)
                                 : undefined,
-                            sessionStore: new auth_stores_1.SafeBtpSessionStore('', storeLogger),
+                            sessionStore: new mcp_abap_adt_auth_stores_1.SafeBtpSessionStore('', storeLogger),
                         };
                         break;
                 }
@@ -391,10 +391,10 @@ class AuthBrokerFactory {
             if (hasServiceKeyStore && !stores.serviceKeyStore) {
                 switch (storeType) {
                     case 'abap':
-                        stores.serviceKeyStore = new auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger);
+                        stores.serviceKeyStore = new mcp_abap_adt_auth_stores_1.AbapServiceKeyStore(serviceKeysDir, storeLogger);
                         break;
                     case 'btp':
-                        stores.serviceKeyStore = new auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger);
+                        stores.serviceKeyStore = new mcp_abap_adt_auth_stores_1.BtpServiceKeyStore(serviceKeysDir, storeLogger);
                         break;
                 }
                 logger?.debug('Added serviceKeyStore to existing shared stores', {
@@ -502,7 +502,7 @@ class AuthBrokerFactory {
         }
         const tokenProvider = await this.createTokenProviderForDestination(destination, storeType, sessionStore, serviceKeyStore, logger);
         // Create AuthBroker
-        const authBroker = new auth_broker_1.AuthBroker({
+        const authBroker = new mcp_abap_adt_auth_broker_1.AuthBroker({
             serviceKeyStore: hasServiceKeyStore ? serviceKeyStore : undefined,
             sessionStore,
             tokenProvider,
@@ -529,7 +529,7 @@ class AuthBrokerFactory {
         const providerLogger = this.config.providerLogger;
         const brokerLogger = this.config.brokerLogger;
         // Create EnvFileSessionStore that reads from specified .env file
-        const sessionStore = new auth_stores_1.EnvFileSessionStore(envFilePath, storeLogger);
+        const sessionStore = new mcp_abap_adt_auth_stores_1.EnvFileSessionStore(envFilePath, storeLogger);
         // Get auth type from .env file to determine if we need token provider
         const authType = sessionStore.getAuthType();
         if (!authType) {
@@ -543,7 +543,7 @@ class AuthBrokerFactory {
         });
         const tokenProvider = await this.createTokenProviderForDestination(brokerKey, 'abap', sessionStore, undefined, providerLogger);
         // Create AuthBroker with EnvFileSessionStore
-        const authBroker = new auth_broker_1.AuthBroker({
+        const authBroker = new mcp_abap_adt_auth_broker_1.AuthBroker({
             serviceKeyStore: undefined, // No service key store for --env mode
             sessionStore,
             tokenProvider,
@@ -711,7 +711,7 @@ class AuthBrokerFactory {
         // For mcp-abap-adt, AuthorizationCodeProvider is the only provider used
         // Both 'abap' and 'btp' store types use AuthorizationCodeProvider
         if (storeType === 'btp' || storeType === 'abap') {
-            return this.wrapLegacyTokenProvider(new auth_providers_1.AuthorizationCodeProvider(providerConfig));
+            return this.wrapLegacyTokenProvider(new mcp_abap_adt_auth_providers_1.AuthorizationCodeProvider(providerConfig));
         }
         // This should never happen, but throw error for safety
         throw new Error(`Unsupported store type "${storeType}" for destination "${destination}". Only 'abap' and 'btp' are supported.`);

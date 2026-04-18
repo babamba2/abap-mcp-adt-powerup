@@ -1,7 +1,7 @@
 /**
  * UpdateStructure Handler - Update ABAP Structure DDL Source
  *
- * Uses AdtClient.updateStructure from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateStructure from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

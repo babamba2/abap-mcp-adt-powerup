@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeListDumps = handleRuntimeListDumps;
-const adt_clients_1 = require("@mcp-abap-adt/adt-clients");
+const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
 const runtimePayloadParser_1 = require("./runtimePayloadParser");
 exports.TOOL_DEFINITION = {
@@ -40,7 +40,7 @@ exports.TOOL_DEFINITION = {
 async function handleRuntimeListDumps(context, args) {
     const { connection, logger } = context;
     try {
-        const runtimeClient = new adt_clients_1.AdtRuntimeClient(connection, logger);
+        const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
         const { user, inlinecount, top, skip, orderby } = args || {};
         const response = user
             ? await runtimeClient.listRuntimeDumpsByUser(user, {

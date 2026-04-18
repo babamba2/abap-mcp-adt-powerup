@@ -1,7 +1,7 @@
 /**
  * UpdateServiceDefinition Handler - Update Existing ABAP Service Definition Source
  *
- * Uses AdtClient from @mcp-abap-adt/adt-clients for all operations.
+ * Uses AdtClient from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by client.
  *
  * Workflow: lock -> update -> check -> unlock -> (activate)

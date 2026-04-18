@@ -1,7 +1,7 @@
 /**
  * LockMetadataExtension Handler - Lock ABAP MetadataExtension
  *
- * Uses AdtClient.lockMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

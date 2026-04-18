@@ -1,7 +1,7 @@
 /**
  * DeleteMetadataExtension Handler - Delete ABAP MetadataExtension
  *
- * Uses AdtClient.deleteMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

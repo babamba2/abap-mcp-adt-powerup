@@ -2,7 +2,7 @@
 /**
  * GetObjectStructure Handler - Low-level handler for object structure
  *
- * Uses getObjectStructure from @mcp-abap-adt/adt-clients AdtUtils.
+ * Uses getObjectStructure from @babamba2/mcp-abap-adt-clients AdtUtils.
  * Retrieves ADT object structure as compact JSON tree.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

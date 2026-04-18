@@ -7,7 +7,7 @@
  * Run: npm test -- --testPathPatterns=readOnly/function/GetFunctionModule
  */
 
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { handleGetFunctionModule } from '../../../../handlers/function_module/high/handleGetFunctionModule';
 import {
   getSystemType,

@@ -1,7 +1,7 @@
 /**
  * LockFunctionModule Handler - Lock ABAP Function Module
  *
- * Uses AdtClient.lockFunctionModule from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockFunctionModule from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

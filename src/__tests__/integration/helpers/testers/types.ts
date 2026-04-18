@@ -8,7 +8,7 @@
  * testers provide all common infrastructure (connection, session, logger, etc.)
  */
 
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import type { LoggerWithExtras } from '../loggerHelpers';
 import type { SessionInfo } from '../sessionHelpers';
 

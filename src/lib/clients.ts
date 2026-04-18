@@ -1,6 +1,9 @@
-import { AdtClient, AdtClientLegacy } from '@mcp-abap-adt/adt-clients';
-import type { AbapConnection } from '@mcp-abap-adt/connection';
-import type { IAbapConnection, ILogger } from '@mcp-abap-adt/interfaces';
+import { AdtClient, AdtClientLegacy } from '@babamba2/mcp-abap-adt-clients';
+import type {
+  IAbapConnection,
+  ILogger,
+} from '@babamba2/mcp-abap-adt-interfaces';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { registerConnectionResetHook } from './connectionEvents';
 import { getSystemContext } from './systemContext';
 import { getManagedConnection } from './utils';

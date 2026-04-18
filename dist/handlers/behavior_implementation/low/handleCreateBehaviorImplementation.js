@@ -2,7 +2,7 @@
 /**
  * CreateBehaviorImplementation Handler - Create ABAP Behavior Implementation Class
  *
- * Uses AdtClient.createBehaviorImplementation from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createBehaviorImplementation from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: full workflow (create, lock, update main source, update implementations, unlock, activate).
  */
 Object.defineProperty(exports, "__esModule", { value: true });

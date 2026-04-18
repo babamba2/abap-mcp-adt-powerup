@@ -4,12 +4,12 @@
  */
 
 import * as path from 'node:path';
-import type { ILogger } from '@mcp-abap-adt/interfaces';
+import type { ILogger } from '@babamba2/mcp-abap-adt-interfaces';
 import {
   DefaultLogger,
   defaultLogger,
   getLogLevel,
-} from '@mcp-abap-adt/logger';
+} from '@babamba2/mcp-abap-adt-logger';
 import { AuthBrokerFactory } from '../../../lib/auth/brokerFactory';
 import { loadTestConfig } from './configHelpers';
 import { createTestLogger } from './loggerHelpers';
@@ -18,7 +18,7 @@ const authLogger = createTestLogger('auth');
 
 /**
  * Create logger for stores based on DEBUG_STORES or DEBUG_AUTH_STORES environment variable
- * Returns DefaultLogger from @mcp-abap-adt/logger if enabled, undefined otherwise
+ * Returns DefaultLogger from @babamba2/mcp-abap-adt-logger if enabled, undefined otherwise
  */
 export function createStoreLogger(): ILogger | undefined {
   const isEnabled = (): boolean => {
@@ -49,7 +49,7 @@ export function createStoreLogger(): ILogger | undefined {
 
 /**
  * Create logger for provider based on DEBUG_PROVIDER or DEBUG_AUTH_PROVIDERS environment variable
- * Returns DefaultLogger from @mcp-abap-adt/logger if enabled, undefined otherwise
+ * Returns DefaultLogger from @babamba2/mcp-abap-adt-logger if enabled, undefined otherwise
  */
 export function createProviderLogger(): ILogger | undefined {
   const isEnabled = (): boolean => {
@@ -80,7 +80,7 @@ export function createProviderLogger(): ILogger | undefined {
 
 /**
  * Create logger for broker based on DEBUG_BROKER or DEBUG_AUTH_BROKER environment variable
- * Returns DefaultLogger from @mcp-abap-adt/logger if enabled, undefined otherwise
+ * Returns DefaultLogger from @babamba2/mcp-abap-adt-logger if enabled, undefined otherwise
  */
 export function createBrokerLogger(): ILogger | undefined {
   const isEnabled = (): boolean => {
@@ -111,7 +111,7 @@ export function createBrokerLogger(): ILogger | undefined {
 
 /**
  * Create logger for connection based on DEBUG_CONNECTION, DEBUG_CONN, or DEBUG_CONNECTORS environment variable
- * Returns DefaultLogger from @mcp-abap-adt/logger if enabled, undefined otherwise
+ * Returns DefaultLogger from @babamba2/mcp-abap-adt-logger if enabled, undefined otherwise
  */
 export function createConnectionLogger(): ILogger | undefined {
   const isEnabled = (): boolean => {

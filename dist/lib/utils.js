@@ -79,9 +79,9 @@ exports.parseActivationResponse = parseActivationResponse;
 const node_async_hooks_1 = require("node:async_hooks");
 const crypto = __importStar(require("node:crypto"));
 const node_crypto_1 = require("node:crypto");
-const connection_1 = require("@mcp-abap-adt/connection");
-Object.defineProperty(exports, "getTimeout", { enumerable: true, get: function () { return connection_1.getTimeout; } });
-Object.defineProperty(exports, "getTimeoutConfig", { enumerable: true, get: function () { return connection_1.getTimeoutConfig; } });
+const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
+Object.defineProperty(exports, "getTimeout", { enumerable: true, get: function () { return mcp_abap_connection_1.getTimeout; } });
+Object.defineProperty(exports, "getTimeoutConfig", { enumerable: true, get: function () { return mcp_abap_connection_1.getTimeoutConfig; } });
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 Object.defineProperty(exports, "ErrorCode", { enumerable: true, get: function () { return types_js_1.ErrorCode; } });
 Object.defineProperty(exports, "McpError", { enumerable: true, get: function () { return types_js_1.McpError; } });
@@ -116,14 +116,14 @@ function registerAuthBroker(destination, authBroker) {
 /**
  * Get AuthBroker instance for a destination
  * Returns undefined if not registered
- * This function can be called from @mcp-abap-adt/connection package via global registry
+ * This function can be called from @babamba2/mcp-abap-connection package via global registry
  */
 function getAuthBroker(destination) {
     return authBrokerRegistry.get(destination);
 }
 /**
  * Encodes SAP object names for use in URLs.
- * Mirrors @mcp-abap-adt/adt-clients internal util but avoids unstable exports.
+ * Mirrors @babamba2/mcp-abap-adt-clients internal util but avoids unstable exports.
  */
 function encodeSapObjectName(objectName) {
     return encodeURIComponent(objectName);
@@ -454,7 +454,7 @@ function cleanupConnectionCache() {
  * Get or create connection for a specific session and config
  */
 function getConnectionForSession(sessionId, config, destination) {
-    const configSignature = (0, connection_1.sapConfigSignature)(config);
+    const configSignature = (0, mcp_abap_connection_1.sapConfigSignature)(config);
     const cacheKey = generateConnectionCacheKey(sessionId, configSignature, destination);
     // Clean up old entries periodically
     if (connectionCache.size > 100) {
@@ -479,7 +479,7 @@ function getConnectionForSession(sessionId, config, destination) {
             }
         }
         // Create connection with optional tokenRefresher for automatic token refresh
-        const connection = (0, connection_1.createAbapConnection)(config, loggerAdapter_1.loggerAdapter, connectionSessionId, tokenRefresher);
+        const connection = (0, mcp_abap_connection_1.createAbapConnection)(config, loggerAdapter_1.loggerAdapter, connectionSessionId, tokenRefresher);
         // Don't call enableStatefulSession during module import - it may trigger connection attempts
         // Session ID is already set via createAbapConnection() constructor
         // enableStatefulSession() will be called lazily when first request is made (if needed)
@@ -557,7 +557,7 @@ function getManagedConnection() {
     else {
         debugLog(`[MCP-UTILS] ✗ ERROR: config.url is missing!\n`);
     }
-    const signature = (0, connection_1.sapConfigSignature)(config);
+    const signature = (0, mcp_abap_connection_1.sapConfigSignature)(config);
     if (!cachedConnection || cachedConfigSignature !== signature) {
         logger_1.connectionManagerLogger?.debug(`[DEBUG] getManagedConnection - Creating new connection (cached: ${!!cachedConnection}, signature changed: ${cachedConfigSignature !== signature})`);
         if (cachedConnection) {
@@ -583,7 +583,7 @@ function getManagedConnection() {
         // This prevents cookies/CSRF tokens from being shared between different connections
         const fallbackSessionId = `mcp-abap-adt-fallback-${(0, node_crypto_1.randomUUID)()}`;
         logger_1.connectionManagerLogger?.debug(`[DEBUG] getManagedConnection - Creating fallback connection with unique session ID: ${fallbackSessionId.substring(0, 32)}...`);
-        cachedConnection = (0, connection_1.createAbapConnection)(config, loggerAdapter_1.loggerAdapter, fallbackSessionId);
+        cachedConnection = (0, mcp_abap_connection_1.createAbapConnection)(config, loggerAdapter_1.loggerAdapter, fallbackSessionId);
         // Verify connection has access to refresh token
         const connectionWithRefresh = cachedConnection;
         if (connectionWithRefresh.getConfig &&
@@ -621,7 +621,7 @@ function getManagedConnection() {
  */
 function removeConnectionForSession(sessionId, config, destination) {
     if (config) {
-        const configSignature = (0, connection_1.sapConfigSignature)(config);
+        const configSignature = (0, mcp_abap_connection_1.sapConfigSignature)(config);
         const cacheKey = generateConnectionCacheKey(sessionId, configSignature, destination);
         const entry = connectionCache.get(cacheKey);
         if (entry) {
@@ -644,7 +644,7 @@ function removeConnectionForSession(sessionId, config, destination) {
 /**
  * Restore session state in connection
  * Note: Session state management (getSessionState/setSessionState) was removed in connection 0.2.0
- * Session state persistence is now handled by @mcp-abap-adt/auth-broker package
+ * Session state persistence is now handled by @babamba2/mcp-abap-adt-auth-broker package
  * This function now only sets session type to stateful and session ID
  */
 async function restoreSessionInConnection(connection, sessionId, _sessionState) {
@@ -673,7 +673,7 @@ function setConfigOverride(override) {
     overrideConfig = override;
     /* cleanup */
     overrideConnection = override
-        ? (0, connection_1.createAbapConnection)(override, loggerAdapter_1.loggerAdapter, undefined)
+        ? (0, mcp_abap_connection_1.createAbapConnection)(override, loggerAdapter_1.loggerAdapter, undefined)
         : undefined;
     // Reset shared connection so that it will be re-created lazily with fresh config
     /* cleanup */
@@ -756,7 +756,7 @@ async function getBaseUrl() {
  * @returns Promise with the response
  */
 async function makeAdtRequestWithTimeout(connection, url, method, timeoutType = 'default', data, params, headers) {
-    const timeout = (0, connection_1.getTimeout)(timeoutType);
+    const timeout = (0, mcp_abap_connection_1.getTimeout)(timeoutType);
     return makeAdtRequest(connection, url, method, timeout, data, params, headers);
 }
 /**
@@ -1140,7 +1140,7 @@ GENERATING .ENV FROM SERVICE KEY (JWT Authentication):
   To generate .env file from SAP BTP service key JSON file, install the
   connection package globally:
 
-    npm install -g @mcp-abap-adt/connection
+    npm install -g @babamba2/mcp-abap-connection
 
   Then use the sap-abap-auth command:
 
@@ -1222,7 +1222,7 @@ DOCUMENTATION:
 
 AUTHENTICATION:
   For JWT authentication with SAP BTP service keys:
-  1. Install: npm install -g @mcp-abap-adt/connection
+  1. Install: npm install -g @babamba2/mcp-abap-connection
   2. Run:     sap-abap-auth auth -k path/to/service-key.json
   3. This generates .env file with JWT tokens automatically
 
@@ -1549,7 +1549,7 @@ function debugLog(message) {
     }
 }
 // Re-export header constants from interfaces package
-__exportStar(require("@mcp-abap-adt/interfaces"), exports);
+__exportStar(require("@babamba2/mcp-abap-adt-interfaces"), exports);
 function getConfig() {
     debugLog(`[MCP-CONFIG] getConfig() called\n`);
     if (sapConfigOverride) {

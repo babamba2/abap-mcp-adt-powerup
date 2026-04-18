@@ -1,4 +1,4 @@
-import type { IAdtResponse } from '@mcp-abap-adt/interfaces';
+import type { IAdtResponse } from '@babamba2/mcp-abap-adt-interfaces';
 import type { AxiosResponse } from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 

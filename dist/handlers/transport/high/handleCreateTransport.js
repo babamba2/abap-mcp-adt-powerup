@@ -2,7 +2,7 @@
 /**
  * CreateTransport Handler - Create new ABAP transport request via ADT API
  *
- * Uses TransportBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses TransportBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: create
@@ -44,7 +44,7 @@ exports.TOOL_DEFINITION = {
 /**
  * Main handler for CreateTransport MCP tool
  *
- * Uses TransportBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses TransportBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleCreateTransport(context, args) {

@@ -2,7 +2,7 @@
 /**
  * LockFunctionGroup Handler - Lock ABAP FunctionGroup
  *
- * Uses AdtClient.lockFunctionGroup from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockFunctionGroup from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

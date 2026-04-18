@@ -1,7 +1,7 @@
 /**
  * DeleteFunctionModule Handler - Delete ABAP Function Module
  *
- * Uses AdtClient.deleteFunctionModule from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.deleteFunctionModule from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

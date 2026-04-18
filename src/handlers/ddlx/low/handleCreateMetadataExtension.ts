@@ -1,7 +1,7 @@
 /**
  * CreateMetadataExtension Handler - Create ABAP Metadata Extension
  *
- * Uses AdtClient.createMetadataExtension from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createMetadataExtension from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

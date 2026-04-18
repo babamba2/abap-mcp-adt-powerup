@@ -1,7 +1,7 @@
 /**
  * RunClassUnitTests Handler - Start ABAP Unit run for class-based tests
  *
- * Uses AdtClient.runClassUnitTests from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.runClassUnitTests from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

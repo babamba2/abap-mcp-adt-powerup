@@ -1,7 +1,7 @@
 /**
  * CreateDataElement Handler - Create ABAP DataElement
  *
- * Uses AdtClient.createDataElement from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createDataElement from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

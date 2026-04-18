@@ -9,7 +9,7 @@
  * - Lifecycle hooks (beforeAll, afterAll, beforeEach, afterEach)
  */
 
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { resolveSystemContext } from '../../../../lib/systemContext';
 import {
   getCleanupAfter,
@@ -592,7 +592,9 @@ export class LambdaTester {
     return isHardModeEnabled();
   }
 
-  getConnection(): import('@mcp-abap-adt/interfaces').IAbapConnection | null {
+  getConnection():
+    | import('@babamba2/mcp-abap-adt-interfaces').IAbapConnection
+    | null {
     return this.context?.connection ?? null;
   }
 

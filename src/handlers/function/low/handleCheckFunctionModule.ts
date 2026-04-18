@@ -1,7 +1,7 @@
 /**
  * CheckFunctionModule Handler - Syntax check for ABAP function module via ADT API
  *
- * Uses checkFunctionModule from @mcp-abap-adt/adt-clients/core/functionModule for function module-specific checking.
+ * Uses checkFunctionModule from @babamba2/mcp-abap-adt-clients/core/functionModule for function module-specific checking.
  * Requires function group name.
  */
 

@@ -2,7 +2,7 @@
 /**
  * CheckView Handler - Syntax check for ABAP View
  *
- * Uses AdtClient.checkView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.checkView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

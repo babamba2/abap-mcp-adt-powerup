@@ -15,7 +15,7 @@
 import {
   type AbapConnection,
   createAbapConnection,
-} from '@mcp-abap-adt/connection';
+} from '@babamba2/mcp-abap-connection';
 import { handleDeleteClass } from '../../../../handlers/class/low/handleDeleteClass';
 import { createAdtClient } from '../../../../lib/clients';
 import {

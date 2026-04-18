@@ -1,10 +1,10 @@
 import { createRequire } from 'node:module';
-import type { AuthBroker } from '@mcp-abap-adt/auth-broker';
+import type { AuthBroker } from '@babamba2/mcp-abap-adt-auth-broker';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
 import {
   type AbapConnection,
   createAbapConnection,
-} from '@mcp-abap-adt/connection';
-import type { Logger } from '@mcp-abap-adt/logger';
+} from '@babamba2/mcp-abap-connection';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { HandlerContext } from '../handlers/interfaces.js';
 import type {
@@ -493,6 +493,6 @@ export abstract class BaseMcpServer extends McpServer {
 
 function getDefaultLogger(): Logger {
   const require = createRequire(__filename);
-  const mod = require('@mcp-abap-adt/logger');
+  const mod = require('@babamba2/mcp-abap-adt-logger');
   return mod.defaultLogger ?? new mod.DefaultLogger();
 }

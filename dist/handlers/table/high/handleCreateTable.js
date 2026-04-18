@@ -74,13 +74,57 @@ async function handleCreateTable(context, args) {
                 transportRequest: createTableArgs.transport_request,
             });
             logger?.info(`Table created: ${tableName}`);
+            // Replace SAP backend's auto-generated CDS-style skeleton (`key client : abap.clnt`)
+            // with the correct transparent-table skeleton using the MANDT data element.
+            // Without this follow-up, first-time users hit `ExceptionResourceAlreadyExists`
+            // (SBD_MESSAGES/007) on UpdateTable when their DDL uses `mandt : mandt` —
+            // the normal transparent-table pattern used by every standard SAP table
+            // (MARA, T001, VBAK, …). CDS views use `abap.clnt`; transparent tables don't.
+            const labelText = (createTableArgs.description || tableName).replace(/'/g, "''");
+            const defaultDdl = `@EndUserText.label : '${labelText}'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table ${tableName.toLowerCase()} {
+  key mandt : mandt not null;
+}`;
+            let skeletonApplied = false;
+            try {
+                const lockHandle = await client.getTable().lock({ tableName });
+                try {
+                    await client.getTable().update({
+                        tableName,
+                        ddlCode: defaultDdl,
+                        transportRequest: createTableArgs.transport_request,
+                    }, { lockHandle });
+                    skeletonApplied = true;
+                    logger?.info(`[CreateTable] Applied MANDT-based transparent-table skeleton: ${tableName}`);
+                }
+                finally {
+                    try {
+                        await client.getTable().unlock({ tableName }, lockHandle);
+                    }
+                    catch (unlockError) {
+                        logger?.warn(`[CreateTable] Failed to unlock ${tableName} after skeleton apply: ${unlockError?.message || unlockError}`);
+                    }
+                }
+            }
+            catch (skelError) {
+                // Non-fatal: the table exists and works; user's UpdateTable must then
+                // preserve SAP's default `client : abap.clnt` skeleton instead.
+                logger?.warn(`[CreateTable] Failed to apply MANDT skeleton for ${tableName} — leaving SAP default (abap.clnt). UpdateTable DDL must use 'key client : abap.clnt not null' + '#RESTRICTED' + '#NOT_EXTENSIBLE'. Error: ${skelError?.message || skelError}`);
+            }
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
                     success: true,
                     table_name: tableName,
                     package_name: createTableArgs.package_name,
                     transport_request: createTableArgs.transport_request || 'local',
-                    message: `Table ${tableName} created successfully. Use UpdateTable to set DDL code.`,
+                    skeleton: skeletonApplied ? 'mandt' : 'client-fallback',
+                    message: skeletonApplied
+                        ? `Table ${tableName} created with MANDT skeleton. Use UpdateTable to add fields (preserve #NOT_EXTENSIBLE, #RESTRICTED, and 'key mandt : mandt not null').`
+                        : `Table ${tableName} created (MANDT skeleton apply FAILED — SAP default 'key client : abap.clnt' applies). Use UpdateTable carefully preserving the CDS-style skeleton.`,
                 }),
             });
         }

@@ -2,7 +2,7 @@
 /**
  * UpdateBehaviorDefinition Handler - Update ABAP Behavior Definition Source Code
  *
- * Uses AdtClient.updateBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

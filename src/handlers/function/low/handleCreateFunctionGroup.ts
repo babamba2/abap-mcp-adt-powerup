@@ -1,7 +1,7 @@
 /**
  * CreateFunctionGroup Handler - Create ABAP Function Group
  *
- * Uses AdtClient.createFunctionGroup from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createFunctionGroup from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

@@ -1,7 +1,7 @@
 /**
  * ValidateInterface Handler - Validate ABAP Interface Name
  *
- * Uses AdtClient.validateInterface from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateInterface from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

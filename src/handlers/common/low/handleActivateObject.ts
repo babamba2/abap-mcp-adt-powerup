@@ -2,7 +2,7 @@
  * ActivateObject Handler - Universal ABAP Object Activation via ADT API
  */
 
-import type { ObjectReference } from '@mcp-abap-adt/adt-clients';
+import type { ObjectReference } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { activateObjectsLocal } from '../../../lib/localGroupActivation';
 import { return_error, return_response } from '../../../lib/utils';

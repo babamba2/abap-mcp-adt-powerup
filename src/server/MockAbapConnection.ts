@@ -1,4 +1,4 @@
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 
 export class MockAbapConnection {
   private throwError() {

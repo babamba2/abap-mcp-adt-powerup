@@ -2,7 +2,7 @@
 /**
  * Platform-specific storage implementations for mcp-abap-adt
  *
- * Updated to use new @mcp-abap-adt/auth-stores package
+ * Updated to use new @babamba2/mcp-abap-adt-auth-stores package
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -46,8 +46,8 @@ var platformPaths_1 = require("./platformPaths");
 Object.defineProperty(exports, "getPlatformPaths", { enumerable: true, get: function () { return platformPaths_1.getPlatformPaths; } });
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
-// Import new stores from @mcp-abap-adt/auth-stores
-const auth_stores_1 = require("@mcp-abap-adt/auth-stores");
+// Import new stores from @babamba2/mcp-abap-adt-auth-stores
+const mcp_abap_adt_auth_stores_1 = require("@babamba2/mcp-abap-adt-auth-stores");
 const platformPaths_2 = require("./platformPaths");
 /**
  * Auto-detect service key format and return appropriate stores
@@ -64,7 +64,7 @@ async function detectStoreType(directory, destination, logger) {
         const filePath = path.join(directory, fileName);
         if (fs.existsSync(filePath)) {
             try {
-                const rawData = await auth_stores_1.JsonFileHandler.load(fileName, directory);
+                const rawData = await mcp_abap_adt_auth_stores_1.JsonFileHandler.load(fileName, directory);
                 if (rawData) {
                     // Check if it's ABAP format (has nested uaa object)
                     if (rawData.uaa && typeof rawData.uaa === 'object') {
@@ -88,14 +88,14 @@ async function detectStoreType(directory, destination, logger) {
     switch (storeType) {
         case 'abap':
             return {
-                serviceKeyStore: new auth_stores_1.AbapServiceKeyStore(directory, logger),
-                sessionStore: new auth_stores_1.AbapSessionStore(directory, logger),
+                serviceKeyStore: new mcp_abap_adt_auth_stores_1.AbapServiceKeyStore(directory, logger),
+                sessionStore: new mcp_abap_adt_auth_stores_1.AbapSessionStore(directory, logger),
                 storeType: 'abap',
             };
         case 'btp':
             return {
-                serviceKeyStore: new auth_stores_1.BtpServiceKeyStore(directory, logger),
-                sessionStore: new auth_stores_1.BtpSessionStore(directory, '', logger),
+                serviceKeyStore: new mcp_abap_adt_auth_stores_1.BtpServiceKeyStore(directory, logger),
+                sessionStore: new mcp_abap_adt_auth_stores_1.BtpSessionStore(directory, '', logger),
                 storeType: 'btp',
             };
         // XSUAA format uses BTP stores (BTP uses XSUAA service key format)
@@ -123,11 +123,11 @@ function getPlatformStores(customPath, unsafe = false, _destination) {
     const sessionsDir = sessionsPaths[0];
     // For now, default to ABAP stores for backward compatibility
     // Auto-detection can be added later if needed
-    const serviceKeyStore = new auth_stores_1.AbapServiceKeyStore(serviceKeysDir);
+    const serviceKeyStore = new mcp_abap_adt_auth_stores_1.AbapServiceKeyStore(serviceKeysDir);
     // Use file-based or in-memory session store based on unsafe flag
     const sessionStore = unsafe
-        ? new auth_stores_1.AbapSessionStore(sessionsDir)
-        : new auth_stores_1.SafeAbapSessionStore();
+        ? new mcp_abap_adt_auth_stores_1.AbapSessionStore(sessionsDir)
+        : new mcp_abap_adt_auth_stores_1.SafeAbapSessionStore();
     return {
         serviceKeyStore,
         sessionStore,
@@ -155,20 +155,20 @@ async function getPlatformStoresAsync(customPath, unsafe = false, destination, l
     if (unsafe) {
         switch (detected.storeType) {
             case 'abap':
-                sessionStore = new auth_stores_1.AbapSessionStore(sessionsDir, logger);
+                sessionStore = new mcp_abap_adt_auth_stores_1.AbapSessionStore(sessionsDir, logger);
                 break;
             case 'btp':
-                sessionStore = new auth_stores_1.BtpSessionStore(sessionsDir, '', logger);
+                sessionStore = new mcp_abap_adt_auth_stores_1.BtpSessionStore(sessionsDir, '', logger);
                 break;
         }
     }
     else {
         switch (detected.storeType) {
             case 'abap':
-                sessionStore = new auth_stores_1.SafeAbapSessionStore(logger);
+                sessionStore = new mcp_abap_adt_auth_stores_1.SafeAbapSessionStore(logger);
                 break;
             case 'btp':
-                sessionStore = new auth_stores_1.SafeBtpSessionStore('', logger);
+                sessionStore = new mcp_abap_adt_auth_stores_1.SafeBtpSessionStore('', logger);
                 break;
         }
     }

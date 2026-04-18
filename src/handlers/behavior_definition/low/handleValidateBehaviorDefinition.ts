@@ -1,14 +1,14 @@
 /**
  * ValidateBehaviorDefinition Handler - Validate ABAP BehaviorDefinition Name
  *
- * Uses AdtClient.validateBehaviorDefinition from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateBehaviorDefinition from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 
 import type {
   BehaviorDefinitionImplementationType,
   IBehaviorDefinitionValidationParams,
-} from '@mcp-abap-adt/adt-clients';
+} from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {

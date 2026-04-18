@@ -2,7 +2,7 @@
 /**
  * GetClassUnitTestStatus Handler - Fetch ABAP Unit run status
  *
- * Uses AdtClient.getClassUnitTestRunStatus from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.getClassUnitTestRunStatus from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

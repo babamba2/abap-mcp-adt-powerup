@@ -1,7 +1,7 @@
 /**
  * ValidateClass Handler - Validate ABAP class name via ADT API
  *
- * Uses validateClassName from @mcp-abap-adt/adt-clients/core/class for class-specific validation.
+ * Uses validateClassName from @babamba2/mcp-abap-adt-clients/core/class for class-specific validation.
  * Supports package, description, and superclass validation.
  */
 

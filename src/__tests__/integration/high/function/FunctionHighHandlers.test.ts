@@ -16,7 +16,7 @@
  * Run: npm test -- --testPathPattern=integration/function/
  */
 
-import type { AbapConnection } from '@mcp-abap-adt/connection';
+import type { AbapConnection } from '@babamba2/mcp-abap-connection';
 import { handleCreateFunctionGroup } from '../../../../handlers/function/high/handleCreateFunctionGroup';
 import { handleCreateFunctionModule } from '../../../../handlers/function/high/handleCreateFunctionModule';
 import { handleUpdateFunctionGroup } from '../../../../handlers/function/high/handleUpdateFunctionGroup';

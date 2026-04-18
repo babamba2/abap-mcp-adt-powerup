@@ -1,4 +1,4 @@
-import type { AdtClient } from '@mcp-abap-adt/adt-clients';
+import type { AdtClient } from '@babamba2/mcp-abap-adt-clients';
 import { createAdtClient } from '../../../lib/clients';
 
 export const TOOL_DEFINITION = {

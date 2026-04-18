@@ -1,7 +1,7 @@
 /**
  * ActivateView Handler - Activate ABAP View (CDS View)
  *
- * Uses AdtClient.activateView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.activateView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

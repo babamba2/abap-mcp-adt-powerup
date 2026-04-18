@@ -1,7 +1,7 @@
 /**
  * UnlockView Handler - Unlock ABAP View
  *
- * Uses AdtClient.unlockView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.unlockView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

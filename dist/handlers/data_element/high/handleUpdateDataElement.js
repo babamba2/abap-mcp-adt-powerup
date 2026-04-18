@@ -2,7 +2,7 @@
 /**
  * UpdateDataElement Handler - Update Existing ABAP Data Element
  *
- * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations.
+ * Uses DataElementBuilder from @babamba2/mcp-abap-adt-clients for all operations.
  * Session and lock management handled internally by builder.
  *
  * Workflow: lock -> update -> check -> unlock -> (activate)
@@ -121,7 +121,7 @@ Note: All provided parameters completely replace existing values. Field labels a
 /**
  * Main handler for UpdateDataElement tool
  *
- * Uses DataElementBuilder from @mcp-abap-adt/adt-clients for all operations
+ * Uses DataElementBuilder from @babamba2/mcp-abap-adt-clients for all operations
  * Session and lock management handled internally by builder
  */
 async function handleUpdateDataElement(context, args) {

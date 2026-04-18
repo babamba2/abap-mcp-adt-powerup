@@ -1,5 +1,5 @@
-import type { Logger } from '@mcp-abap-adt/logger';
-import { defaultLogger } from '@mcp-abap-adt/logger';
+import type { Logger } from '@babamba2/mcp-abap-adt-logger';
+import { defaultLogger } from '@babamba2/mcp-abap-adt-logger';
 import type { HandlerContext } from '../../handlers/interfaces.js';
 import { CompactHandlersGroup } from './groups/CompactHandlersGroup.js';
 import { HighLevelHandlersGroup } from './groups/HighLevelHandlersGroup.js';

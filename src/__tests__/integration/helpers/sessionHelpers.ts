@@ -10,14 +10,17 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { AuthBroker } from '@mcp-abap-adt/auth-broker';
-import { AuthorizationCodeProvider } from '@mcp-abap-adt/auth-providers';
+import { AuthBroker } from '@babamba2/mcp-abap-adt-auth-broker';
+import { AuthorizationCodeProvider } from '@babamba2/mcp-abap-adt-auth-providers';
+import type {
+  IServiceKeyStore,
+  ISessionStore,
+} from '@babamba2/mcp-abap-adt-interfaces';
 import {
   type AbapConnection,
   createAbapConnection,
   type SapConfig,
-} from '@mcp-abap-adt/connection';
-import type { IServiceKeyStore, ISessionStore } from '@mcp-abap-adt/interfaces';
+} from '@babamba2/mcp-abap-connection';
 import { generateSessionId } from '../../../lib/sessionUtils';
 import { getPlatformStoresAsync } from '../../../lib/stores';
 import { resolveSystemContext } from '../../../lib/systemContext';

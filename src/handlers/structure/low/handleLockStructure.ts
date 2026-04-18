@@ -1,7 +1,7 @@
 /**
  * LockStructure Handler - Lock ABAP Structure
  *
- * Uses AdtClient.lockStructure from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.lockStructure from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

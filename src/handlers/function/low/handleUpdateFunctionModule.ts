@@ -1,7 +1,7 @@
 /**
  * UpdateFunctionModule Handler - Update ABAP Function Module Source Code
  *
- * Uses AdtClient.updateFunctionModule from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.updateFunctionModule from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

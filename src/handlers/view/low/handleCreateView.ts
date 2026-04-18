@@ -1,7 +1,7 @@
 /**
  * CreateView Handler - Create ABAP View
  *
- * Uses AdtClient.createView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.createView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

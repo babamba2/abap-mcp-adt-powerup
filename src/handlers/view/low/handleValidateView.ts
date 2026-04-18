@@ -1,7 +1,7 @@
 /**
  * ValidateView Handler - Validate ABAP View Name
  *
- * Uses AdtClient.validateView from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.validateView from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 

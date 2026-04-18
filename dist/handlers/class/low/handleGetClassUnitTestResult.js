@@ -2,7 +2,7 @@
 /**
  * GetClassUnitTestResult Handler - Fetch ABAP Unit run result
  *
- * Uses AdtClient.getUnitTest().getResult from @mcp-abap-adt/adt-clients.
+ * Uses AdtClient.getUnitTest().getResult from @babamba2/mcp-abap-adt-clients.
  * Low-level handler: single method call.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

@@ -1,7 +1,7 @@
 /**
  * ValidateObject Handler - Validate ABAP object name via ADT API
  *
- * Uses validateObjectName from @mcp-abap-adt/adt-clients/core for all operations.
+ * Uses validateObjectName from @babamba2/mcp-abap-adt-clients/core for all operations.
  * Connection management handled internally.
  */
 
@@ -110,7 +110,7 @@ interface ValidateObjectArgs {
 /**
  * Main handler for ValidateObject MCP tool
  *
- * Uses validateObjectName from @mcp-abap-adt/adt-clients/core for all operations
+ * Uses validateObjectName from @babamba2/mcp-abap-adt-clients/core for all operations
  * Connection management handled internally
  */
 export async function handleValidateObject(

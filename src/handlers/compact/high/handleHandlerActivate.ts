@@ -1,4 +1,4 @@
-import type { ObjectReference } from '@mcp-abap-adt/adt-clients';
+import type { ObjectReference } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { handleActivateObject } from '../../common/low/handleActivateObject';
 import type { CompactObjectType } from './compactObjectTypes';

@@ -17,7 +17,7 @@
  */
 
 import * as path from 'node:path';
-import type { IAbapConnection } from '@mcp-abap-adt/interfaces';
+import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { loadTestConfig } from '../helpers/configHelpers';
 import { createTestConnectionAndSession } from '../helpers/sessionHelpers';
 
