@@ -47,6 +47,6 @@ jobs:
       - name: Test package installation (Unix)
         if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
         run: |
-          PACKAGE_FILE=$(ls mcp-abap-adt-core-*.tgz)
+          PACKAGE_FILE=$(ls babamba2-abap-mcp-adt-powerup-*.tgz)
           npm install -g "./$PACKAGE_FILE"
           mcp-abap-adt --help || true
