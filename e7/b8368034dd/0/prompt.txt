@@ -1,0 +1,5 @@
+n
+
+---
+
+바뀐 부분에 대해 git commit push 및 npm 까지 해줘. 그 참고로.. main 만 할것(backup은 백업용도라 냅둬라..

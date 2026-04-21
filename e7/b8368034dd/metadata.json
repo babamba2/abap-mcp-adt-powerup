@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "e7b8368034dd",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "dist/handlers/package/high/handleGetPackage.js",
+    "dist/handlers/package/high/handleGetPackage.js.map",
+    "dist/handlers/package/low/handleDeletePackage.js.map",
+    "dist/lib/clients.js.map",
+    "dist/lib/handlers/base/BaseHandlerGroup.js",
+    "dist/lib/handlers/base/BaseHandlerGroup.js.map",
+    "dist/lib/handlers/groups/SystemHandlersGroup.js",
+    "dist/lib/handlers/groups/SystemHandlersGroup.js.map",
+    "dist/lib/utils.js.map",
+    "dist/server/BaseMcpServer.js.map",
+    "dist/server/launcher.js",
+    "dist/server/launcher.js.map",
+    "package-lock.json",
+    "package.json",
+    "src/handlers/package/high/handleGetPackage.ts",
+    "src/lib/handlers/base/BaseHandlerGroup.ts",
+    "src/lib/handlers/groups/SystemHandlersGroup.ts",
+    "src/server/launcher.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e7/b8368034dd/0/metadata.json",
+      "transcript": "/e7/b8368034dd/0/full.jsonl",
+      "content_hash": "/e7/b8368034dd/0/content_hash.txt",
+      "prompt": "/e7/b8368034dd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 35920,
+    "cache_read_tokens": 934873,
+    "output_tokens": 8862,
+    "api_call_count": 16
+  }
+}
