@@ -74,7 +74,7 @@ export async function handleGetPackage(
       );
 
       if (!readResult || !readResult.readResult) {
-        throw new Error(`Package ${packageName} not found`);
+        return return_error(new Error(`Package ${packageName} not found.`));
       }
 
       // Extract data from read result
@@ -82,6 +82,13 @@ export async function handleGetPackage(
         typeof readResult.readResult.data === 'string'
           ? readResult.readResult.data
           : JSON.stringify(readResult.readResult.data);
+
+      // Detect legacy-limited metadata flag emitted by AdtPackageLegacy.read()
+      // so callers can decide whether super-package / transport fields are
+      // missing on purpose (not a parse bug).
+      const legacyLimited =
+        typeof packageData === 'string' &&
+        packageData.includes('pak:legacyLimited="true"');
 
       logger?.info(`✅ GetPackage completed successfully: ${packageName}`);
 
@@ -94,6 +101,13 @@ export async function handleGetPackage(
             package_data: packageData,
             status: readResult.readResult.status,
             status_text: readResult.readResult.statusText,
+            ...(legacyLimited
+              ? {
+                  legacy_limited: true,
+                  legacy_note:
+                    'Legacy SAP system: only name/type/description are reliable. Super-package, application component, software component and transport metadata are not populated.',
+                }
+              : {}),
           },
           null,
           2,

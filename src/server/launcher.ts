@@ -13,6 +13,7 @@ import {
 } from '../lib/handlers/groups/index.js';
 import type { HandlerContext } from '../lib/handlers/interfaces.js';
 import { CompositeHandlersRegistry } from '../lib/handlers/registry/CompositeHandlersRegistry.js';
+import { activateProfile } from '../lib/profile.js';
 import {
   type AuthDisplayConfig,
   formatAuthConfigForDisplay,
@@ -174,6 +175,22 @@ async function main() {
   if (hasArg('--help') || hasArg('-h')) {
     showHelp();
     process.exit(0);
+  }
+
+  // Activate sc4sap multi-profile BEFORE config/broker loads so
+  // process.env.SAP_* reflects the selected profile. Safe no-op when no
+  // active-profile.txt / legacy sap.env is present.
+  try {
+    const loaded = activateProfile();
+    if (loaded.alias) {
+      console.error(
+        `[MCP] Active sc4sap profile: ${loaded.alias} (tier=${loaded.tier}, readonly=${loaded.readonly})`,
+      );
+    }
+  } catch (err) {
+    console.error(
+      `[MCP] Warning: sc4sap profile activation failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // Use ServerConfigManager for all config parsing

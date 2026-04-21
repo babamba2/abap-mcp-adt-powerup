@@ -24,6 +24,7 @@ const handleGetTransaction_1 = require("../../../handlers/system/readonly/handle
 // Import TOOL_DEFINITION from handlers
 const handleGetTypeInfo_1 = require("../../../handlers/system/readonly/handleGetTypeInfo");
 const handleGetWhereUsed_1 = require("../../../handlers/system/readonly/handleGetWhereUsed");
+const handleReloadProfile_1 = require("../../../handlers/system/readonly/handleReloadProfile");
 const handleRuntimeAnalyzeDump_1 = require("../../../handlers/system/readonly/handleRuntimeAnalyzeDump");
 const handleRuntimeAnalyzeProfilerTrace_1 = require("../../../handlers/system/readonly/handleRuntimeAnalyzeProfilerTrace");
 const handleRuntimeCreateProfilerTraceParameters_1 = require("../../../handlers/system/readonly/handleRuntimeCreateProfilerTraceParameters");
@@ -136,6 +137,10 @@ class SystemHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetSession_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetSession_1.handleGetSession)(this.context, args),
+            },
+            {
+                toolDefinition: handleReloadProfile_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleReloadProfile_1.handleReloadProfile)(this.context, args),
             },
             {
                 toolDefinition: handleGetInactiveObjects_1.TOOL_DEFINITION,

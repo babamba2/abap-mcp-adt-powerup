@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseHandlerGroup = void 0;
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
+const readonlyGuard_js_1 = require("../../readonlyGuard.js");
 const schemaUtils_js_1 = require("../utils/schemaUtils.js");
 /**
  * Base class for handler groups
@@ -43,6 +44,9 @@ class BaseHandlerGroup {
             description,
             inputSchema: zodSchema,
         }, async (args) => {
+            // Server-side readonly enforcement for non-DEV SAP profiles.
+            // Fires BEFORE the handler runs so mutations never reach SAP.
+            (0, readonlyGuard_js_1.guardTool)(toolName);
             const result = await handler(this.context, args);
             // If error, throw it
             if (result.isError) {

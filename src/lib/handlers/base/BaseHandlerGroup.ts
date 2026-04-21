@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { HandlerContext } from '../../../handlers/interfaces.js';
+import { guardTool } from '../../readonlyGuard.js';
 import type {
   HandlerEntry,
   IHandlerGroup,
@@ -75,6 +76,10 @@ export abstract class BaseHandlerGroup implements IHandlerGroup {
         inputSchema: zodSchema,
       },
       async (args: any) => {
+        // Server-side readonly enforcement for non-DEV SAP profiles.
+        // Fires BEFORE the handler runs so mutations never reach SAP.
+        guardTool(toolName);
+
         const result = await handler(this.context, args);
 
         // If error, throw it

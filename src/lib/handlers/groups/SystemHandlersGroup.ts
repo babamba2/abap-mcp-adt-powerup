@@ -67,6 +67,10 @@ import {
   handleGetWhereUsed,
 } from '../../../handlers/system/readonly/handleGetWhereUsed';
 import {
+  handleReloadProfile,
+  TOOL_DEFINITION as ReloadProfile_Tool,
+} from '../../../handlers/system/readonly/handleReloadProfile';
+import {
   handleRuntimeAnalyzeDump,
   TOOL_DEFINITION as RuntimeAnalyzeDump_Tool,
 } from '../../../handlers/system/readonly/handleRuntimeAnalyzeDump';
@@ -228,6 +232,10 @@ export class SystemHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetSession_Tool,
         handler: (args: any) => handleGetSession(this.context, args),
+      },
+      {
+        toolDefinition: ReloadProfile_Tool,
+        handler: (args: any) => handleReloadProfile(this.context, args),
       },
       {
         toolDefinition: GetInactiveObjects_Tool,

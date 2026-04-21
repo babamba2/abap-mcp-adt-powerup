@@ -40,6 +40,7 @@ const index_js_1 = require("../lib/auth/index.js");
 const index_js_2 = require("../lib/config/index.js");
 const index_js_3 = require("../lib/handlers/groups/index.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
+const profile_js_1 = require("../lib/profile.js");
 const utils_js_1 = require("../lib/utils.js");
 const AuthBrokerConfig_js_1 = require("./AuthBrokerConfig.js");
 const SseServer_js_1 = require("./SseServer.js");
@@ -184,6 +185,18 @@ async function main() {
     if (hasArg('--help') || hasArg('-h')) {
         showHelp();
         process.exit(0);
+    }
+    // Activate sc4sap multi-profile BEFORE config/broker loads so
+    // process.env.SAP_* reflects the selected profile. Safe no-op when no
+    // active-profile.txt / legacy sap.env is present.
+    try {
+        const loaded = (0, profile_js_1.activateProfile)();
+        if (loaded.alias) {
+            console.error(`[MCP] Active sc4sap profile: ${loaded.alias} (tier=${loaded.tier}, readonly=${loaded.readonly})`);
+        }
+    }
+    catch (err) {
+        console.error(`[MCP] Warning: sc4sap profile activation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     // Use ServerConfigManager for all config parsing
     const configManager = new index_js_2.ServerConfigManager();
