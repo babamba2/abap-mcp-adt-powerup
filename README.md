@@ -66,8 +66,44 @@ Read, create, update, and delete ABAP objects directly from Claude Code, Cline, 
 | Environment | Auth Methods | Notes |
 |------------|-------------|-------|
 | **ABAP Cloud (BTP)** | JWT/XSUAA, Service Key | Full RAP/CDS support |
-| **On-Premise** | Basic Auth, JWT | Programs, Screens, GUI Statuses available |
-| **Legacy** (BASIS < 7.50) | Basic Auth | Limited ADT API surface |
+| **On-Premise** (S/4HANA) | Basic Auth, JWT | Full feature surface — Programs, Classes, CDS, Screens, GUI Statuses |
+| **Legacy** (ECC / BASIS < 7.50) | Basic Auth | Classic ABAP only — see matrix below |
+
+Legacy detection (BASIS < 7.50 / pre-S/4HANA) applies when any of:
+- `SAP_SYSTEM_TYPE=legacy` (explicit opt-in, back-compat)
+- `SAP_VERSION=ECC`
+- `ABAP_RELEASE` numeric < 750 (e.g., `740`, `731`)
+
+Under legacy mode the client routes through `AdtClientLegacy`, which restricts endpoint probes to those actually present on BASIS 7.4x. Modern DDIC CRUD and RAP/Service endpoints deliberately refuse with a clear "not supported on this SAP system" message instead of a cryptic 404.
+
+### Legacy (ECC / BASIS < 7.50) Compatibility Matrix
+
+Verified on ECC 7.40 (SAP_VERSION=ECC, ABAP_RELEASE=740, SAP_SYSTEM_TYPE=onprem).
+
+| Category | Tool | ECC 7.40 | Reason |
+|---|---|---|---|
+| Session / Discovery | `GetSession`, `SearchObject`, `GetObjectInfo`, `GetObjectStructure` | ✅ | Basic ADT present on all releases |
+| Inactive objects | `GetInactiveObjects` | ✅ | — |
+| Package read | `GetPackageContents`, `GetPackageTree` | ✅ | ADT repository informationsystem |
+| Package metadata | `GetPackage` | ❌ | `/sap/bc/adt/packages` not present on BASIS < 7.50 — use SE80/SE21 in SAP GUI |
+| DDIC read | `GetTable`, `GetStructure`, `GetDataElement`, `GetDomain` | ❌ | `/sap/bc/adt/ddic/{tables,structures,dataelements,domains}` added in BASIS 7.50 |
+| DDIC write | `CreateTable`, `CreateStructure`, `CreateDataElement`, `CreateDomain` (+ Update/Delete) | ❌ | Same endpoint gap — create from SAP GUI (SE11) instead |
+| CDS view (DDLS) | `GetView`, `CreateView`, `UpdateView` | ✅ | DDL endpoint (`/sap/bc/adt/ddic/ddl/sources/`) present and activates cleanly from BASIS 7.40 SP05+ |
+| Classic view (VIEW/DV) | `GetView` for classic DDIC views | ❌ | Classic view endpoint falls in the same DDIC gap as Tables/Structures — use SE11 in SAP GUI |
+| ABAP source read | `GetProgram`, `GetClass`, `GetInterface`, `GetInclude`, `GetFunctionGroup`, `GetFunctionModule` | ✅ | `/sap/bc/adt/{programs,oo/classes,oo/interfaces,programs/includes,functions/groups}` all present |
+| ABAP source write | `Create*` / `Update*` for Program, Class, Interface, Include, FunctionGroup, FunctionModule | ✅ | `UpdateFunctionModule` defaults `transport_request` to `"local"` when omitted (consistent with FunctionGroup/Class) |
+| AST / Semantic analysis | `GetAbapSemanticAnalysis`, `GetAbapAST` | ✅ | Client-side parse, no SAP call |
+| WhereUsed | `GetWhereUsed` | ⚠️ | Classic object types only — `TABL` reports "Unsupported object type for where-used"; class/program targets work |
+| Enhancements | `GetEnhancements`, `GetEnhancementSpot`, `GetEnhancementImpl` | ❌ | `/sap/bc/adt/enhancements` discovery endpoints return 404 on BASIS < 7.50 — use SE18/SE19 or CMOD/SMOD in SAP GUI |
+| Transport | `ListTransports`, `GetTransport`, `CreateTransport` | ✅ | CTS endpoints present |
+| Runtime | `RuntimeListDumps`, `RuntimeAnalyzeDump`, `RuntimeGetDumpById` | ✅ | `/sap/bc/adt/runtime/dumps` present |
+| Screen / GUI Status | `GetScreen`, `GetGuiStatus`, `GetTextElement` (+ Create/Update) | ℹ️ | RFC-dispatched via `SAP_RFC_BACKEND` (`soap` / `native` / `gateway` / `odata` / `zrfc`); the chosen backend's prerequisites (SDK, backend classes, SICF node) must be in place |
+| RAP / Behavior | `*BehaviorDefinition`, `*BehaviorImplementation` | ❌ | S/4HANA only — RAP does not exist on ECC |
+| Service binding | `*ServiceDefinition`, `*ServiceBinding` | ❌ | S/4HANA / ABAP Cloud only |
+| Metadata extensions | `*MetadataExtension` | ❌ | S/4HANA / ABAP Cloud only |
+| Table contents | `GetTableContents`, `GetSqlQuery` | ℹ️ | Works server-side but gated by the per-profile data-extraction policy — see [Optional: Data Fetch Prevention](#optional-data-fetch-prevention) |
+
+Legend: ✅ works fully · ⚠️ works with caveats · ❌ refuses with a clear "not supported on this SAP system" error (not a bug — SAP platform limit) · ℹ️ works, but depends on prior setup / policy.
 
 ---
 

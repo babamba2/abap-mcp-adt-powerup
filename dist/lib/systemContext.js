@@ -9,19 +9,34 @@ const connectionEvents_1 = require("./connectionEvents");
 // For HTTP/SSE the cache is reset before each request as a safety measure.
 let cached;
 /**
- * Detect whether the connected system is legacy (BASIS < 7.50).
+ * Detect whether the connected system is legacy (BASIS < 7.50 / pre-S/4HANA).
  *
- * Uses SAP_SYSTEM_TYPE env var (default: cloud).
- * Auto-detection via /sap/bc/adt/core/discovery was removed because it is
- * unreliable — the result depends on shell environment, proxy config, and
- * whether the ICM port requires a pre-established session.
+ * Prior versions conflated two orthogonal dimensions into SAP_SYSTEM_TYPE:
+ *   deployment (onprem|cloud) vs system generation (ECC|S/4HANA).
+ * That made it impossible to express, e.g., an ECC system running on cloud
+ * (RISE with SAP ECC on HEC), and silently routed ECC 7.40 backends through
+ * the modern AdtClient — which fails on DDIC endpoints that don't exist on
+ * BASIS < 7.50.
  *
- *   SAP_SYSTEM_TYPE=legacy  → legacy (BASIS < 7.50)
- *   SAP_SYSTEM_TYPE=onprem  → modern on-premise
- *   SAP_SYSTEM_TYPE=cloud   → modern cloud (default)
+ * Resolution order (first hit wins):
+ *   1. SAP_SYSTEM_TYPE=legacy        → legacy (back-compat with pre-refactor profiles)
+ *   2. SAP_VERSION=ECC                → legacy (ECC is always BASIS 7.xx / pre-S/4)
+ *   3. ABAP_RELEASE numeric < 750     → legacy (any BASIS < 7.50)
+ *   4. otherwise                      → modern (S/4HANA or S/4HANA Cloud)
+ *
+ * SAP_SYSTEM_TYPE is now purely a deployment axis: `onprem | cloud`.
+ * The `legacy` value is accepted for backward compatibility but should not
+ * be written by new profiles — wizard + CLI emit only `onprem`/`cloud`.
  */
 function detectLegacy() {
-    return process.env.SAP_SYSTEM_TYPE?.toLowerCase() === 'legacy';
+    if (process.env.SAP_SYSTEM_TYPE?.toLowerCase() === 'legacy')
+        return true;
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC')
+        return true;
+    const release = parseInt(process.env.ABAP_RELEASE || '', 10);
+    if (Number.isFinite(release) && release < 750)
+        return true;
+    return false;
 }
 async function resolveSystemContext(connection, overrides) {
     // Priority 1: explicit overrides (from HTTP headers)

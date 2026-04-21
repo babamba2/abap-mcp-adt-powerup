@@ -41,7 +41,7 @@ export const TOOL_DEFINITION = {
       transport_request: {
         type: 'string',
         description:
-          'Transport request number (e.g., E19K905635). Required for transportable function modules.',
+          'Transport request number (e.g., E19K905635). Required for transportable function modules. For local objects ($TMP package) this can be omitted — the handler defaults to "local".',
       },
       activate: {
         type: 'boolean',
@@ -104,6 +104,10 @@ export async function handleUpdateFunctionModule(
     try {
       const client = createAdtClient(connection);
       const shouldActivate = args.activate === true;
+      // Default to 'local' when caller omits transport_request — consistent with
+      // UpdateFunctionGroup/UpdateClass behavior for $TMP objects. Transportable
+      // packages will still fail at ADT with a clear "transport required" error.
+      const effectiveTransport = args.transport_request ?? 'local';
 
       // Execute operation chain: lock -> update -> check -> unlock -> (activate)
       let lockHandle: string | undefined;
@@ -122,7 +126,7 @@ export async function handleUpdateFunctionModule(
             functionModuleName,
             functionGroupName,
             sourceCode: args.source_code,
-            transportRequest: args.transport_request,
+            transportRequest: effectiveTransport,
           },
           { lockHandle },
         );
@@ -169,7 +173,7 @@ export async function handleUpdateFunctionModule(
         success: true,
         function_module_name: functionModuleName,
         function_group_name: functionGroupName,
-        transport_request: args.transport_request || null,
+        transport_request: effectiveTransport,
         activated: shouldActivate,
         message: `Function module ${functionModuleName} source code updated successfully${shouldActivate ? ' and activated' : ''}`,
         check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,

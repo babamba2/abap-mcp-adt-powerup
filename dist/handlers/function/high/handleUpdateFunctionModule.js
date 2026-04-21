@@ -34,7 +34,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (e.g., E19K905635). Required for transportable function modules.',
+                description: 'Transport request number (e.g., E19K905635). Required for transportable function modules. For local objects ($TMP package) this can be omitted — the handler defaults to "local".',
             },
             activate: {
                 type: 'boolean',
@@ -71,6 +71,10 @@ async function handleUpdateFunctionModule(context, args) {
         try {
             const client = (0, clients_1.createAdtClient)(connection);
             const shouldActivate = args.activate === true;
+            // Default to 'local' when caller omits transport_request — consistent with
+            // UpdateFunctionGroup/UpdateClass behavior for $TMP objects. Transportable
+            // packages will still fail at ADT with a clear "transport required" error.
+            const effectiveTransport = args.transport_request ?? 'local';
             // Execute operation chain: lock -> update -> check -> unlock -> (activate)
             let lockHandle;
             let checkWarnings = [];
@@ -83,7 +87,7 @@ async function handleUpdateFunctionModule(context, args) {
                     functionModuleName,
                     functionGroupName,
                     sourceCode: args.source_code,
-                    transportRequest: args.transport_request,
+                    transportRequest: effectiveTransport,
                 }, { lockHandle });
                 // Post-write syntax check on the staged inactive version.
                 // Surfaces ALL compile errors with line numbers via assertNoCheckErrors.
@@ -120,7 +124,7 @@ async function handleUpdateFunctionModule(context, args) {
                 success: true,
                 function_module_name: functionModuleName,
                 function_group_name: functionGroupName,
-                transport_request: args.transport_request || null,
+                transport_request: effectiveTransport,
                 activated: shouldActivate,
                 message: `Function module ${functionModuleName} source code updated successfully${shouldActivate ? ' and activated' : ''}`,
                 check_warnings: checkWarnings.length > 0 ? checkWarnings : undefined,

@@ -67,11 +67,24 @@ function hydrateSystemContextFromEnvFile(envFilePath?: string): void {
       'SAP_CLIENT',
       'SAP_CONNECTION_TYPE',
       'SAP_SYSTEM_TYPE',
+      'SAP_VERSION',
+      'ABAP_RELEASE',
     ];
 
     for (const key of keys) {
       const value = parsed[key];
       if (!process.env[key] && value) {
+        process.env[key] = value;
+      }
+    }
+
+    // Generic passthrough for RFC backend keys.
+    // Screen/GuiStatus/TextElement dispatch selects a backend from SAP_RFC_BACKEND
+    // (soap|native|gateway|odata|zrfc). Each backend has its own set of SAP_RFC_* env
+    // keys — listing every one here would be lossy. Instead, propagate any SAP_RFC_*
+    // key present in the env file so future backends don't need this allowlist edit.
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key.startsWith('SAP_RFC_') && !process.env[key] && value) {
         process.env[key] = value;
       }
     }
