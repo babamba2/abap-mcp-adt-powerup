@@ -23,11 +23,36 @@
  *   2. POST {service}/Dispatch?IV_ACTION='...'&IV_PARAMS='...'
  *      with header "X-CSRF-Token: <token>" + Cookie: <session>
  *   On HTTP 403 (CSRF expired) → clear cache, retry once.
+ *
+ * ─────────────────────────────────────────────────────────────────
+ * SERVER PREREQUISITE (SEGW MPC_EXT — easy to get wrong):
+ * ─────────────────────────────────────────────────────────────────
+ * Every Action / FunctionImport in ZCL_ZMCP_ADT_MPC_EXT must call
+ * BOTH set_return_complex_type() AND set_return_multiplicity('1'):
+ *
+ *   lo_action->set_return_complex_type( 'DispatchResult' ).
+ *   lo_action->set_return_multiplicity( '1' ).   " ← missing = broken
+ *
+ * Calling only set_return_complex_type() silently omits the ReturnType
+ * attribute from $metadata FunctionImport. Gateway then cannot map the
+ * DPC_EXT response and every POST fails with HTTP 500 "In the context
+ * of Data Services an unknown internal server error occurred". Easy
+ * diagnostic: fetch $metadata and grep for ReturnType="..." on each
+ * FunctionImport — if the attribute is missing, this is the cause.
+ * (Encountered 2026-04-22.)
+ *
+ * Do NOT append $format=json to Function Import URLs — Gateway
+ * rejects it with "System query options ... are not allowed in the
+ * requested URI". Use Accept: application/json header instead.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.__test__ = void 0;
 exports.callDispatch = callDispatch;
 exports.callTextpool = callTextpool;
+exports.callDdicTabl = callDdicTabl;
+exports.callDdicDtel = callDdicDtel;
+exports.callDdicDoma = callDdicDoma;
+exports.callDdicActivate = callDdicActivate;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
 let cachedSession = null;
@@ -256,6 +281,46 @@ async function callTextpool(_connection, action, params) {
         throw new Error(`ZMCP_ADT_TEXTPOOL error (action=${action}, subrc=${subrc}): ${message}`);
     }
     return { result, subrc, message };
+}
+async function callDdicObject(functionImport, action, params) {
+    const raw = await postFunctionImport(functionImport, {
+        IV_ACTION: action,
+        IV_NAME: params.name,
+        IV_DEVCLASS: params.devclass ?? '',
+        IV_TRANSPORT: params.transport ?? '',
+        IV_PAYLOAD_JSON: params.payload_json ?? '',
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc !== 0) {
+        throw new Error(`ZMCP_ADT_${functionImport.replace('Ddic', 'DDIC_').toUpperCase()} error (action=${action}, name=${params.name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+async function callDdicTabl(_connection, action, params) {
+    return callDdicObject('DdicTabl', action, params);
+}
+async function callDdicDtel(_connection, action, params) {
+    return callDdicObject('DdicDtel', action, params);
+}
+async function callDdicDoma(_connection, action, params) {
+    return callDdicObject('DdicDoma', action, params);
+}
+async function callDdicActivate(_connection, type, name) {
+    const raw = await postFunctionImport('DdicActivate', {
+        IV_TYPE: type,
+        IV_NAME: name,
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    // rc=4 on TABL is "activated with warnings" — object is usable, do
+    // not throw. Only raise on rc >= 8 or sy-subrc !== 0 from the FM.
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_ADT_DDIC_ACTIVATE error (type=${type}, name=${name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
 }
 /**
  * Internal — exposed for tests. Production code should never need to

@@ -97,7 +97,7 @@ Verified on ECC 7.40 (SAP_VERSION=ECC, ABAP_RELEASE=740, SAP_SYSTEM_TYPE=onprem)
 | Enhancements | `GetEnhancements`, `GetEnhancementSpot`, `GetEnhancementImpl` | ❌ | `/sap/bc/adt/enhancements` discovery endpoints return 404 on BASIS < 7.50 — use SE18/SE19 or CMOD/SMOD in SAP GUI |
 | Transport | `ListTransports`, `GetTransport`, `CreateTransport` | ✅ | CTS endpoints present |
 | Runtime | `RuntimeListDumps`, `RuntimeAnalyzeDump`, `RuntimeGetDumpById` | ✅ | `/sap/bc/adt/runtime/dumps` present |
-| Screen / GUI Status | `GetScreen`, `GetGuiStatus`, `GetTextElement` (+ Create/Update) | ℹ️ | RFC-dispatched via `SAP_RFC_BACKEND` (`soap` / `native` / `gateway` / `odata` / `zrfc`); the chosen backend's prerequisites (SDK, backend classes, SICF node) must be in place |
+| Screen / GUI Status | `GetScreen`, `GetGuiStatus`, `GetTextElement` (+ Create/Update) | ℹ️ | RFC-dispatched via `SAP_RFC_BACKEND` (`odata` default / `soap` / `native` / `gateway` / `zrfc`); the chosen backend's prerequisites (backend classes, SICF node, SDK) must be in place |
 | RAP / Behavior | `*BehaviorDefinition`, `*BehaviorImplementation` | ❌ | S/4HANA only — RAP does not exist on ECC |
 | Service binding | `*ServiceDefinition`, `*ServiceBinding` | ❌ | S/4HANA / ABAP Cloud only |
 | Metadata extensions | `*MetadataExtension` | ❌ | S/4HANA / ABAP Cloud only |

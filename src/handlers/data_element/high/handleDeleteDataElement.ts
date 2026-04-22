@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicDtel } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -59,8 +60,18 @@ export async function handleDeleteDataElement(
       return return_error(new Error('data_element_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const dataElementName = data_element_name.toUpperCase();
+
+    // ECC fallback — see handleCreateDataElement.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleDeleteDataElementEcc(
+        context,
+        dataElementName,
+        transport_request,
+      );
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Starting data element deletion: ${dataElementName}`);
 
@@ -134,5 +145,49 @@ export async function handleDeleteDataElement(
     }
   } catch (error: any) {
     return return_error(error);
+  }
+}
+
+/** ECC fallback for DeleteDataElement via ZMCP_ADT_DDIC_DTEL action='DELETE'. */
+async function handleDeleteDataElementEcc(
+  context: HandlerContext,
+  dataElementName: string,
+  transportRequest: string | undefined,
+) {
+  const { connection, logger } = context;
+  try {
+    logger?.info(
+      `ECC: deleting data element ${dataElementName} via ZMCP_ADT_DDIC_DTEL`,
+    );
+
+    await callDdicDtel(connection, 'DELETE', {
+      name: dataElementName,
+      transport: transportRequest,
+    });
+
+    logger?.info(`✅ DeleteDataElement (ECC) completed: ${dataElementName}`);
+
+    return return_response({
+      data: JSON.stringify(
+        {
+          success: true,
+          data_element_name: dataElementName,
+          transport_request: transportRequest || null,
+          message: `Data element ${dataElementName} deleted successfully (ECC fallback via OData).`,
+          path: 'ecc-odata-rfc',
+        },
+        null,
+        2,
+      ),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC DeleteDataElement error for ${dataElementName}: ${error?.message || error}`,
+    );
+    return return_error(
+      new Error(
+        `Failed to delete data element ${dataElementName} (ECC fallback): ${error?.message || String(error)}`,
+      ),
+    );
   }
 }

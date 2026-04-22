@@ -2,9 +2,15 @@
 /**
  * RFC backend selector.
  *
- * Reads SAP_RFC_BACKEND from process.env ('soap' default, 'native' /
- * 'gateway' / 'odata' opt-in) and re-exports the matching
+ * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' /
+ * 'native' / 'gateway' opt-in) and re-exports the matching
  * callDispatch / callTextpool implementation.
+ *
+ * Default changed 2026-04-22 from 'soap' to 'odata': hardened Gateway
+ * installs increasingly disable the /sap/bc/soap/rfc ICF node, and the
+ * OData path goes through standard Gateway authorization (S_SERVICE)
+ * instead of S_RFC. Existing setups that explicitly set
+ * SAP_RFC_BACKEND=soap are unaffected.
  *
  *   soap    — classic /sap/bc/soap/rfc HTTPS gateway (SAP built-in)
  *   native  — direct NW RFC SDK on this host (requires SDK + node-rfc)
@@ -52,13 +58,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.callTextpool = exports.callDispatch = exports.backend = void 0;
+exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = exports.backend = void 0;
 const gateway = __importStar(require("./gatewayRfc"));
 const native = __importStar(require("./nativeRfc"));
 const odata = __importStar(require("./odataRfc"));
 const soap = __importStar(require("./soapRfc"));
 function resolveBackend() {
-    const v = (process.env.SAP_RFC_BACKEND ?? 'soap').trim().toLowerCase();
+    const v = (process.env.SAP_RFC_BACKEND ?? 'odata').trim().toLowerCase();
     if (v === 'native')
         return 'native';
     if (v === 'gateway')
@@ -68,7 +74,7 @@ function resolveBackend() {
     if (v === 'soap' || v === '')
         return 'soap';
     throw new Error(`SAP_RFC_BACKEND must be 'soap' | 'native' | 'gateway' | 'odata' (got '${v}'). ` +
-        `Default is 'soap'. Set in .sc4sap/sap.env.`);
+        `Default is 'odata'. Set in .sc4sap/sap.env.`);
 }
 exports.backend = resolveBackend();
 function pickDispatch() {
@@ -97,4 +103,48 @@ function pickTextpool() {
 }
 exports.callDispatch = pickDispatch();
 exports.callTextpool = pickTextpool();
+/**
+ * DDIC fallback helpers — ECC only, OData backend only.
+ *
+ * These route to the ZMCP_ADT_DDIC_TABL / DTEL / DOMA / ACTIVATE
+ * function modules via the OData FunctionImports DdicTabl / DdicDtel /
+ * DdicDoma / DdicActivate. They have no soap / native / gateway
+ * equivalent — ECC fallback is intentionally only supported when the
+ * environment has already chosen the OData path. Attempting to call
+ * these with any other SAP_RFC_BACKEND raises a helpful error so the
+ * user knows exactly which env var to change.
+ *
+ * Handlers typically gate on SAP_VERSION=ECC before reaching here. On
+ * S/4HANA the native /sap/bc/adt/ddic/... REST endpoints are used and
+ * these helpers are never invoked.
+ */
+function unsupportedDdic(name) {
+    throw new Error(`${name} requires SAP_RFC_BACKEND=odata (current='${exports.backend}'). ` +
+        `The ECC DDIC fallback is only implemented against the OData ZMCP_ADT_SRV ` +
+        `service. Set SAP_RFC_BACKEND=odata in .sc4sap/sap.env or use S/4HANA (native ADT).`);
+}
+function pickDdicTabl() {
+    if (exports.backend === 'odata')
+        return odata.callDdicTabl;
+    return (() => unsupportedDdic('callDdicTabl'));
+}
+function pickDdicDtel() {
+    if (exports.backend === 'odata')
+        return odata.callDdicDtel;
+    return (() => unsupportedDdic('callDdicDtel'));
+}
+function pickDdicDoma() {
+    if (exports.backend === 'odata')
+        return odata.callDdicDoma;
+    return (() => unsupportedDdic('callDdicDoma'));
+}
+function pickDdicActivate() {
+    if (exports.backend === 'odata')
+        return odata.callDdicActivate;
+    return (() => unsupportedDdic('callDdicActivate'));
+}
+exports.callDdicTabl = pickDdicTabl();
+exports.callDdicDtel = pickDdicDtel();
+exports.callDdicDoma = pickDdicDoma();
+exports.callDdicActivate = pickDdicActivate();
 //# sourceMappingURL=rfcBackend.js.map

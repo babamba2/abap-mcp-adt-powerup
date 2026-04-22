@@ -11,7 +11,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  ErrorCode,
   encodeSapObjectName,
+  McpError,
   return_error,
   return_response,
   safeCheckOperation,
@@ -81,6 +83,18 @@ export async function handleUpdateTable(
     }
 
     const tableName = table_name.toUpperCase();
+
+    // ECC fallback — see handleCreateTable for rationale. UpdateTable
+    // accepts CDS DDL source which ECC cannot consume directly.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `UpdateTable is not supported on ECC via this MCP tool. ` +
+          `ECC's DDIC write layer is row-based (DD03P), not CDS-DDL-based. ` +
+          `Call the OData FunctionImport /DdicTabl on ZMCP_ADT_SRV directly with ` +
+          `IV_ACTION='UPDATE' and IV_PAYLOAD_JSON = '{"dd02v":{...},"dd03p":[...]}'.`,
+      );
+    }
 
     logger?.info(`Starting table source update: ${tableName}`);
 

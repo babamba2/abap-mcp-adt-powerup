@@ -20,15 +20,15 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     process.env = ORIGINAL_ENV;
   });
 
-  it('defaults to soap when SAP_RFC_BACKEND is unset', () => {
+  it('defaults to odata when SAP_RFC_BACKEND is unset', () => {
     const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('soap');
+    expect(mod.backend).toBe('odata');
   });
 
-  it('defaults to soap when SAP_RFC_BACKEND is empty string', () => {
+  it('defaults to odata when SAP_RFC_BACKEND is empty string', () => {
     process.env.SAP_RFC_BACKEND = '';
     const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('soap');
+    expect(mod.backend).toBe('odata');
   });
 
   it('selects native when SAP_RFC_BACKEND=native', () => {
@@ -96,16 +96,29 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     expect(mod.callTextpool).toBe(od.callTextpool);
   });
 
-  it('binds callDispatch to soap backend by default', () => {
+  it('binds callDispatch to odata backend by default', () => {
+    const odata = require('../../lib/odataRfc');
+    const mod = require('../../lib/rfcBackend');
+    expect(mod.callDispatch).toBe(odata.callDispatch);
+  });
+
+  it('binds callTextpool to odata backend by default', () => {
+    const odata = require('../../lib/odataRfc');
+    const mod = require('../../lib/rfcBackend');
+    expect(mod.callTextpool).toBe(odata.callTextpool);
+  });
+
+  it('selects soap when SAP_RFC_BACKEND=soap (explicit opt-in)', () => {
+    process.env.SAP_RFC_BACKEND = 'soap';
+    const mod = require('../../lib/rfcBackend');
+    expect(mod.backend).toBe('soap');
+  });
+
+  it('binds callDispatch to soap backend when SAP_RFC_BACKEND=soap', () => {
+    process.env.SAP_RFC_BACKEND = 'soap';
     const soap = require('../../lib/soapRfc');
     const mod = require('../../lib/rfcBackend');
     expect(mod.callDispatch).toBe(soap.callDispatch);
-  });
-
-  it('binds callTextpool to soap backend by default', () => {
-    const soap = require('../../lib/soapRfc');
-    const mod = require('../../lib/rfcBackend');
-    expect(mod.callTextpool).toBe(soap.callTextpool);
   });
 
   it('binds callDispatch to native backend when SAP_RFC_BACKEND=native', () => {

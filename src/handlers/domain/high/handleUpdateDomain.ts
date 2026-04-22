@@ -10,6 +10,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicActivate, callDdicDoma } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -153,6 +154,11 @@ export async function handleUpdateDomain(
     const typedArgs = args as DomainArgs;
     const domainName = typedArgs.domain_name.toUpperCase();
 
+    // ECC fallback — see handleCreateDomain for rationale.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleUpdateDomainEcc(context, typedArgs, domainName);
+    }
+
     logger?.info(`Starting domain update: ${domainName}`);
 
     try {
@@ -288,5 +294,87 @@ export async function handleUpdateDomain(
       throw error;
     }
     return return_error(error);
+  }
+}
+
+/**
+ * ECC fallback for UpdateDomain. Calls ZMCP_ADT_DDIC_DOMA with
+ * action='UPDATE' (DDIF_DOMA_PUT treats UPDATE identically to CREATE —
+ * it overwrites the inactive version), then optionally activates.
+ */
+async function handleUpdateDomainEcc(
+  context: HandlerContext,
+  args: DomainArgs,
+  domainName: string,
+) {
+  const { connection, logger } = context;
+  const shouldActivate = args.activate !== false;
+
+  const length = args.length ?? 100;
+  const decimals = args.decimals ?? 0;
+  const pad6 = (n: number) => String(n).padStart(6, '0');
+  const pad4 = (n: number) => String(n).padStart(4, '0');
+
+  const dd01v: Record<string, string> = {
+    DOMNAME: domainName,
+    DDLANGUAGE: 'E',
+    DATATYPE: (args.datatype || 'CHAR').toUpperCase(),
+    LENG: pad6(length),
+    DECIMALS: pad6(decimals),
+    OUTPUTLEN: pad6(length),
+    DDTEXT: args.description || domainName,
+    LOWERCASE: args.lowercase ? 'X' : '',
+    SIGNFLAG: args.sign_exists ? 'X' : '',
+    CONVEXIT: args.conversion_exit || '',
+    VALEXI: args.fixed_values && args.fixed_values.length > 0 ? 'X' : '',
+    ENTITYTAB: args.value_table || '',
+  };
+
+  const dd07v = (args.fixed_values || []).map((fv, i) => ({
+    DOMNAME: domainName,
+    VALPOS: pad4(i + 1),
+    DDLANGUAGE: 'E',
+    DOMVALUE_L: fv.low,
+    DDTEXT: fv.text,
+  }));
+
+  const payload_json = JSON.stringify({ dd01v, dd07v });
+
+  try {
+    logger?.info(`ECC: updating domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+
+    await callDdicDoma(connection, 'UPDATE', {
+      name: domainName,
+      devclass: args.package_name,
+      transport: args.transport_request,
+      payload_json,
+    });
+
+    if (shouldActivate) {
+      await callDdicActivate(connection, 'DOMA', domainName);
+    }
+
+    logger?.info(`✅ UpdateDomain (ECC) completed: ${domainName}`);
+
+    return return_response({
+      data: JSON.stringify({
+        success: true,
+        domain_name: domainName,
+        package: args.package_name,
+        transport_request: args.transport_request,
+        status: shouldActivate ? 'active' : 'inactive',
+        message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+        domain_details: null,
+        path: 'ecc-odata-rfc',
+      }),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC UpdateDomain error for ${domainName}: ${error?.message || error}`,
+    );
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to update domain ${domainName} (ECC fallback): ${error?.message || String(error)}`,
+    );
   }
 }

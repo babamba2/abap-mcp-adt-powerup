@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateDataElement = handleUpdateDataElement;
 const clients_1 = require("../../../lib/clients");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -136,9 +137,11 @@ async function handleUpdateDataElement(context, args) {
         // Validate transport_request: required for non-$TMP packages
         (0, transportValidation_js_1.validateTransportRequest)(args.package_name, args.transport_request);
         const typedArgs = args;
-        // Get connection from session context (set by ProtocolHandler)
-        // Connection is managed and cached per session, with proper token refresh via AuthBroker
         const dataElementName = typedArgs.data_element_name.toUpperCase();
+        // ECC fallback — see handleCreateDataElement.
+        if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+            return handleUpdateDataElementEcc(context, typedArgs, dataElementName);
+        }
         logger?.info(`Starting data element update: ${dataElementName}`);
         try {
             const rawTypeKind = (typedArgs.type_kind || 'domain')
@@ -277,6 +280,70 @@ async function handleUpdateDataElement(context, args) {
             throw error;
         }
         return (0, utils_1.return_error)(error);
+    }
+}
+/**
+ * ECC fallback for UpdateDataElement. Calls ZMCP_ADT_DDIC_DTEL with
+ * action='UPDATE' (DDIF_DTEL_PUT overwrite).
+ */
+async function handleUpdateDataElementEcc(context, args, dataElementName) {
+    const { connection, logger } = context;
+    const shouldActivate = args.activate !== false;
+    const typeKind = (args.type_kind || 'domain').toString();
+    if (typeKind !== 'domain') {
+        throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `ECC UpdateDataElement fallback currently supports only type_kind='domain' (got '${typeKind}')`);
+    }
+    if (!args.type_name) {
+        throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `ECC UpdateDataElement (type_kind='domain') requires type_name = domain name`);
+    }
+    const domName = args.type_name.toUpperCase();
+    const dd04v = {
+        ROLLNAME: dataElementName,
+        DDLANGUAGE: 'E',
+        DOMNAME: domName,
+        HEADLEN: '55',
+        SCRLEN1: '10',
+        SCRLEN2: '20',
+        SCRLEN3: '40',
+        DDTEXT: args.description || dataElementName,
+        REPTEXT: args.field_label_heading ||
+            args.field_label_medium ||
+            args.description ||
+            dataElementName,
+        SCRTEXT_S: args.field_label_short || dataElementName.substring(0, 10),
+        SCRTEXT_M: args.field_label_medium || args.description || dataElementName,
+        SCRTEXT_L: args.field_label_long || args.description || dataElementName,
+    };
+    const payload_json = JSON.stringify({ dd04v });
+    try {
+        logger?.info(`ECC: updating data element ${dataElementName} via ZMCP_ADT_DDIC_DTEL`);
+        await (0, rfcBackend_1.callDdicDtel)(connection, 'UPDATE', {
+            name: dataElementName,
+            devclass: args.package_name,
+            transport: args.transport_request,
+            payload_json,
+        });
+        if (shouldActivate) {
+            await (0, rfcBackend_1.callDdicActivate)(connection, 'DTEL', dataElementName);
+        }
+        logger?.info(`✅ UpdateDataElement (ECC) completed: ${dataElementName}`);
+        return (0, utils_1.return_response)({
+            data: JSON.stringify({
+                success: true,
+                data_element_name: dataElementName,
+                package: args.package_name,
+                transport_request: args.transport_request,
+                data_type: args.data_type || null,
+                status: shouldActivate ? 'active' : 'inactive',
+                message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+                data_element_details: null,
+                path: 'ecc-odata-rfc',
+            }),
+        });
+    }
+    catch (error) {
+        logger?.error(`ECC UpdateDataElement error for ${dataElementName}: ${error?.message || error}`);
+        throw new utils_1.McpError(utils_1.ErrorCode.InternalError, `Failed to update data element ${dataElementName} (ECC fallback): ${error?.message || String(error)}`);
     }
 }
 //# sourceMappingURL=handleUpdateDataElement.js.map

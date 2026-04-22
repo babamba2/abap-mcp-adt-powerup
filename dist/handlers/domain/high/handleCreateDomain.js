@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateDomain = handleCreateDomain;
 const clients_1 = require("../../../lib/clients");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_1 = require("../../../utils/transportValidation");
 exports.TOOL_DEFINITION = {
@@ -116,6 +117,13 @@ async function handleCreateDomain(context, args) {
         (0, transportValidation_1.validateTransportRequest)(args.package_name, args.transport_request, args.super_package);
         const typedArgs = args;
         const domainName = typedArgs.domain_name.toUpperCase();
+        // ECC fallback: ADT REST does not expose /sap/bc/adt/ddic/domains
+        // on BASIS < 7.50. Route through the ZMCP_ADT_DDIC_DOMA OData
+        // FunctionImport which calls DDIF_DOMA_PUT + DDIF_DOMA_ACTIVATE
+        // server-side (see sc4sap/abap/zmcp_adt_ddic_doma_ecc.abap).
+        if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+            return handleCreateDomainEcc(context, typedArgs, domainName);
+        }
         logger?.info(`Starting domain creation: ${domainName}`);
         let lockHandle;
         const client = (0, clients_1.createAdtClient)(connection);
@@ -240,6 +248,77 @@ async function handleCreateDomain(context, args) {
             throw error;
         }
         return (0, utils_1.return_error)(error);
+    }
+}
+/**
+ * ECC fallback path for CreateDomain.
+ *
+ * Invoked only when SAP_VERSION=ECC. Packs the args into a DD01V +
+ * DD07V JSON envelope and calls the ZMCP_ADT_DDIC_DOMA OData
+ * FunctionImport (action='CREATE'), then optionally DdicActivate.
+ *
+ * Intentionally mirrors the S/4HANA handler's return_response shape so
+ * downstream consumers see the same JSON structure regardless of path.
+ */
+async function handleCreateDomainEcc(context, args, domainName) {
+    const { connection, logger } = context;
+    const shouldActivate = args.activate !== false;
+    const length = args.length ?? 100;
+    const decimals = args.decimals ?? 0;
+    const pad6 = (n) => String(n).padStart(6, '0');
+    const pad4 = (n) => String(n).padStart(4, '0');
+    const dd01v = {
+        DOMNAME: domainName,
+        DDLANGUAGE: 'E',
+        DATATYPE: (args.datatype || 'CHAR').toUpperCase(),
+        LENG: pad6(length),
+        DECIMALS: pad6(decimals),
+        OUTPUTLEN: pad6(length),
+        DDTEXT: args.description || domainName,
+        LOWERCASE: args.lowercase ? 'X' : '',
+        SIGNFLAG: args.sign_exists ? 'X' : '',
+        CONVEXIT: args.conversion_exit || '',
+        VALEXI: args.fixed_values && args.fixed_values.length > 0 ? 'X' : '',
+        ENTITYTAB: args.value_table || '',
+    };
+    const dd07v = (args.fixed_values || []).map((fv, i) => ({
+        DOMNAME: domainName,
+        VALPOS: pad4(i + 1),
+        DDLANGUAGE: 'E',
+        DOMVALUE_L: fv.low,
+        DDTEXT: fv.text,
+    }));
+    const payload_json = JSON.stringify({ dd01v, dd07v });
+    try {
+        logger?.info(`ECC: creating domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+        const putRes = await (0, rfcBackend_1.callDdicDoma)(connection, 'CREATE', {
+            name: domainName,
+            devclass: args.package_name,
+            transport: args.transport_request,
+            payload_json,
+        });
+        logger?.debug(`DdicDoma CREATE → ${putRes.message}`);
+        if (shouldActivate) {
+            const actRes = await (0, rfcBackend_1.callDdicActivate)(connection, 'DOMA', domainName);
+            logger?.debug(`DdicActivate DOMA → ${actRes.message}`);
+        }
+        logger?.info(`✅ CreateDomain (ECC) completed: ${domainName}`);
+        return (0, utils_1.return_response)({
+            data: JSON.stringify({
+                success: true,
+                domain_name: domainName,
+                package: args.package_name,
+                transport_request: args.transport_request,
+                status: shouldActivate ? 'active' : 'inactive',
+                message: `Domain ${domainName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+                domain_details: null,
+                path: 'ecc-odata-rfc',
+            }),
+        });
+    }
+    catch (error) {
+        logger?.error(`ECC CreateDomain error for ${domainName}: ${error?.message || error}`);
+        throw new utils_1.McpError(utils_1.ErrorCode.InternalError, `Failed to create domain ${domainName} (ECC fallback): ${error?.message || String(error)}`);
     }
 }
 //# sourceMappingURL=handleCreateDomain.js.map

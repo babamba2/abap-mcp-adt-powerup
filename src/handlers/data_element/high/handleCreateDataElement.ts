@@ -9,6 +9,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicActivate, callDdicDtel } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -171,9 +172,13 @@ export async function handleCreateDataElement(
     validateTransportRequest(args.package_name, args.transport_request);
 
     const typedArgs = args as DataElementArgs;
-    // Get connection from session context (set by ProtocolHandler)
-    // Connection is managed and cached per session, with proper token refresh via AuthBroker
     const dataElementName = typedArgs.data_element_name.toUpperCase();
+
+    // ECC fallback — ADT /sap/bc/adt/ddic/dataelements is absent on
+    // BASIS < 7.50. Route through ZMCP_ADT_DDIC_DTEL OData FI.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleCreateDataElementEcc(context, typedArgs, dataElementName);
+    }
 
     logger?.info(`Starting data element creation: ${dataElementName}`);
 
@@ -308,5 +313,102 @@ export async function handleCreateDataElement(
       throw error;
     }
     return return_error(error);
+  }
+}
+
+/**
+ * ECC fallback for CreateDataElement.
+ *
+ * Supports type_kind='domain' (most common). Other type_kinds fall back
+ * to an error until we need them — the ECC RFC FM could be extended to
+ * cover them later by exposing more DD04V fields.
+ */
+async function handleCreateDataElementEcc(
+  context: HandlerContext,
+  args: DataElementArgs,
+  dataElementName: string,
+) {
+  const { connection, logger } = context;
+  const shouldActivate = args.activate !== false;
+  const typeKind = args.type_kind || 'domain';
+
+  if (typeKind !== 'domain') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `ECC CreateDataElement fallback currently supports only type_kind='domain' (got '${typeKind}'). ` +
+        `Extend ZMCP_ADT_DDIC_DTEL FM if you need predefinedAbapType / refTo* support.`,
+    );
+  }
+  if (!args.type_name) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `ECC CreateDataElement (type_kind='domain') requires type_name = domain name`,
+    );
+  }
+
+  const domName = args.type_name.toUpperCase();
+
+  const dd04v: Record<string, string> = {
+    ROLLNAME: dataElementName,
+    DDLANGUAGE: 'E',
+    DOMNAME: domName,
+    HEADLEN: '55',
+    SCRLEN1: '10',
+    SCRLEN2: '20',
+    SCRLEN3: '40',
+    DDTEXT: args.description || dataElementName,
+    REPTEXT: args.medium_label || args.description || dataElementName,
+    SCRTEXT_S: args.short_label || dataElementName.substring(0, 10),
+    SCRTEXT_M: args.medium_label || args.description || dataElementName,
+    SCRTEXT_L: args.long_label || args.description || dataElementName,
+  };
+  if (args.heading_label) {
+    dd04v.REPTEXT = args.heading_label;
+  }
+
+  const payload_json = JSON.stringify({ dd04v });
+
+  try {
+    logger?.info(
+      `ECC: creating data element ${dataElementName} via ZMCP_ADT_DDIC_DTEL`,
+    );
+
+    await callDdicDtel(connection, 'CREATE', {
+      name: dataElementName,
+      devclass: args.package_name,
+      transport: args.transport_request,
+      payload_json,
+    });
+
+    if (shouldActivate) {
+      await callDdicActivate(connection, 'DTEL', dataElementName);
+    }
+
+    logger?.info(`✅ CreateDataElement (ECC) completed: ${dataElementName}`);
+
+    return return_response({
+      data: JSON.stringify(
+        {
+          success: true,
+          data_element_name: dataElementName,
+          package: args.package_name,
+          transport_request: args.transport_request,
+          data_type: args.data_type || null,
+          status: shouldActivate ? 'active' : 'inactive',
+          message: `Data element ${dataElementName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+          path: 'ecc-odata-rfc',
+        },
+        null,
+        2,
+      ),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC CreateDataElement error for ${dataElementName}: ${error?.message || error}`,
+    );
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to create data element ${dataElementName} (ECC fallback): ${error?.message || String(error)}`,
+    );
   }
 }

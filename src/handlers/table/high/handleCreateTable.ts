@@ -81,6 +81,26 @@ export async function handleCreateTable(
 
     const tableName = createTableArgs.table_name.toUpperCase();
 
+    // ECC fallback — the S/4HANA ADT path here builds a CDS-style DDL
+    // skeleton (`define table ... { key mandt : mandt not null; }`),
+    // which ECC's DDIC write layer does not accept (ECC DD02V/DD03P
+    // is row-based, not CDS-source-based). A full CDS-DDL → DD03P
+    // translator would be non-trivial, so CreateTable on ECC is
+    // deliberately not implemented. Users should call the OData
+    // DdicTabl FunctionImport directly with a DD02V+DD03P JSON
+    // payload (see sc4sap/abap/zmcp_adt_ddic_tabl_ecc.abap header
+    // for schema).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `CreateTable is not supported on ECC via this MCP tool. ` +
+          `ECC's DDIC write layer is row-based (DD02V + DD03P) and does not accept ` +
+          `the S/4HANA CDS-style DDL skeleton this handler generates. ` +
+          `Call the OData FunctionImport /DdicTabl on ZMCP_ADT_SRV directly with ` +
+          `IV_ACTION='CREATE' and IV_PAYLOAD_JSON = '{"dd02v":{...},"dd03p":[...]}'.`,
+      );
+    }
+
     logger?.info(`Starting table creation: ${tableName}`);
 
     try {

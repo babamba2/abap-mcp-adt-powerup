@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicTabl } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -58,8 +59,15 @@ export async function handleDeleteTable(
       return return_error(new Error('table_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const tableName = table_name.toUpperCase();
+
+    // ECC fallback — Delete doesn't need payload parsing so we can
+    // route through the RFC path unchanged.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleDeleteTableEcc(context, tableName, transport_request);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Starting table deletion: ${tableName}`);
 
@@ -131,5 +139,47 @@ export async function handleDeleteTable(
     }
   } catch (error: any) {
     return return_error(error);
+  }
+}
+
+/** ECC fallback for DeleteTable via ZMCP_ADT_DDIC_TABL action='DELETE'. */
+async function handleDeleteTableEcc(
+  context: HandlerContext,
+  tableName: string,
+  transportRequest: string | undefined,
+) {
+  const { connection, logger } = context;
+  try {
+    logger?.info(`ECC: deleting table ${tableName} via ZMCP_ADT_DDIC_TABL`);
+
+    await callDdicTabl(connection, 'DELETE', {
+      name: tableName,
+      transport: transportRequest,
+    });
+
+    logger?.info(`✅ DeleteTable (ECC) completed: ${tableName}`);
+
+    return return_response({
+      data: JSON.stringify(
+        {
+          success: true,
+          table_name: tableName,
+          transport_request: transportRequest || null,
+          message: `Table ${tableName} deleted successfully (ECC fallback via OData).`,
+          path: 'ecc-odata-rfc',
+        },
+        null,
+        2,
+      ),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC DeleteTable error for ${tableName}: ${error?.message || error}`,
+    );
+    return return_error(
+      new Error(
+        `Failed to delete table ${tableName} (ECC fallback): ${error?.message || String(error)}`,
+      ),
+    );
   }
 }

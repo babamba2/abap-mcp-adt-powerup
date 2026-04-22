@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleUpdateDomain = handleUpdateDomain;
 const clients_1 = require("../../../lib/clients");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const transportValidation_js_1 = require("../../../utils/transportValidation.js");
 exports.TOOL_DEFINITION = {
@@ -121,6 +122,10 @@ async function handleUpdateDomain(context, args) {
         (0, transportValidation_js_1.validateTransportRequest)(args.package_name, args.transport_request);
         const typedArgs = args;
         const domainName = typedArgs.domain_name.toUpperCase();
+        // ECC fallback — see handleCreateDomain for rationale.
+        if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+            return handleUpdateDomainEcc(context, typedArgs, domainName);
+        }
         logger?.info(`Starting domain update: ${domainName}`);
         try {
             // Create client
@@ -228,6 +233,70 @@ async function handleUpdateDomain(context, args) {
             throw error;
         }
         return (0, utils_1.return_error)(error);
+    }
+}
+/**
+ * ECC fallback for UpdateDomain. Calls ZMCP_ADT_DDIC_DOMA with
+ * action='UPDATE' (DDIF_DOMA_PUT treats UPDATE identically to CREATE —
+ * it overwrites the inactive version), then optionally activates.
+ */
+async function handleUpdateDomainEcc(context, args, domainName) {
+    const { connection, logger } = context;
+    const shouldActivate = args.activate !== false;
+    const length = args.length ?? 100;
+    const decimals = args.decimals ?? 0;
+    const pad6 = (n) => String(n).padStart(6, '0');
+    const pad4 = (n) => String(n).padStart(4, '0');
+    const dd01v = {
+        DOMNAME: domainName,
+        DDLANGUAGE: 'E',
+        DATATYPE: (args.datatype || 'CHAR').toUpperCase(),
+        LENG: pad6(length),
+        DECIMALS: pad6(decimals),
+        OUTPUTLEN: pad6(length),
+        DDTEXT: args.description || domainName,
+        LOWERCASE: args.lowercase ? 'X' : '',
+        SIGNFLAG: args.sign_exists ? 'X' : '',
+        CONVEXIT: args.conversion_exit || '',
+        VALEXI: args.fixed_values && args.fixed_values.length > 0 ? 'X' : '',
+        ENTITYTAB: args.value_table || '',
+    };
+    const dd07v = (args.fixed_values || []).map((fv, i) => ({
+        DOMNAME: domainName,
+        VALPOS: pad4(i + 1),
+        DDLANGUAGE: 'E',
+        DOMVALUE_L: fv.low,
+        DDTEXT: fv.text,
+    }));
+    const payload_json = JSON.stringify({ dd01v, dd07v });
+    try {
+        logger?.info(`ECC: updating domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+        await (0, rfcBackend_1.callDdicDoma)(connection, 'UPDATE', {
+            name: domainName,
+            devclass: args.package_name,
+            transport: args.transport_request,
+            payload_json,
+        });
+        if (shouldActivate) {
+            await (0, rfcBackend_1.callDdicActivate)(connection, 'DOMA', domainName);
+        }
+        logger?.info(`✅ UpdateDomain (ECC) completed: ${domainName}`);
+        return (0, utils_1.return_response)({
+            data: JSON.stringify({
+                success: true,
+                domain_name: domainName,
+                package: args.package_name,
+                transport_request: args.transport_request,
+                status: shouldActivate ? 'active' : 'inactive',
+                message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+                domain_details: null,
+                path: 'ecc-odata-rfc',
+            }),
+        });
+    }
+    catch (error) {
+        logger?.error(`ECC UpdateDomain error for ${domainName}: ${error?.message || error}`);
+        throw new utils_1.McpError(utils_1.ErrorCode.InternalError, `Failed to update domain ${domainName} (ECC fallback): ${error?.message || String(error)}`);
     }
 }
 //# sourceMappingURL=handleUpdateDomain.js.map

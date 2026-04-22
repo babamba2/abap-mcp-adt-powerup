@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicDoma } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -58,8 +59,14 @@ export async function handleDeleteDomain(
       return return_error(new Error('domain_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const domainName = domain_name.toUpperCase();
+
+    // ECC fallback — see handleCreateDomain for rationale.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleDeleteDomainEcc(context, domainName, transport_request);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Starting domain deletion: ${domainName}`);
 
@@ -131,5 +138,50 @@ export async function handleDeleteDomain(
     }
   } catch (error: any) {
     return return_error(error);
+  }
+}
+
+/**
+ * ECC fallback for DeleteDomain. Calls ZMCP_ADT_DDIC_DOMA with
+ * action='DELETE' which wraps RS_DD_DELETE_OBJ server-side.
+ */
+async function handleDeleteDomainEcc(
+  context: HandlerContext,
+  domainName: string,
+  transportRequest: string | undefined,
+) {
+  const { connection, logger } = context;
+  try {
+    logger?.info(`ECC: deleting domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+
+    await callDdicDoma(connection, 'DELETE', {
+      name: domainName,
+      transport: transportRequest,
+    });
+
+    logger?.info(`✅ DeleteDomain (ECC) completed: ${domainName}`);
+
+    return return_response({
+      data: JSON.stringify(
+        {
+          success: true,
+          domain_name: domainName,
+          transport_request: transportRequest || null,
+          message: `Domain ${domainName} deleted successfully (ECC fallback via OData).`,
+          path: 'ecc-odata-rfc',
+        },
+        null,
+        2,
+      ),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC DeleteDomain error for ${domainName}: ${error?.message || error}`,
+    );
+    return return_error(
+      new Error(
+        `Failed to delete domain ${domainName} (ECC fallback): ${error?.message || String(error)}`,
+      ),
+    );
   }
 }

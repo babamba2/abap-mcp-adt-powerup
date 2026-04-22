@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteDomain = handleDeleteDomain;
 const clients_1 = require("../../../lib/clients");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'DeleteDomain',
@@ -42,8 +43,12 @@ async function handleDeleteDomain(context, args) {
         if (!domain_name) {
             return (0, utils_1.return_error)(new Error('domain_name is required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection, logger);
         const domainName = domain_name.toUpperCase();
+        // ECC fallback — see handleCreateDomain for rationale.
+        if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+            return handleDeleteDomainEcc(context, domainName, transport_request);
+        }
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         logger?.info(`Starting domain deletion: ${domainName}`);
         try {
             // Delete domain using AdtClient (includes deletion check)
@@ -102,6 +107,34 @@ async function handleDeleteDomain(context, args) {
     }
     catch (error) {
         return (0, utils_1.return_error)(error);
+    }
+}
+/**
+ * ECC fallback for DeleteDomain. Calls ZMCP_ADT_DDIC_DOMA with
+ * action='DELETE' which wraps RS_DD_DELETE_OBJ server-side.
+ */
+async function handleDeleteDomainEcc(context, domainName, transportRequest) {
+    const { connection, logger } = context;
+    try {
+        logger?.info(`ECC: deleting domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+        await (0, rfcBackend_1.callDdicDoma)(connection, 'DELETE', {
+            name: domainName,
+            transport: transportRequest,
+        });
+        logger?.info(`✅ DeleteDomain (ECC) completed: ${domainName}`);
+        return (0, utils_1.return_response)({
+            data: JSON.stringify({
+                success: true,
+                domain_name: domainName,
+                transport_request: transportRequest || null,
+                message: `Domain ${domainName} deleted successfully (ECC fallback via OData).`,
+                path: 'ecc-odata-rfc',
+            }, null, 2),
+        });
+    }
+    catch (error) {
+        logger?.error(`ECC DeleteDomain error for ${domainName}: ${error?.message || error}`);
+        return (0, utils_1.return_error)(new Error(`Failed to delete domain ${domainName} (ECC fallback): ${error?.message || String(error)}`));
     }
 }
 //# sourceMappingURL=handleDeleteDomain.js.map

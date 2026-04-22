@@ -9,6 +9,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicActivate, callDdicDoma } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -157,6 +158,14 @@ export async function handleCreateDomain(
 
     const typedArgs = args as DomainArgs;
     const domainName = typedArgs.domain_name.toUpperCase();
+
+    // ECC fallback: ADT REST does not expose /sap/bc/adt/ddic/domains
+    // on BASIS < 7.50. Route through the ZMCP_ADT_DDIC_DOMA OData
+    // FunctionImport which calls DDIF_DOMA_PUT + DDIF_DOMA_ACTIVATE
+    // server-side (see sc4sap/abap/zmcp_adt_ddic_doma_ecc.abap).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleCreateDomainEcc(context, typedArgs, domainName);
+    }
 
     logger?.info(`Starting domain creation: ${domainName}`);
 
@@ -309,5 +318,94 @@ export async function handleCreateDomain(
       throw error;
     }
     return return_error(error);
+  }
+}
+
+/**
+ * ECC fallback path for CreateDomain.
+ *
+ * Invoked only when SAP_VERSION=ECC. Packs the args into a DD01V +
+ * DD07V JSON envelope and calls the ZMCP_ADT_DDIC_DOMA OData
+ * FunctionImport (action='CREATE'), then optionally DdicActivate.
+ *
+ * Intentionally mirrors the S/4HANA handler's return_response shape so
+ * downstream consumers see the same JSON structure regardless of path.
+ */
+async function handleCreateDomainEcc(
+  context: HandlerContext,
+  args: DomainArgs,
+  domainName: string,
+) {
+  const { connection, logger } = context;
+  const shouldActivate = args.activate !== false;
+
+  const length = args.length ?? 100;
+  const decimals = args.decimals ?? 0;
+  const pad6 = (n: number) => String(n).padStart(6, '0');
+  const pad4 = (n: number) => String(n).padStart(4, '0');
+
+  const dd01v: Record<string, string> = {
+    DOMNAME: domainName,
+    DDLANGUAGE: 'E',
+    DATATYPE: (args.datatype || 'CHAR').toUpperCase(),
+    LENG: pad6(length),
+    DECIMALS: pad6(decimals),
+    OUTPUTLEN: pad6(length),
+    DDTEXT: args.description || domainName,
+    LOWERCASE: args.lowercase ? 'X' : '',
+    SIGNFLAG: args.sign_exists ? 'X' : '',
+    CONVEXIT: args.conversion_exit || '',
+    VALEXI: args.fixed_values && args.fixed_values.length > 0 ? 'X' : '',
+    ENTITYTAB: args.value_table || '',
+  };
+
+  const dd07v = (args.fixed_values || []).map((fv, i) => ({
+    DOMNAME: domainName,
+    VALPOS: pad4(i + 1),
+    DDLANGUAGE: 'E',
+    DOMVALUE_L: fv.low,
+    DDTEXT: fv.text,
+  }));
+
+  const payload_json = JSON.stringify({ dd01v, dd07v });
+
+  try {
+    logger?.info(`ECC: creating domain ${domainName} via ZMCP_ADT_DDIC_DOMA`);
+
+    const putRes = await callDdicDoma(connection, 'CREATE', {
+      name: domainName,
+      devclass: args.package_name,
+      transport: args.transport_request,
+      payload_json,
+    });
+    logger?.debug(`DdicDoma CREATE → ${putRes.message}`);
+
+    if (shouldActivate) {
+      const actRes = await callDdicActivate(connection, 'DOMA', domainName);
+      logger?.debug(`DdicActivate DOMA → ${actRes.message}`);
+    }
+
+    logger?.info(`✅ CreateDomain (ECC) completed: ${domainName}`);
+
+    return return_response({
+      data: JSON.stringify({
+        success: true,
+        domain_name: domainName,
+        package: args.package_name,
+        transport_request: args.transport_request,
+        status: shouldActivate ? 'active' : 'inactive',
+        message: `Domain ${domainName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+        domain_details: null,
+        path: 'ecc-odata-rfc',
+      }),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC CreateDomain error for ${domainName}: ${error?.message || error}`,
+    );
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to create domain ${domainName} (ECC fallback): ${error?.message || String(error)}`,
+    );
   }
 }

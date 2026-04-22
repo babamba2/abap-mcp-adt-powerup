@@ -9,6 +9,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicActivate, callDdicDtel } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -178,9 +179,12 @@ export async function handleUpdateDataElement(
     validateTransportRequest(args.package_name, args.transport_request);
 
     const typedArgs = args as DataElementArgs;
-    // Get connection from session context (set by ProtocolHandler)
-    // Connection is managed and cached per session, with proper token refresh via AuthBroker
     const dataElementName = typedArgs.data_element_name.toUpperCase();
+
+    // ECC fallback — see handleCreateDataElement.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      return handleUpdateDataElementEcc(context, typedArgs, dataElementName);
+    }
 
     logger?.info(`Starting data element update: ${dataElementName}`);
 
@@ -360,5 +364,96 @@ export async function handleUpdateDataElement(
       throw error;
     }
     return return_error(error);
+  }
+}
+
+/**
+ * ECC fallback for UpdateDataElement. Calls ZMCP_ADT_DDIC_DTEL with
+ * action='UPDATE' (DDIF_DTEL_PUT overwrite).
+ */
+async function handleUpdateDataElementEcc(
+  context: HandlerContext,
+  args: DataElementArgs,
+  dataElementName: string,
+) {
+  const { connection, logger } = context;
+  const shouldActivate = args.activate !== false;
+  const typeKind = (args.type_kind || 'domain').toString();
+
+  if (typeKind !== 'domain') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `ECC UpdateDataElement fallback currently supports only type_kind='domain' (got '${typeKind}')`,
+    );
+  }
+  if (!args.type_name) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `ECC UpdateDataElement (type_kind='domain') requires type_name = domain name`,
+    );
+  }
+
+  const domName = args.type_name.toUpperCase();
+
+  const dd04v: Record<string, string> = {
+    ROLLNAME: dataElementName,
+    DDLANGUAGE: 'E',
+    DOMNAME: domName,
+    HEADLEN: '55',
+    SCRLEN1: '10',
+    SCRLEN2: '20',
+    SCRLEN3: '40',
+    DDTEXT: args.description || dataElementName,
+    REPTEXT:
+      args.field_label_heading ||
+      args.field_label_medium ||
+      args.description ||
+      dataElementName,
+    SCRTEXT_S: args.field_label_short || dataElementName.substring(0, 10),
+    SCRTEXT_M: args.field_label_medium || args.description || dataElementName,
+    SCRTEXT_L: args.field_label_long || args.description || dataElementName,
+  };
+
+  const payload_json = JSON.stringify({ dd04v });
+
+  try {
+    logger?.info(
+      `ECC: updating data element ${dataElementName} via ZMCP_ADT_DDIC_DTEL`,
+    );
+
+    await callDdicDtel(connection, 'UPDATE', {
+      name: dataElementName,
+      devclass: args.package_name,
+      transport: args.transport_request,
+      payload_json,
+    });
+
+    if (shouldActivate) {
+      await callDdicActivate(connection, 'DTEL', dataElementName);
+    }
+
+    logger?.info(`✅ UpdateDataElement (ECC) completed: ${dataElementName}`);
+
+    return return_response({
+      data: JSON.stringify({
+        success: true,
+        data_element_name: dataElementName,
+        package: args.package_name,
+        transport_request: args.transport_request,
+        data_type: args.data_type || null,
+        status: shouldActivate ? 'active' : 'inactive',
+        message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+        data_element_details: null,
+        path: 'ecc-odata-rfc',
+      }),
+    } as AxiosResponse);
+  } catch (error: any) {
+    logger?.error(
+      `ECC UpdateDataElement error for ${dataElementName}: ${error?.message || error}`,
+    );
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to update data element ${dataElementName} (ECC fallback): ${error?.message || String(error)}`,
+    );
   }
 }
