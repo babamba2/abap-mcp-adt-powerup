@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [4.8.1] - 2026-04-22
+
+### Added
+- ECC 7.40 DDIC write fallback via OData RFC. 9 handlers (Domain/DataElement/Table × CRUD) activate on `SAP_VERSION=ECC`, routing DDIC writes through server-side FMs (`ZMCP_ADT_DDIC_{TABL,DTEL,DOMA,ACTIVATE}`) invoked via OData FunctionImports on `ZMCP_ADT_SRV`. Full implementations: Domain C/U/D + DataElement C/U/D (type_kind=domain only) + Table Delete. Inform-only: Table Create/Update (CDS-DDL translator deferred).
+- `lib/odataRfc.ts`: `callDdicTabl / DdicDtel / DdicDoma / DdicActivate` + `DdicResult` type.
+- `lib/rfcBackend.ts`: 4 new wrappers + informative error for non-odata backends.
+
 ## [4.5.2] - 2026-03-27
 
 ### Added
