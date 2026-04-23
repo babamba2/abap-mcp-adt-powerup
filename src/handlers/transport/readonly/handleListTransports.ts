@@ -48,6 +48,49 @@ interface TransportEntry {
   target?: string;
 }
 
+// ADT /sap/bc/adt/cts/transportrequests response structure:
+//   tm:root
+//     tm:workbench  (category, for workbench requests)
+//       tm:modifiable  (status group)
+//         tm:request[]  (one per TR)
+//       tm:released
+//         tm:request[]
+//     tm:customizing
+//       tm:modifiable / tm:released → tm:request[]
+//
+// The previous implementation only looked at root['tm:workbench']['tm:request'], missing
+// the tm:modifiable / tm:released middle layer, so it silently returned 0 transports.
+function collectRequests(
+  root: Record<string, unknown> | undefined | null,
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  if (!root) return out;
+  for (const catKey of ['tm:workbench', 'tm:customizing']) {
+    const category = root[catKey] as Record<string, unknown> | undefined;
+    if (!category) continue;
+    for (const statusKey of ['tm:modifiable', 'tm:released']) {
+      const group = category[statusKey] as Record<string, unknown> | undefined;
+      if (!group) continue;
+      const reqs = group['tm:request'] as
+        | Record<string, unknown>
+        | Record<string, unknown>[]
+        | undefined;
+      if (!reqs) continue;
+      const arr = Array.isArray(reqs) ? reqs : [reqs];
+      out.push(...arr);
+    }
+  }
+  // Back-compat fallback: flat structures (rare)
+  if (out.length === 0 && root['tm:request']) {
+    const direct = root['tm:request'] as
+      | Record<string, unknown>
+      | Record<string, unknown>[];
+    const arr = Array.isArray(direct) ? direct : [direct];
+    out.push(...arr);
+  }
+  return out;
+}
+
 function parseTransportListXml(xmlData: string): TransportEntry[] {
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -58,14 +101,8 @@ function parseTransportListXml(xmlData: string): TransportEntry[] {
   });
 
   const result = parser.parse(xmlData);
-
-  // Response can be under different roots depending on SAP version
   const root = result['tm:root'] || result['tm:roots'] || result;
-
-  // Extract requests
-  const requests =
-    root?.['tm:request'] || root?.['tm:workbench']?.['tm:request'] || [];
-  const requestList = Array.isArray(requests) ? requests : [requests];
+  const requestList = collectRequests(root);
 
   return requestList
     .filter((req: Record<string, unknown>) => req)

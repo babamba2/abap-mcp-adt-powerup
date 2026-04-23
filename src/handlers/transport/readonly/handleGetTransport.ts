@@ -1,21 +1,27 @@
 /**
  * GetTransport Handler - Retrieve ABAP transport request information via ADT API
  *
- * Retrieves transport request details including:
- * - Transport metadata (number, description, type, status)
- * - Owner and target system information
- * - Included objects and tasks
- * - Change history
+ * ADT exposes TWO transport endpoints with different semantics per backend:
  *
- * @TODO Migrate to infrastructure module or enhance AdtClient.getRequest().read()
- * Current AdtClient.getRequest().read() doesn't support:
- * - includeObjects and includeTasks query parameters
- * - XML parsing (returns raw AxiosResponse)
- * This handler provides richer functionality that should be added to adt-clients
+ *   1. Path-based single-TR read:   GET /sap/bc/adt/cts/transportrequests/<NUMBER>
+ *        Accept: application/vnd.sap.adt.transportorganizer.v1+xml
+ *      S/4HANA: returns the TR natively ({tm:root adtcore:name=<NUMBER> > tm:request}).
+ *      ECC:     path segment is effectively ignored — response is a user-scoped LIST
+ *               ({tm:root adtcore:name=<USER> > tm:workbench > tm:modifiable > tm:request[]}).
+ *
+ *   2. List-by-user:                GET /sap/bc/adt/cts/transportrequests?user=<OWNER>
+ *        Accept: application/vnd.sap.adt.transportorganizertree.v1+xml
+ *      Both: list scoped to the owning user.
+ *
+ * Strategy: path URL first (native on S/4, acceptable fallback on ECC). If the TR is
+ * not found in the path response AND `owner` was supplied, retry with the list URL
+ * (handles cross-user queries, especially on ECC where the path URL only reveals the
+ * session user's list).
  */
 
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { getSystemContext } from '../../../lib/systemContext';
 import {
   ErrorCode,
   McpError,
@@ -23,6 +29,9 @@ import {
   return_error,
   return_response,
 } from '../../../lib/utils';
+
+const ACCEPT_ORGANIZER_V1 =
+  'application/vnd.sap.adt.transportorganizer.v1+xml, application/vnd.sap.adt.transportorganizertree.v1+xml';
 
 export const TOOL_DEFINITION = {
   name: 'GetTransport',
@@ -35,6 +44,11 @@ export const TOOL_DEFINITION = {
       transport_number: {
         type: 'string',
         description: 'Transport request number (e.g., E19K905635, DEVK905123)',
+      },
+      owner: {
+        type: 'string',
+        description:
+          "SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users' TRs — pass `owner` to retry via the list endpoint. On S/4 usually unnecessary, but provide it if the path read is rejected by authorization.",
       },
       include_objects: {
         type: 'boolean',
@@ -53,72 +67,136 @@ export const TOOL_DEFINITION = {
 
 interface GetTransportArgs {
   transport_number: string;
+  owner?: string;
   include_objects?: boolean;
   include_tasks?: boolean;
 }
 
-/**
- * Parse transport request XML response
- */
-function parseTransportXml(
-  xmlData: string,
-  includeObjects: boolean = true,
-  includeTasks: boolean = true,
-): any {
-  const parser = new XMLParser({
+function makeParser() {
+  return new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '',
     textNodeName: '_text',
     parseAttributeValue: true,
     isArray: (name, _jpath, _isLeafNode, _isAttribute) => {
-      // Arrays for multiple objects/tasks
-      return ['tm:object', 'tm:task', 'object', 'task'].includes(name);
+      return [
+        'tm:request',
+        'tm:task',
+        'tm:abap_object',
+        'tm:object',
+        'object',
+        'task',
+      ].includes(name);
     },
   });
+}
 
+/**
+ * Find a specific tm:request inside a list-view response
+ * (tm:root > tm:workbench|tm:customizing > tm:modifiable|tm:released > tm:request[]).
+ */
+function findRequestInListView(
+  root: Record<string, any> | undefined | null,
+  number: string,
+): Record<string, any> | null {
+  if (!root) return null;
+  for (const catKey of ['tm:workbench', 'tm:customizing']) {
+    const category = root[catKey];
+    if (!category) continue;
+    for (const statusKey of ['tm:modifiable', 'tm:released']) {
+      const group = category[statusKey];
+      if (!group) continue;
+      const reqs = group['tm:request'];
+      if (!reqs) continue;
+      const arr = Array.isArray(reqs) ? reqs : [reqs];
+      for (const req of arr) {
+        if (req && req['tm:number'] === number) return req;
+      }
+    }
+  }
+  // Back-compat: some SAP versions flatten requests directly under root
+  const direct = root['tm:request'];
+  if (direct) {
+    const arr = Array.isArray(direct) ? direct : [direct];
+    for (const req of arr) {
+      if (req && req['tm:number'] === number) return req;
+    }
+  }
+  return null;
+}
+
+/**
+ * Pick the tm:request node from either a single-TR or list-view response.
+ * Returns { request, viewType } or null when the requested TR isn't present.
+ */
+function extractRequest(
+  xmlData: string,
+  requestedNumber: string,
+): { request: Record<string, any>; viewType: 'single-tr' | 'list' } | null {
+  const parser = makeParser();
   const result = parser.parse(xmlData);
   const root = result['tm:root'] || result.root;
-
   if (!root) {
     throw new McpError(
       ErrorCode.InternalError,
       'Invalid transport XML structure - no tm:root found',
     );
   }
+  // S/4 native path response: adtcore:name is the TR number and tm:request is a direct child.
+  if (root['adtcore:name'] === requestedNumber && root['tm:request']) {
+    const r = Array.isArray(root['tm:request'])
+      ? root['tm:request'][0]
+      : root['tm:request'];
+    if (r && r['tm:number'] === requestedNumber) {
+      return { request: r, viewType: 'single-tr' };
+    }
+  }
+  // Otherwise treat as list view (ECC path response, or list URL response).
+  const hit = findRequestInListView(root, requestedNumber);
+  if (hit) return { request: hit, viewType: 'list' };
+  return null;
+}
 
-  // Get detailed transport info from tm:request inside tm:root
-  const request = root['tm:request'] || {};
-
-  // Extract basic transport information from both root attributes and request details
+function buildTransportData(
+  request: Record<string, any>,
+  includeObjects: boolean,
+  includeTasks: boolean,
+): any {
   const transportInfo = {
-    number: root['adtcore:name'] || request['tm:number'] || root.name,
-    description:
-      request['tm:desc'] || request.description || root['tm:description'],
-    type: request['tm:type'] || root['tm:object_type'] || root.type,
-    status: request['tm:status'] || root['tm:status'],
+    number: request['tm:number'],
+    description: request['tm:desc'] || request['tm:description'],
+    type: request['tm:type'],
+    status: request['tm:status'],
     status_text: request['tm:status_text'],
-    owner: request['tm:owner'] || root['tm:owner'],
-    target_system: request['tm:target'] || root['tm:target'],
+    owner: request['tm:owner'],
+    target_system: request['tm:target'],
     target_desc: request['tm:target_desc'],
-    created_at:
-      root['adtcore:createdAt'] || request['tm:createdAt'] || root.createdAt,
-    created_by:
-      root['adtcore:createdBy'] || request['tm:createdBy'] || root.createdBy,
-    changed_at:
-      root['adtcore:changedAt'] || request['tm:changedAt'] || root.changedAt,
-    changed_by:
-      root['adtcore:changedBy'] || request['tm:changedBy'] || root.changedBy,
-    release_date: request['tm:releaseDate'] || root.releaseDate,
-    client: request['tm:source_client'] || root['tm:client'],
+    created_at: request['tm:createdAt'] || request['tm:lastchanged_timestamp'],
+    created_by: request['tm:createdBy'] || request['tm:owner'],
+    changed_at: request['tm:changedAt'] || request['tm:lastchanged_timestamp'],
+    changed_by: request['tm:changedBy'],
+    release_date: request['tm:releaseDate'],
+    client: request['tm:source_client'],
     cts_project: request['tm:cts_project'],
     cts_project_desc: request['tm:cts_project_desc'],
   };
-
-  // Extract objects if requested
   let objects: any[] = [];
-  if (includeObjects && request['tm:all_objects']) {
-    const objectList = request['tm:all_objects']['tm:abap_object'] || [];
-    objects = Array.isArray(objectList) ? objectList : [objectList];
+  if (includeObjects) {
+    if (request['tm:all_objects']) {
+      const objectList = request['tm:all_objects']['tm:abap_object'] || [];
+      objects = Array.isArray(objectList) ? [...objectList] : [objectList];
+    }
+    if (objects.length === 0 && request['tm:task']) {
+      const taskList = Array.isArray(request['tm:task'])
+        ? request['tm:task']
+        : [request['tm:task']];
+      for (const task of taskList) {
+        const taskObjs = task && task['tm:abap_object'];
+        if (!taskObjs) continue;
+        const arr = Array.isArray(taskObjs) ? taskObjs : [taskObjs];
+        objects.push(...arr);
+      }
+    }
     objects = objects.map((obj) => ({
       name: obj['tm:name'],
       type: obj['tm:type'],
@@ -130,8 +208,6 @@ function parseTransportXml(
       info: obj['tm:obj_info'],
     }));
   }
-
-  // Extract tasks if requested
   let tasks: any[] = [];
   if (includeTasks && request['tm:task']) {
     const taskList = Array.isArray(request['tm:task'])
@@ -163,7 +239,6 @@ function parseTransportXml(
         : [],
     }));
   }
-
   return {
     transport: transportInfo,
     objects: includeObjects ? objects : undefined,
@@ -174,7 +249,8 @@ function parseTransportXml(
 }
 
 /**
- * Main handler for GetTransport MCP tool
+ * Main handler for GetTransport MCP tool.
+ * Strategy: path-based read first, list-by-user fallback when owner is supplied.
  */
 export async function handleGetTransport(
   context: HandlerContext,
@@ -182,74 +258,91 @@ export async function handleGetTransport(
 ) {
   const { connection, logger } = context;
   try {
-    // Validate required parameters
     if (!args?.transport_number) {
       throw new McpError(
         ErrorCode.InvalidParams,
         'Transport number is required',
       );
     }
-
     const typedArgs = args as GetTransportArgs;
     const includeObjects = typedArgs.include_objects !== false;
     const includeTasks = typedArgs.include_tasks !== false;
+    const trNumber = typedArgs.transport_number;
+    const sessionUser =
+      getSystemContext().responsible || process.env.SAP_USERNAME || '';
+    const owner = typedArgs.owner || '';
+    const headers = { Accept: ACCEPT_ORGANIZER_V1 };
 
-    logger?.debug(`GetTransport: ${typedArgs.transport_number}`);
-    logger?.debug(
-      `Include objects: ${includeObjects}, Include tasks: ${includeTasks}`,
-    );
-
-    let url = `/sap/bc/adt/cts/transportrequests/${typedArgs.transport_number}`;
-
-    // Add query parameters for additional information
-    const params: string[] = [];
-    if (includeObjects) params.push('includeObjects=true');
-    if (includeTasks) params.push('includeTasks=true');
-    if (params.length > 0) {
-      url += `?${params.join('&')}`;
-    }
-
-    const headers = {
-      Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
-    };
-
-    logger?.debug(`GET from: ${url}`);
-
-    // Get transport request
-    const response = await makeAdtRequestWithTimeout(
+    // Attempt 1: path-based single-TR read.
+    const pathUrl = `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(trNumber)}`;
+    logger?.debug(`GetTransport: path URL attempt — ${pathUrl}`);
+    const pathResp = await makeAdtRequestWithTimeout(
       connection,
-      url,
+      pathUrl,
       'GET',
       'default',
       undefined,
       undefined,
       headers,
     );
+    let found = extractRequest(pathResp.data, trNumber);
+    let resolvedVia: 'path' | 'list' = 'path';
+    let usedOwner = sessionUser;
+    let lastResponse = pathResp;
 
-    logger?.debug(`GetTransport response status: ${response.status}`);
+    // Attempt 2: list-by-owner fallback. Triggered when path read didn't locate the TR
+    // and the caller supplied an explicit owner (most common on ECC for cross-user queries).
+    if (!found && owner && owner !== sessionUser) {
+      const query = new URLSearchParams({ user: owner });
+      const listUrl = `/sap/bc/adt/cts/transportrequests?${query.toString()}`;
+      logger?.debug(`GetTransport: list-by-owner fallback — ${listUrl}`);
+      const listResp = await makeAdtRequestWithTimeout(
+        connection,
+        listUrl,
+        'GET',
+        'default',
+        undefined,
+        undefined,
+        headers,
+      );
+      found = extractRequest(listResp.data, trNumber);
+      if (found) {
+        resolvedVia = 'list';
+        usedOwner = owner;
+        lastResponse = listResp;
+      }
+    }
 
-    // Parse XML response
-    const transportData = parseTransportXml(
-      response.data,
+    if (!found) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Transport ${trNumber} not found via path read${owner ? ` or owner=${owner} list` : ''}. If this TR belongs to a different user, pass 'owner'.`,
+      );
+    }
+
+    const transportData = buildTransportData(
+      found.request,
       includeObjects,
       includeTasks,
     );
-
     return return_response({
       data: JSON.stringify(
         {
           success: true,
-          transport_number: typedArgs.transport_number,
+          transport_number: trNumber,
+          resolved_via: resolvedVia,
+          view_type: found.viewType,
+          owner_scope: usedOwner,
           ...transportData,
-          message: `Transport ${typedArgs.transport_number} retrieved successfully`,
+          message: `Transport ${trNumber} retrieved successfully (${resolvedVia} read, ${found.viewType} view)`,
         },
         null,
         2,
       ),
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-      config: response.config,
+      status: lastResponse.status,
+      statusText: lastResponse.statusText,
+      headers: lastResponse.headers,
+      config: lastResponse.config,
     });
   } catch (error) {
     if (error instanceof McpError) {

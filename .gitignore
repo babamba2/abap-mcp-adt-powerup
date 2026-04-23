@@ -96,3 +96,8 @@ desktop.ini
 # sc4sap HUD telemetry (if this repo is opened in a Claude Code session)
 .sc4sap/
 scripts/adhoc/raw-out/
+
+# local dev tool state (never commit)
+.claude/
+.cursor/
+.entire/
