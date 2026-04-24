@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [4.8.3] - 2026-04-24
+
+### Fixed
+- Keychain password resolution in broker-based auth path. `EnvFileSessionStore` (from `@babamba2/mcp-abap-adt-auth-stores`) reads `SAP_PASSWORD` raw from the .env file and does not know about `keychain:<service>/<account>` references, so `authBroker.getConnectionConfig()` returned the literal reference string as the Basic Auth password → 401 → account lockout after 3 tries. `profile.ts activateProfile()` only fixed `process.env.SAP_PASSWORD`, which the v2 broker architecture (`lib/utils.ts:515` "No fallback to getConfig()") does not read. `brokerFactory.ts` now calls `resolveSecret()` on both `createBrokerWithEnvFileStore` (Variant 2, --env=path) and `loadEnvFileIntoSessionStore` (Variant 3, cwd .env) and seeds the session store's `inMemoryUpdates` so downstream reads return plaintext.
+
 ## [4.8.1] - 2026-04-22
 
 ### Added

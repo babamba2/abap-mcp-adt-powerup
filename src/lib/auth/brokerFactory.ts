@@ -31,6 +31,7 @@ import type {
   ITokenResult,
 } from '@babamba2/mcp-abap-adt-interfaces';
 import { defaultLogger } from '@babamba2/mcp-abap-adt-logger';
+import { resolveSecret } from '../secrets';
 import { detectStoreType } from '../stores';
 import { getPlatformPaths } from '../stores/platformPaths';
 import type { IAuthBrokerFactory } from './IAuthBrokerFactory.js';
@@ -651,6 +652,29 @@ export class AuthBrokerFactory implements IAuthBrokerFactory {
       );
     }
 
+    // EnvFileSessionStore reads SAP_PASSWORD raw from disk and does NOT resolve
+    // keychain:<service>/<account> references. For sc4sap multi-profile setups
+    // that store passwords in the OS keychain, we must resolve the reference
+    // here and seed the store's inMemoryUpdates so subsequent getConnectionConfig
+    // calls return plaintext. Without this, the literal "keychain:..." string
+    // is sent as the Basic Auth password, causing 401 → account lockout.
+    if (authType === 'basic') {
+      const raw = await sessionStore.getConnectionConfig(brokerKey);
+      const rawPwd = raw?.password;
+      if (rawPwd && rawPwd.startsWith('keychain:')) {
+        const resolved = resolveSecret(rawPwd);
+        await sessionStore.setConnectionConfig(brokerKey, {
+          ...raw,
+          password: resolved,
+        });
+        logger?.debug('Resolved keychain password into EnvFileSessionStore', {
+          type: 'ENV_FILE_STORE_KEYCHAIN_RESOLVED',
+          brokerKey,
+          envFilePath,
+        });
+      }
+    }
+
     logger?.debug('Creating broker with EnvFileSessionStore', {
       type: 'ENV_FILE_STORE_CREATE',
       brokerKey,
@@ -764,7 +788,10 @@ export class AuthBrokerFactory implements IAuthBrokerFactory {
         );
       }
       connectionConfig.username = envVars.SAP_USERNAME;
-      connectionConfig.password = envVars.SAP_PASSWORD;
+      // Resolve keychain:<service>/<account> → plaintext before seeding session
+      // store. Without this, the literal reference string is used as the Basic
+      // Auth password, causing 401 → account lockout.
+      connectionConfig.password = resolveSecret(envVars.SAP_PASSWORD);
     } else if (authType === 'jwt') {
       if (!envVars.SAP_JWT_TOKEN) {
         throw new Error('.env file missing SAP_JWT_TOKEN for JWT auth');
