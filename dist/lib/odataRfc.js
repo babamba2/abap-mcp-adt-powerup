@@ -53,6 +53,10 @@ exports.callDdicTabl = callDdicTabl;
 exports.callDdicDtel = callDdicDtel;
 exports.callDdicDoma = callDdicDoma;
 exports.callDdicActivate = callDdicActivate;
+exports.callDdicBadi = callDdicBadi;
+exports.callDdicTablRead = callDdicTablRead;
+exports.callDdicDtelRead = callDdicDtelRead;
+exports.callDdicDomaRead = callDdicDomaRead;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
 let cachedSession = null;
@@ -319,6 +323,139 @@ async function callDdicActivate(_connection, type, name) {
     // not throw. Only raise on rc >= 8 or sy-subrc !== 0 from the FM.
     if (subrc >= 8) {
         throw new Error(`ZMCP_ADT_DDIC_ACTIVATE error (type=${type}, name=${name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+/**
+ * Read-only BAdI implementation discovery — ECC bridge.
+ *
+ * Calls the ZMCP_ADT_DDIC_BADI function module via the OData
+ * FunctionImport `DdicBadi`. Given a (classic) BAdI definition name,
+ * returns the implementations registered against it (impl name, impl
+ * class, package, methods redefined). Customer-only / active-only
+ * filters default to true to match the most common debugging use case
+ * ("which Z class extends standard BAdI X?").
+ *
+ * Result schema (parsed from EV_RESULT JSON):
+ *   {
+ *     badi_definition: string,
+ *     kind: 'classic' | 'unknown',
+ *     interface: string,
+ *     multi_use: boolean,
+ *     filter_dependent: boolean,
+ *     implementations: Array<{
+ *       impl_name: string,
+ *       impl_class: string,
+ *       active: boolean,
+ *       package: string,
+ *       methods_redefined: string[],
+ *     }>
+ *   }
+ *
+ * kind='unknown' = def not in SXS_ATTR (likely kernel/new BAdI; not
+ * supported in v1). The handler should surface this gracefully.
+ */
+async function callDdicBadi(_connection, params) {
+    const raw = await postFunctionImport('DdicBadi', {
+        IV_BADI_DEFINITION: params.badi_definition,
+        IV_CUSTOMER_ONLY: params.customer_only === false ? '' : 'X',
+        IV_ACTIVE_ONLY: params.active_only === false ? '' : 'X',
+        IV_INCLUDE_METHODS: params.include_methods === false ? '' : 'X',
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_ADT_DDIC_BADI error (badi_definition=${params.badi_definition}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+/**
+ * Read-only DDIC table / structure metadata — ECC bridge.
+ *
+ * Calls ZMCP_ADT_DDIC_TABL_READ via OData FunctionImport `DdicTablRead`.
+ * Returns a JSON skeleton compatible with the marketplace `handleGetTable`
+ * / `handleGetStructure` handlers when the standard /sap/bc/adt/ddic/tables
+ * endpoint is missing on legacy kernels (BASIS < 7.50).
+ *
+ * Result schema (parsed from EV_RESULT JSON):
+ *   {
+ *     name: string,
+ *     kind: 'TABL' | 'STRU' | string,
+ *     tabclass: string,             // TRANSP / STRUCTURE / INTTAB / VIEW / ...
+ *     delivery_class: string,
+ *     buffered: string,
+ *     description: string,
+ *     package: string,
+ *     fields: Array<{
+ *       fieldname: string, position: number, key: boolean, mandatory: boolean,
+ *       rollname: string, checktable: string, datatype: string,
+ *       leng: number, decimals: number, domname: string, comptype: string,
+ *       notnull: boolean, description: string,
+ *     }>
+ *   }
+ */
+async function callDdicTablRead(_connection, params) {
+    const raw = await postFunctionImport('DdicTablRead', {
+        IV_NAME: params.name,
+        IV_VERSION: params.version ?? 'A',
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_ADT_DDIC_TABL_READ error (name=${params.name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+/**
+ * Read-only DDIC data element metadata — ECC bridge.
+ *
+ * Result schema:
+ *   {
+ *     name: string, domname: string, datatype: string,
+ *     leng: number, decimals: number, outputlen: number,
+ *     lowercase: boolean, signflag: boolean, convexit: string,
+ *     description: string, heading: string,
+ *     short_label: string, medium_label: string, long_label: string,
+ *     package: string,
+ *   }
+ */
+async function callDdicDtelRead(_connection, params) {
+    const raw = await postFunctionImport('DdicDtelRead', {
+        IV_NAME: params.name,
+        IV_VERSION: params.version ?? 'A',
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_ADT_DDIC_DTEL_READ error (name=${params.name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+/**
+ * Read-only DDIC domain metadata + fixed values — ECC bridge.
+ *
+ * Result schema:
+ *   {
+ *     name: string, datatype: string, leng: number, decimals: number,
+ *     outputlen: number, lowercase: boolean, signflag: boolean,
+ *     convexit: string, value_table: string, description: string,
+ *     package: string,
+ *     fixed_values: Array<{ valpos: number, low: string, high: string, description: string }>
+ *   }
+ */
+async function callDdicDomaRead(_connection, params) {
+    const raw = await postFunctionImport('DdicDomaRead', {
+        IV_NAME: params.name,
+        IV_VERSION: params.version ?? 'A',
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_ADT_DDIC_DOMA_READ error (name=${params.name}, subrc=${subrc}): ${message}`);
     }
     return { subrc, message, result };
 }

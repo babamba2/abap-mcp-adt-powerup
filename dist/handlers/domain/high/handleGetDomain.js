@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetDomain = handleGetDomain;
 const clients_1 = require("../../../lib/clients");
+const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'GetDomain',
@@ -44,8 +45,32 @@ async function handleGetDomain(context, args) {
         if (!domain_name) {
             return (0, utils_1.return_error)(new Error('domain_name is required'));
         }
-        const client = (0, clients_1.createAdtClient)(connection, logger);
         const domainName = domain_name.toUpperCase();
+        // ECC fallback — standard /sap/bc/adt/ddic/domains endpoint is missing
+        // on legacy kernels (BASIS < 7.50). Route through the OData bridge
+        // (ZMCP_ADT_DDIC_DOMA_READ → DD01L/DD01T/DD07L/DD07T/TADIR).
+        if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+            logger?.info(`[ECC bridge] GetDomain ${domainName}, version: ${version}`);
+            const bridge = await (0, rfcBackend_1.callDdicDomaRead)(connection, {
+                name: domainName,
+                version: version === 'inactive' ? 'I' : 'A',
+            });
+            if (bridge.subrc !== 0) {
+                return (0, utils_1.return_error)(new Error(`ZMCP_ADT_DDIC_DOMA_READ subrc=${bridge.subrc}: ${bridge.message}`));
+            }
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    domain_name: domainName,
+                    version,
+                    domain_data: JSON.stringify(bridge.result),
+                    status: 200,
+                    status_text: 'OK',
+                    path: 'ecc-odata-rfc',
+                }, null, 2),
+            });
+        }
+        const client = (0, clients_1.createAdtClient)(connection, logger);
         logger?.info(`Reading domain ${domainName}, version: ${version}`);
         try {
             // Read domain using AdtClient

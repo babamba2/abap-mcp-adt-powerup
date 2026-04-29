@@ -118,10 +118,37 @@ function pickDdicActivate(): typeof odata.callDdicActivate {
     unsupportedDdic('callDdicActivate')) as typeof odata.callDdicActivate;
 }
 
+function pickDdicBadi(): typeof odata.callDdicBadi {
+  if (backend === 'odata') return odata.callDdicBadi;
+  return (() => unsupportedDdic('callDdicBadi')) as typeof odata.callDdicBadi;
+}
+
+function pickDdicTablRead(): typeof odata.callDdicTablRead {
+  if (backend === 'odata') return odata.callDdicTablRead;
+  return (() =>
+    unsupportedDdic('callDdicTablRead')) as typeof odata.callDdicTablRead;
+}
+
+function pickDdicDtelRead(): typeof odata.callDdicDtelRead {
+  if (backend === 'odata') return odata.callDdicDtelRead;
+  return (() =>
+    unsupportedDdic('callDdicDtelRead')) as typeof odata.callDdicDtelRead;
+}
+
+function pickDdicDomaRead(): typeof odata.callDdicDomaRead {
+  if (backend === 'odata') return odata.callDdicDomaRead;
+  return (() =>
+    unsupportedDdic('callDdicDomaRead')) as typeof odata.callDdicDomaRead;
+}
+
 export const callDdicTabl = pickDdicTabl();
 export const callDdicDtel = pickDdicDtel();
 export const callDdicDoma = pickDdicDoma();
 export const callDdicActivate = pickDdicActivate();
+export const callDdicBadi = pickDdicBadi();
+export const callDdicTablRead = pickDdicTablRead();
+export const callDdicDtelRead = pickDdicDtelRead();
+export const callDdicDomaRead = pickDdicDomaRead();
 
 export type { DdicResult } from './odataRfc';
 // Re-export shared types so handlers do not need to reach into

@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicDomaRead } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -60,8 +61,42 @@ export async function handleGetDomain(
       return return_error(new Error('domain_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const domainName = domain_name.toUpperCase();
+
+    // ECC fallback — standard /sap/bc/adt/ddic/domains endpoint is missing
+    // on legacy kernels (BASIS < 7.50). Route through the OData bridge
+    // (ZMCP_ADT_DDIC_DOMA_READ → DD01L/DD01T/DD07L/DD07T/TADIR).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      logger?.info(`[ECC bridge] GetDomain ${domainName}, version: ${version}`);
+      const bridge = await callDdicDomaRead(connection, {
+        name: domainName,
+        version: version === 'inactive' ? 'I' : 'A',
+      });
+      if (bridge.subrc !== 0) {
+        return return_error(
+          new Error(
+            `ZMCP_ADT_DDIC_DOMA_READ subrc=${bridge.subrc}: ${bridge.message}`,
+          ),
+        );
+      }
+      return return_response({
+        data: JSON.stringify(
+          {
+            success: true,
+            domain_name: domainName,
+            version,
+            domain_data: JSON.stringify(bridge.result),
+            status: 200,
+            status_text: 'OK',
+            path: 'ecc-odata-rfc',
+          },
+          null,
+          2,
+        ),
+      } as AxiosResponse);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Reading domain ${domainName}, version: ${version}`);
 

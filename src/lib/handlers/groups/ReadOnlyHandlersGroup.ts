@@ -19,6 +19,10 @@ import {
   TOOL_DEFINITION as ReadDomain_Tool,
 } from '../../../handlers/domain/readonly/handleReadDomain';
 import {
+  TOOL_DEFINITION as GetBadiImplementations_Tool,
+  handleGetBadiImplementations,
+} from '../../../handlers/enhancement/readonly/handleGetBadiImplementations';
+import {
   TOOL_DEFINITION as GetEnhancementImpl_Tool,
   handleGetEnhancementImpl,
 } from '../../../handlers/enhancement/readonly/handleGetEnhancementImpl';
@@ -163,6 +167,11 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetEnhancementImpl_Tool,
         handler: (args: any) => handleGetEnhancementImpl(this.context, args),
+      },
+      {
+        toolDefinition: GetBadiImplementations_Tool,
+        handler: (args: any) =>
+          handleGetBadiImplementations(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,

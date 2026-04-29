@@ -4,6 +4,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicTablRead } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -51,8 +52,44 @@ export async function handleGetStructure(
       return return_error(new Error('structure_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const structureName = structure_name.toUpperCase();
+
+    // ECC fallback — standard /sap/bc/adt/ddic/tables endpoint is missing
+    // on legacy kernels. The same bridge FM (ZMCP_ADT_DDIC_TABL_READ)
+    // handles both transparent tables and structures (TABCLASS branch).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      logger?.info(
+        `[ECC bridge] GetStructure ${structureName}, version: ${version}`,
+      );
+      const bridge = await callDdicTablRead(connection, {
+        name: structureName,
+        version: version === 'inactive' ? 'I' : 'A',
+      });
+      if (bridge.subrc !== 0) {
+        return return_error(
+          new Error(
+            `ZMCP_ADT_DDIC_TABL_READ subrc=${bridge.subrc}: ${bridge.message}`,
+          ),
+        );
+      }
+      return return_response({
+        data: JSON.stringify(
+          {
+            success: true,
+            structure_name: structureName,
+            version,
+            structure_data: JSON.stringify(bridge.result),
+            status: 200,
+            status_text: 'OK',
+            path: 'ecc-odata-rfc',
+          },
+          null,
+          2,
+        ),
+      } as AxiosResponse);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Reading structure ${structureName}, version: ${version}`);
 

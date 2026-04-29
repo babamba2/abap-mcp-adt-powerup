@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [4.8.4] - 2026-04-29
+
+### Added
+- ECC 7.40 DDIC **read** fallback via OData RFC. 4 handlers (`GetTable / GetStructure / GetDataElement / GetDomain`) activate on `SAP_VERSION=ECC`, routing DDIC reads through server-side FMs (`ZMCP_ADT_DDIC_TABL_READ / _DTEL_READ / _DOMA_READ`) invoked via OData FunctionImports on `ZMCP_ADT_SRV`. `TABL_READ` covers both Table and Structure (TABL/STRU share TABL DDIC category). Validated 2026-04-29 on HKT-DEV (path=ecc-odata-rfc).
+- `GetBadiImplementations` — new read-only handler to find Z/Y implementations of classic BAdI definitions. ECC-only: routes through `ZMCP_ADT_DDIC_BADI` bridge FM (SXS_ATTR-based lookup). Returns `kind=classic` with implementation list (`impl_name`, `impl_class`, `package`, `methods_redefined`) or `kind=unknown` for kernel BAdIs / non-existent definitions. Use during symptom analysis when a standard BAdI is implicated.
+- `lib/odataRfc.ts`: 4 new adapters (`callDdicTablRead / DdicDtelRead / DdicDomaRead / DdicBadi`) + `DdicReadResult` / `DdicBadiResult` types.
+- `lib/rfcBackend.ts`: 4 new wrappers + informative error for non-odata backends.
+
 ## [4.8.3] - 2026-04-24
 
 ### Fixed

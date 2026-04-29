@@ -25,10 +25,7 @@ exports.handleGetTransport = handleGetTransport;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const systemContext_1 = require("../../../lib/systemContext");
 const utils_1 = require("../../../lib/utils");
-
-const ACCEPT_ORGANIZER_V1 =
-    'application/vnd.sap.adt.transportorganizer.v1+xml, application/vnd.sap.adt.transportorganizertree.v1+xml';
-
+const ACCEPT_ORGANIZER_V1 = 'application/vnd.sap.adt.transportorganizer.v1+xml, application/vnd.sap.adt.transportorganizertree.v1+xml';
 exports.TOOL_DEFINITION = {
     name: 'GetTransport',
     available_in: ['onprem', 'cloud'],
@@ -42,8 +39,7 @@ exports.TOOL_DEFINITION = {
             },
             owner: {
                 type: 'string',
-                description:
-                    "SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users' TRs — pass `owner` to retry via the list endpoint. On S/4 usually unnecessary, but provide it if the path read is rejected by authorization.",
+                description: "SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users' TRs — pass `owner` to retry via the list endpoint. On S/4 usually unnecessary, but provide it if the path read is rejected by authorization.",
             },
             include_objects: {
                 type: 'boolean',
@@ -59,7 +55,6 @@ exports.TOOL_DEFINITION = {
         required: ['transport_number'],
     },
 };
-
 function makeParser() {
     return new fast_xml_parser_1.XMLParser({
         ignoreAttributes: false,
@@ -67,28 +62,39 @@ function makeParser() {
         textNodeName: '_text',
         parseAttributeValue: true,
         isArray: (name, _jpath, _isLeafNode, _isAttribute) => {
-            return ['tm:request', 'tm:task', 'tm:abap_object', 'tm:object', 'object', 'task'].includes(name);
+            return [
+                'tm:request',
+                'tm:task',
+                'tm:abap_object',
+                'tm:object',
+                'object',
+                'task',
+            ].includes(name);
         },
     });
 }
-
 /**
  * Find a specific tm:request inside a list-view response
  * (tm:root > tm:workbench|tm:customizing > tm:modifiable|tm:released > tm:request[]).
  */
 function findRequestInListView(root, number) {
-    if (!root) return null;
+    if (!root)
+        return null;
     for (const catKey of ['tm:workbench', 'tm:customizing']) {
         const category = root[catKey];
-        if (!category) continue;
+        if (!category)
+            continue;
         for (const statusKey of ['tm:modifiable', 'tm:released']) {
             const group = category[statusKey];
-            if (!group) continue;
+            if (!group)
+                continue;
             const reqs = group['tm:request'];
-            if (!reqs) continue;
+            if (!reqs)
+                continue;
             const arr = Array.isArray(reqs) ? reqs : [reqs];
             for (const req of arr) {
-                if (req && req['tm:number'] === number) return req;
+                if (req && req['tm:number'] === number)
+                    return req;
             }
         }
     }
@@ -97,12 +103,12 @@ function findRequestInListView(root, number) {
     if (direct) {
         const arr = Array.isArray(direct) ? direct : [direct];
         for (const req of arr) {
-            if (req && req['tm:number'] === number) return req;
+            if (req && req['tm:number'] === number)
+                return req;
         }
     }
     return null;
 }
-
 /**
  * Pick the tm:request node from either a single-TR or list-view response.
  * Returns { request, viewType } or null when the requested TR isn't present.
@@ -116,17 +122,19 @@ function extractRequest(xmlData, requestedNumber) {
     }
     // S/4 native path response: adtcore:name is the TR number and tm:request is a direct child.
     if (root['adtcore:name'] === requestedNumber && root['tm:request']) {
-        const r = Array.isArray(root['tm:request']) ? root['tm:request'][0] : root['tm:request'];
+        const r = Array.isArray(root['tm:request'])
+            ? root['tm:request'][0]
+            : root['tm:request'];
         if (r && r['tm:number'] === requestedNumber) {
             return { request: r, viewType: 'single-tr' };
         }
     }
     // Otherwise treat as list view (ECC path response, or list URL response).
     const hit = findRequestInListView(root, requestedNumber);
-    if (hit) return { request: hit, viewType: 'list' };
+    if (hit)
+        return { request: hit, viewType: 'list' };
     return null;
 }
-
 function buildTransportData(request, includeObjects, includeTasks) {
     const transportInfo = {
         number: request['tm:number'],
@@ -153,10 +161,13 @@ function buildTransportData(request, includeObjects, includeTasks) {
             objects = Array.isArray(objectList) ? [...objectList] : [objectList];
         }
         if (objects.length === 0 && request['tm:task']) {
-            const taskList = Array.isArray(request['tm:task']) ? request['tm:task'] : [request['tm:task']];
+            const taskList = Array.isArray(request['tm:task'])
+                ? request['tm:task']
+                : [request['tm:task']];
             for (const task of taskList) {
                 const taskObjs = task && task['tm:abap_object'];
-                if (!taskObjs) continue;
+                if (!taskObjs)
+                    continue;
                 const arr = Array.isArray(taskObjs) ? taskObjs : [taskObjs];
                 objects.push(...arr);
             }
@@ -174,7 +185,9 @@ function buildTransportData(request, includeObjects, includeTasks) {
     }
     let tasks = [];
     if (includeTasks && request['tm:task']) {
-        const taskList = Array.isArray(request['tm:task']) ? request['tm:task'] : [request['tm:task']];
+        const taskList = Array.isArray(request['tm:task'])
+            ? request['tm:task']
+            : [request['tm:task']];
         tasks = taskList.map((task) => ({
             number: task['tm:number'],
             parent: task['tm:parent'],
@@ -208,7 +221,6 @@ function buildTransportData(request, includeObjects, includeTasks) {
         task_count: tasks.length,
     };
 }
-
 /**
  * Main handler for GetTransport MCP tool.
  * Strategy: path-based read first, list-by-user fallback when owner is supplied.
@@ -226,7 +238,6 @@ async function handleGetTransport(context, args) {
         const sessionUser = (0, systemContext_1.getSystemContext)().responsible || process.env.SAP_USERNAME || '';
         const owner = typedArgs.owner || '';
         const headers = { Accept: ACCEPT_ORGANIZER_V1 };
-
         // Attempt 1: path-based single-TR read.
         const pathUrl = `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(trNumber)}`;
         logger?.debug(`GetTransport: path URL attempt — ${pathUrl}`);
@@ -235,7 +246,6 @@ async function handleGetTransport(context, args) {
         let resolvedVia = 'path';
         let usedOwner = sessionUser;
         let lastResponse = pathResp;
-
         // Attempt 2: list-by-owner fallback. Triggered when path read didn't locate the TR
         // and the caller supplied an explicit owner (most common on ECC for cross-user queries).
         if (!found && owner && owner !== sessionUser) {
@@ -250,11 +260,9 @@ async function handleGetTransport(context, args) {
                 lastResponse = listResp;
             }
         }
-
         if (!found) {
             throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `Transport ${trNumber} not found via path read${owner ? ` or owner=${owner} list` : ''}. If this TR belongs to a different user, pass 'owner'.`);
         }
-
         const transportData = buildTransportData(found.request, includeObjects, includeTasks);
         return (0, utils_1.return_response)({
             data: JSON.stringify({

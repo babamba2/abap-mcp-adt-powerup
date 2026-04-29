@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicTablRead } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -60,8 +61,42 @@ export async function handleGetTable(
       return return_error(new Error('table_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const tableName = table_name.toUpperCase();
+
+    // ECC fallback — standard /sap/bc/adt/ddic/tables endpoint is missing
+    // on legacy kernels (BASIS < 7.50). Route through the OData bridge
+    // (ZMCP_ADT_DDIC_TABL_READ → DD02L/DD03L/DD02T/DD04T/TADIR).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      logger?.info(`[ECC bridge] GetTable ${tableName}, version: ${version}`);
+      const bridge = await callDdicTablRead(connection, {
+        name: tableName,
+        version: version === 'inactive' ? 'I' : 'A',
+      });
+      if (bridge.subrc !== 0) {
+        return return_error(
+          new Error(
+            `ZMCP_ADT_DDIC_TABL_READ subrc=${bridge.subrc}: ${bridge.message}`,
+          ),
+        );
+      }
+      return return_response({
+        data: JSON.stringify(
+          {
+            success: true,
+            table_name: tableName,
+            version,
+            table_data: JSON.stringify(bridge.result),
+            status: 200,
+            status_text: 'OK',
+            path: 'ecc-odata-rfc',
+          },
+          null,
+          2,
+        ),
+      } as AxiosResponse);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(`Reading table ${tableName}, version: ${version}`);
 

@@ -45,15 +45,19 @@ exports.TOOL_DEFINITION = {
 // the tm:modifiable / tm:released middle layer, so it silently returned 0 transports.
 function collectRequests(root) {
     const out = [];
-    if (!root) return out;
+    if (!root)
+        return out;
     for (const catKey of ['tm:workbench', 'tm:customizing']) {
         const category = root[catKey];
-        if (!category) continue;
+        if (!category)
+            continue;
         for (const statusKey of ['tm:modifiable', 'tm:released']) {
             const group = category[statusKey];
-            if (!group) continue;
+            if (!group)
+                continue;
             const reqs = group['tm:request'];
-            if (!reqs) continue;
+            if (!reqs)
+                continue;
             const arr = Array.isArray(reqs) ? reqs : [reqs];
             out.push(...arr);
         }

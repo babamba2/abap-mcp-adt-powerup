@@ -6,6 +6,7 @@ const handleReadBehaviorImplementation_1 = require("../../../handlers/behavior_i
 const handleReadClass_1 = require("../../../handlers/class/readonly/handleReadClass");
 const handleReadDataElement_1 = require("../../../handlers/data_element/readonly/handleReadDataElement");
 const handleReadDomain_1 = require("../../../handlers/domain/readonly/handleReadDomain");
+const handleGetBadiImplementations_1 = require("../../../handlers/enhancement/readonly/handleGetBadiImplementations");
 const handleGetEnhancementImpl_1 = require("../../../handlers/enhancement/readonly/handleGetEnhancementImpl");
 const handleGetEnhancementSpot_1 = require("../../../handlers/enhancement/readonly/handleGetEnhancementSpot");
 const handleGetEnhancements_1 = require("../../../handlers/enhancement/readonly/handleGetEnhancements");
@@ -73,6 +74,10 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetEnhancementImpl_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetEnhancementImpl_1.handleGetEnhancementImpl)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetBadiImplementations_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetBadiImplementations_1.handleGetBadiImplementations)(this.context, args),
             },
             {
                 toolDefinition: handleGetTransport_1.TOOL_DEFINITION,

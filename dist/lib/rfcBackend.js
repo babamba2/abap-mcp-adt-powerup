@@ -58,7 +58,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = exports.backend = void 0;
+exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = exports.backend = void 0;
 const gateway = __importStar(require("./gatewayRfc"));
 const native = __importStar(require("./nativeRfc"));
 const odata = __importStar(require("./odataRfc"));
@@ -143,8 +143,32 @@ function pickDdicActivate() {
         return odata.callDdicActivate;
     return (() => unsupportedDdic('callDdicActivate'));
 }
+function pickDdicBadi() {
+    if (exports.backend === 'odata')
+        return odata.callDdicBadi;
+    return (() => unsupportedDdic('callDdicBadi'));
+}
+function pickDdicTablRead() {
+    if (exports.backend === 'odata')
+        return odata.callDdicTablRead;
+    return (() => unsupportedDdic('callDdicTablRead'));
+}
+function pickDdicDtelRead() {
+    if (exports.backend === 'odata')
+        return odata.callDdicDtelRead;
+    return (() => unsupportedDdic('callDdicDtelRead'));
+}
+function pickDdicDomaRead() {
+    if (exports.backend === 'odata')
+        return odata.callDdicDomaRead;
+    return (() => unsupportedDdic('callDdicDomaRead'));
+}
 exports.callDdicTabl = pickDdicTabl();
 exports.callDdicDtel = pickDdicDtel();
 exports.callDdicDoma = pickDdicDoma();
 exports.callDdicActivate = pickDdicActivate();
+exports.callDdicBadi = pickDdicBadi();
+exports.callDdicTablRead = pickDdicTablRead();
+exports.callDdicDtelRead = pickDdicDtelRead();
+exports.callDdicDomaRead = pickDdicDomaRead();
 //# sourceMappingURL=rfcBackend.js.map

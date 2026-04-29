@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicDtelRead } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -61,8 +62,44 @@ export async function handleGetDataElement(
       return return_error(new Error('data_element_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const dataElementName = data_element_name.toUpperCase();
+
+    // ECC fallback — standard /sap/bc/adt/ddic/dataelements endpoint is
+    // missing on legacy kernels (BASIS < 7.50). Route through the OData
+    // bridge (ZMCP_ADT_DDIC_DTEL_READ → DD04L/DD04T/TADIR).
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      logger?.info(
+        `[ECC bridge] GetDataElement ${dataElementName}, version: ${version}`,
+      );
+      const bridge = await callDdicDtelRead(connection, {
+        name: dataElementName,
+        version: version === 'inactive' ? 'I' : 'A',
+      });
+      if (bridge.subrc !== 0) {
+        return return_error(
+          new Error(
+            `ZMCP_ADT_DDIC_DTEL_READ subrc=${bridge.subrc}: ${bridge.message}`,
+          ),
+        );
+      }
+      return return_response({
+        data: JSON.stringify(
+          {
+            success: true,
+            data_element_name: dataElementName,
+            version,
+            data_element_data: JSON.stringify(bridge.result),
+            status: 200,
+            status_text: 'OK',
+            path: 'ecc-odata-rfc',
+          },
+          null,
+          2,
+        ),
+      } as AxiosResponse);
+    }
+
+    const client = createAdtClient(connection, logger);
 
     logger?.info(
       `Reading data element ${dataElementName}, version: ${version}`,
