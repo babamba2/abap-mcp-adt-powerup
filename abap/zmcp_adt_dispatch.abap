@@ -80,28 +80,15 @@ FORM dynpro_insert USING iv_params TYPE string
                             ev_message TYPE string
                             ev_result TYPE string.
 
-  TYPES: BEGIN OF ty_flow_line,
-           line TYPE string,
-         END OF ty_flow_line.
-
   DATA: ls_header     TYPE rpy_dyhead,
         lt_containers TYPE TABLE OF rpy_dycatt,
-        lt_fields     TYPE TABLE OF rpy_dyfield,
-        lt_flow_src   TYPE swbse_max_line_tab,
+        lt_fields     TYPE TABLE OF rpy_dyfatc, "rpy_dyfield,
         lt_params     TYPE abap_trans_srcbind_tab.
 
 * Deserialize JSON to get dynpro_data
   DATA: lv_program    TYPE string,
         lv_dynpro     TYPE string,
         lv_dynpro_data TYPE string.
-
-  /ui2/cl_json=>deserialize(
-    EXPORTING json = iv_params
-    CHANGING  data = DATA(ls_params_raw) ).
-
-* Extract parameters from JSON
-  DATA(lo_json) = /ui2/cl_json=>generate( json = iv_params ).
-  DATA(lo_map) = CAST /ui2/cl_abap_json_stringer( lo_json ).
 
   FIELD-SYMBOLS: <program> TYPE any,
                  <dynpro>  TYPE any,
@@ -124,30 +111,28 @@ FORM dynpro_insert USING iv_params TYPE string
   DATA: BEGIN OF ls_dynpro,
           header              TYPE rpy_dyhead,
           containers          TYPE TABLE OF rpy_dycatt WITH DEFAULT KEY,
-          fields_to_containers TYPE TABLE OF rpy_dyfield WITH DEFAULT KEY,
+          fields_to_containers TYPE TABLE OF rpy_dyfatc WITH DEFAULT KEY, "rpy_dyfield WITH DEFAULT KEY,
         END OF ls_dynpro.
-
-  DATA: lt_flow_logic TYPE TABLE OF ty_flow_line WITH DEFAULT KEY.
 
   DATA: BEGIN OF ls_dynpro_full,
           header              TYPE rpy_dyhead,
           containers          TYPE TABLE OF rpy_dycatt WITH DEFAULT KEY,
-          fields_to_containers TYPE TABLE OF rpy_dyfield WITH DEFAULT KEY,
-          flow_logic          TYPE TABLE OF ty_flow_line WITH DEFAULT KEY,
+          fields_to_containers TYPE TABLE OF rpy_dyfatc WITH DEFAULT KEY, "rpy_dyfield WITH DEFAULT KEY,
+          flow_logic          TYPE TABLE OF rpy_dyflow WITH DEFAULT KEY,
         END OF ls_dynpro_full.
 
   /ui2/cl_json=>deserialize(
     EXPORTING json = ls_input-dynpro_data
     CHANGING  data = ls_dynpro_full ).
 
-  ls_header = ls_dynpro_full-header.
+  ls_header     = ls_dynpro_full-header.
   lt_containers = ls_dynpro_full-containers.
-  lt_fields = ls_dynpro_full-fields_to_containers.
+  lt_fields     = ls_dynpro_full-fields_to_containers.
+
+  DATA: lt_flow TYPE STANDARD TABLE OF rpy_dyflow.
 
 * Build flow logic source
-  DATA(lt_flow) = VALUE swbse_max_line_tab(
-    FOR ls_fl IN ls_dynpro_full-flow_logic
-    ( ls_fl-line ) ).
+  lt_flow = VALUE #( FOR ls_fl IN ls_dynpro_full-flow_logic ( CONV rpy_dyflow( ls_fl-line ) ) ).
 
   CALL FUNCTION 'RPY_DYNPRO_INSERT'
     EXPORTING
@@ -195,7 +180,7 @@ FORM dynpro_read USING iv_params TYPE string
 
   DATA: ls_header   TYPE rpy_dyhead,
         lt_cont     TYPE TABLE OF rpy_dycatt,
-        lt_fields   TYPE TABLE OF rpy_dyfield,
+        lt_fields   TYPE TABLE OF rpy_dyfatc, " rpy_dyfield,
         lt_flow     TYPE swbse_max_line_tab.
 
   CALL FUNCTION 'RPY_DYNPRO_READ'
@@ -221,7 +206,7 @@ FORM dynpro_read USING iv_params TYPE string
     DATA: BEGIN OF ls_result,
             header              TYPE rpy_dyhead,
             containers          TYPE TABLE OF rpy_dycatt WITH DEFAULT KEY,
-            fields_to_containers TYPE TABLE OF rpy_dyfield WITH DEFAULT KEY,
+            fields_to_containers TYPE TABLE OF rpy_dyfatc WITH DEFAULT KEY, "rpy_dyfield WITH DEFAULT KEY,
             flow_logic          TYPE swbse_max_line_tab,
           END OF ls_result.
     ls_result-header = ls_header.
