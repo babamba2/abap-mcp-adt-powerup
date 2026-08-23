@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [4.8.5] - 2026-08-23
+
+### Fixed
+- **Tier readonly guard let four mutating tools through on QA and PRD.** `readonlyGuard.ts` matched mutations by the prefixes `Create` / `Update` / `Delete` and held a three-entry runtime-execution set. `ActivateObjects`, `PatchGuiStatus`, `WriteTextElementsBulk` and `RuntimeCreateProfilerTraceParameters` matched neither and were callable against QA and PRD profiles. `Patch`, `Write` and `Activate` are now mutation prefixes (each matches exactly one registered tool today, so a future sibling is covered when it ships), and the profiler-trace setup call joins the runtime set alongside the `RuntimeRun*` executions it configures. `Create` still matches by `startsWith`, so `RuntimeCreate*` is not swept in by accident.
+- This is the server-side half of a two-layer defence and the client-side sc4sap `PreToolUse` hook carried the same two lists verbatim, so for these four tools neither layer blocked — while the hook still told the user the server guard was backing it up. Both halves were fixed together; the sc4sap side ships in its own release.
+- No behaviour change on DEV: `checkToolAllowed` returns `null` on its first line for that tier. On QA/PRD no usable capability is lost — activation and text-pool writes are already unreachable once `Create*` / `Update*` are denied, and profiler-trace setup pairs with runs that were blocked already.
+
+### Tests
+- `readonlyGuard.test.ts` grows the mutation and runtime lists, and pins five near-miss reads (`RuntimeAnalyzeProfilerTrace`, `RuntimeGetProfilerTraceData`, `RuntimeListProfilerTraceFiles`, `RuntimeGetGatewayErrorLog`, `RuntimeListSystemMessages`) as explicitly allowed, so collapsing the runtime set into a bare `Runtime` prefix fails loudly instead of silently killing reads on QA and PRD.
+
+### Known gap
+- `RuntimeCallDispatch` remains unblocked on every tier, with a test asserting so. It invokes an arbitrary `ZMCP_ADT_DISPATCH` action and the action name is a runtime argument, so this layer — which sees only the tool name — cannot separate a write action from a read one. Tracked separately; when it is addressed that test should flip rather than quietly disappear.
+
 ## [4.8.4] - 2026-04-29
 
 ### Added
