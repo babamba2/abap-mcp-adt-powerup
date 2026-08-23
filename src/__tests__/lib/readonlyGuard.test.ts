@@ -16,10 +16,16 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     'UpdateFunctionModule',
     'DeleteTable',
     'DeleteStructure',
+    // These three mutate SAP but match none of Create/Update/Delete. They were
+    // reachable on QA and PRD until the prefix list grew to cover them.
+    'ActivateObjects',
+    'PatchGuiStatus',
+    'WriteTextElementsBulk',
   ];
   const runtimeExec = [
     'RuntimeRunProgramWithProfiling',
     'RuntimeRunClassWithProfiling',
+    'RuntimeCreateProfilerTraceParameters',
   ];
   const reads = [
     'GetClass',
@@ -30,6 +36,14 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     'RuntimeListDumps',
     'RuntimeGetDumpById',
     'ValidateServiceBinding',
+    // Near-misses for the runtime blocklist above. If someone ever "simplifies"
+    // it to a bare `Runtime` prefix, these are the reads that would silently die
+    // on QA and PRD — so they are asserted explicitly.
+    'RuntimeAnalyzeProfilerTrace',
+    'RuntimeGetProfilerTraceData',
+    'RuntimeListProfilerTraceFiles',
+    'RuntimeGetGatewayErrorLog',
+    'RuntimeListSystemMessages',
   ];
 
   it('DEV tier allows everything', () => {
@@ -80,6 +94,15 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     for (const t of reads) {
       expect(checkToolAllowed(t, 'PRD')).toBeNull();
     }
+  });
+
+  // Documents a known, deliberate hole rather than asserting desired behaviour.
+  // RuntimeCallDispatch invokes an arbitrary ZMCP_ADT_DISPATCH action; the
+  // action name is a runtime argument, so this layer — which sees only the tool
+  // name — cannot tell SSF_UPLOAD (write) from SSF_EXISTS (read). If it ever
+  // does get blocked, this test should flip, not be deleted quietly.
+  it('does NOT yet block RuntimeCallDispatch (known gap, tracked separately)', () => {
+    expect(checkToolAllowed('RuntimeCallDispatch', 'PRD')).toBeNull();
   });
 });
 
