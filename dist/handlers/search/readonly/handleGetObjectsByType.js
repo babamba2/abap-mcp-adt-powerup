@@ -11,24 +11,24 @@ exports.TOOL_DEFINITION = {
         properties: {
             parent_name: {
                 type: 'string',
-                description: '[read-only] Parent object name',
+                description: 'Parent object name',
             },
             parent_tech_name: {
                 type: 'string',
-                description: '[read-only] Parent technical name',
+                description: 'Parent technical name',
             },
             parent_type: {
                 type: 'string',
-                description: '[read-only] Parent object type',
+                description: 'Parent object type',
             },
             node_id: { type: 'string', description: '[read-only] Node ID' },
             format: {
                 type: 'string',
-                description: "[read-only] Output format: 'raw' or 'parsed'",
+                description: "Output format: 'raw' or 'parsed'",
             },
             with_short_descriptions: {
                 type: 'boolean',
-                description: '[read-only] Include short descriptions',
+                description: 'Include short descriptions',
             },
         },
         required: ['parent_name', 'parent_tech_name', 'parent_type', 'node_id'],

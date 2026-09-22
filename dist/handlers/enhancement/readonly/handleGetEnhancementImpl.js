@@ -17,7 +17,7 @@ exports.TOOL_DEFINITION = {
             },
             enhancement_name: {
                 type: 'string',
-                description: '[read-only] Name of the enhancement implementation',
+                description: 'Name of the enhancement implementation',
             },
         },
         required: ['enhancement_spot', 'enhancement_name'],

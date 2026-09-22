@@ -42,8 +42,7 @@ export const TOOL_DEFINITION = {
       },
       transport_request: {
         type: 'string',
-        description:
-          'Transport request number (e.g., E19K905635). Required for transportable packages.',
+        description: 'Transport request. Required for transportable packages.',
       },
       implementation_code: {
         type: 'string',

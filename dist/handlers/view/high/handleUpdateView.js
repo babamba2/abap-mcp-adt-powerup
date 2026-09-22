@@ -25,7 +25,7 @@ exports.TOOL_DEFINITION = {
             ddl_source: { type: 'string', description: 'Complete DDL source code.' },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (e.g., E19K905635). Required for transportable packages.',
+                description: 'Transport request. Required for transportable packages.',
             },
             activate: {
                 type: 'boolean',

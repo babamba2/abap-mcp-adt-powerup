@@ -32,7 +32,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (required for transportable packages).',
+                description: 'Transport request. Required for transportable packages.',
             },
             superclass: { type: 'string', description: 'Optional superclass name.' },
             final: {

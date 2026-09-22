@@ -31,7 +31,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (e.g., E19K905635). Optional if object is local or already in transport.',
+                description: 'Transport request. Optional if the object is local or already in one.',
             },
             session_id: {
                 type: 'string',

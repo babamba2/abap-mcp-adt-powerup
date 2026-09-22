@@ -11,19 +11,19 @@ export const TOOL_DEFINITION = {
     properties: {
       parent_name: {
         type: 'string',
-        description: '[read-only] Parent object name',
+        description: 'Parent object name',
       },
       parent_tech_name: {
         type: 'string',
-        description: '[read-only] Parent technical name',
+        description: 'Parent technical name',
       },
       parent_type: {
         type: 'string',
-        description: '[read-only] Parent object type (e.g. PROG/P, FUGR)',
+        description: 'Parent object type (e.g. PROG/P, FUGR)',
       },
       with_short_descriptions: {
         type: 'boolean',
-        description: '[read-only] Include short descriptions (default: true)',
+        description: 'Include short descriptions (default: true)',
       },
     },
     required: ['parent_name', 'parent_tech_name', 'parent_type'],

@@ -55,12 +55,12 @@ exports.TOOL_DEFINITION = {
         properties: {
             name: {
                 type: 'string',
-                description: "[read-only] Technical name of the program or function group (e.g., '/CBY/MM_INVENTORY')",
+                description: "Technical name of the program or function group (e.g., '/CBY/MM_INVENTORY')",
             },
             type: {
                 type: 'string',
                 enum: ['PROG/P', 'FUGR'],
-                description: "[read-only] 'PROG/P' for program or 'FUGR' for function group",
+                description: "'PROG/P' for program or 'FUGR' for function group",
             },
             output: {
                 type: 'string',

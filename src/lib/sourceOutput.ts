@@ -16,7 +16,7 @@ import * as path from 'node:path';
 export type OutputMode = 'inline' | 'file';
 
 export const OUTPUT_PARAM_DESCRIPTION =
-  '"inline" (default) returns the source in the response. "file" writes it under the MCP output directory and returns path, line count and an outline (METHOD/FORM/MODULE/… with line ranges); read only the ranges you need. Prefer "file" for large objects.';
+  '"inline" (default) or "file": writes the source under the MCP output dir and returns path, line count and an outline with line ranges. Prefer "file" for large objects.';
 
 export function outputRoot(): string {
   return path.resolve(process.env.MCP_OUTPUT_DIR || 'output');

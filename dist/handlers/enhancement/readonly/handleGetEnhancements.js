@@ -19,7 +19,7 @@ exports.TOOL_DEFINITION = {
             },
             object_type: {
                 type: 'string',
-                description: '[read-only] Type of the ABAP object',
+                description: 'Type of the ABAP object',
             },
         },
         required: ['object_name', 'object_type'],

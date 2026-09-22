@@ -54,7 +54,7 @@ exports.isFileOutput = isFileOutput;
  */
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
-exports.OUTPUT_PARAM_DESCRIPTION = '"inline" (default) returns the source in the response. "file" writes it under the MCP output directory and returns path, line count and an outline (METHOD/FORM/MODULE/… with line ranges); read only the ranges you need. Prefer "file" for large objects.';
+exports.OUTPUT_PARAM_DESCRIPTION = '"inline" (default) or "file": writes the source under the MCP output dir and returns path, line count and an outline with line ranges. Prefer "file" for large objects.';
 function outputRoot() {
     return path.resolve(process.env.MCP_OUTPUT_DIR || 'output');
 }

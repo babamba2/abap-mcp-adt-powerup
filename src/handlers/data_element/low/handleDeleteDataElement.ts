@@ -28,7 +28,7 @@ export const TOOL_DEFINITION = {
       transport_request: {
         type: 'string',
         description:
-          'Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).',
+          'Transport request. Required unless the object is local ($TMP).',
       },
     },
     required: ['data_element_name'],

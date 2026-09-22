@@ -18,16 +18,15 @@ export const TOOL_DEFINITION = {
     properties: {
       object_name: {
         type: 'string',
-        description: "[read-only] Object name or mask (e.g. 'MARA*')",
+        description: "Object name or mask (e.g. 'MARA*')",
       },
       object_type: {
         type: 'string',
-        description:
-          "[read-only] Optional ABAP object type (e.g. 'TABL', 'CLAS/OC')",
+        description: "Optional ABAP object type (e.g. 'TABL', 'CLAS/OC')",
       },
       maxResults: {
         type: 'number',
-        description: `[read-only] Maximum number of results to return (default ${DEFAULT_MAX_RESULTS}). The response has truncated=true when this limit was hit.`,
+        description: `Maximum number of results to return (default ${DEFAULT_MAX_RESULTS}). The response has truncated=true when this limit was hit.`,
         default: DEFAULT_MAX_RESULTS,
       },
       include_raw_xml: {

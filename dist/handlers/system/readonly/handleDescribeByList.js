@@ -16,11 +16,11 @@ exports.TOOL_DEFINITION = {
                     properties: {
                         name: {
                             type: 'string',
-                            description: '[read-only] Object name (required, must be valid ABAP object name or mask)',
+                            description: 'Object name (required, must be valid ABAP object name or mask)',
                         },
                         type: {
                             type: 'string',
-                            description: '[read-only] Optional type (e.g. PROG/P, CLAS/OC, etc.)',
+                            description: 'Optional type (e.g. PROG/P, CLAS/OC, etc.)',
                         },
                     },
                 },

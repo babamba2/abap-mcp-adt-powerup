@@ -19,16 +19,16 @@ exports.TOOL_DEFINITION = {
             object_type: {
                 type: 'string',
                 enum: ['PROG/P', 'PROG/I', 'FUGR', 'CLAS/OC'],
-                description: '[read-only] ADT object type (e.g. PROG/P, PROG/I, FUGR, CLAS/OC)',
+                description: 'ADT object type (e.g. PROG/P, PROG/I, FUGR, CLAS/OC)',
             },
             detailed: {
                 type: 'boolean',
-                description: '[read-only] If true, returns structured JSON with metadata and raw XML.',
+                description: 'If true, returns structured JSON with metadata and raw XML.',
                 default: false,
             },
             timeout: {
                 type: 'number',
-                description: '[read-only] Timeout in ms for each ADT request.',
+                description: 'Timeout in ms for each ADT request.',
             },
         },
         required: ['object_name', 'object_type'],

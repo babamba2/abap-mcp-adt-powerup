@@ -27,7 +27,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         enum: ['active', 'inactive'],
         description:
-          'Version to read: "active" (default) for deployed version, "inactive" for modified but not activated version.',
+          '"active" (default) or "inactive" (saved, not yet activated).',
         default: 'active',
       },
     },

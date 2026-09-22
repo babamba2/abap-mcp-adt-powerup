@@ -32,7 +32,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (e.g., E19K905635). Required for transportable packages.',
+                description: 'Transport request. Required for transportable packages.',
             },
         },
         required: ['table_name', 'package_name'],

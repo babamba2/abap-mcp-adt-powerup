@@ -25,7 +25,7 @@ exports.TOOL_DEFINITION = {
             version: {
                 type: 'string',
                 enum: ['active', 'inactive'],
-                description: 'Version to read: "active" (default) for deployed version, "inactive" for modified but not activated version.',
+                description: '"active" (default) or "inactive" (saved, not yet activated).',
                 default: 'active',
             },
         },

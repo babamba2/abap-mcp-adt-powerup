@@ -13,22 +13,21 @@ export const TOOL_DEFINITION = {
     properties: {
       parent_type: {
         type: 'string',
-        description:
-          '[read-only] Parent object type (e.g. DEVC/K, CLAS/OC, PROG/P)',
+        description: 'Parent object type (e.g. DEVC/K, CLAS/OC, PROG/P)',
       },
       parent_name: {
         type: 'string',
-        description: '[read-only] Parent object name',
+        description: 'Parent object name',
       },
       maxDepth: {
         type: 'integer',
-        description: '[read-only] Maximum tree depth (default depends on type)',
+        description: 'Maximum tree depth (default depends on type)',
         default: 1,
       },
       enrich: {
         type: 'boolean',
         description:
-          '[read-only] Whether to add description and package via SearchObject (default true)',
+          'Whether to add description and package via SearchObject (default true)',
         default: true,
       },
     },

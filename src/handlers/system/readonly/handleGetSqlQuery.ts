@@ -25,7 +25,7 @@ export const TOOL_DEFINITION = {
       },
       row_number: {
         type: 'number',
-        description: '[read-only] Maximum number of rows to return',
+        description: 'Maximum number of rows to return',
         default: 100,
       },
       acknowledge_risk: {
