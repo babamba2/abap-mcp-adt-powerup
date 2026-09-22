@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [4.8.7] - 2026-09-22
+
+### Fixed
+- **`GetTableContents` / `GetSqlQuery` returned values in the wrong rows.** ADT sends an empty cell as a self-closing `<dataPreview:data/>`; the parser merged it with the next cell, so every later value in that column moved up one row and the last rows came back empty. On `T000`, client 100 showed another client's logical system. Empty cells now stay in place. Anything extracted with these tools from tables with empty cells (customizing / SPRO extraction included) is worth re-extracting.
+- The data preview returned one row more than `max_rows` / `row_number`; rows are now cut to the limit and the response says `truncated: true`. XML entities (`&amp;` …) in values and descriptions are decoded.
+- **`GetProgFullCode` could not read function groups** — it returned the group's metadata XML instead of source. The main program now comes from `source/main`; nested includes are resolved (they never were), `INCLUDE x. " comment` lines are recognised, and each include is fetched once.
+- **`GetObjectInfo` enrichment never worked**: it called `SearchObject` with a parameter the handler does not read and parsed its JSON answer as XML. It now reads the JSON results.
+- **Hidden `filePath` writes were not confined.** `writeResultToFile` promised "inside ./output" but wrote anywhere; every write now has to stay inside `MCP_OUTPUT_DIR` (default `./output`).
+
+### Added
+- `output: "file"` on `GetProgram`, `GetClass`, `GetInterface`, `GetFunctionModule`, `GetInclude` and `GetProgFullCode`: the source is written unchanged under `MCP_OUTPUT_DIR/src/` and the response carries the path, line count and an outline of METHOD / FORM / MODULE / FUNCTION / event blocks with line ranges. A 66 KB class came back as ~3 KB. Default stays `inline`.
+- `GetTableContents`: `fields` (keep only some columns) and `include_metadata` (column type, length, description).
+
+### Changed
+- `GetTableContents` is compact by default: column names only, empty cells left out of each row (the response says so), no JSON indentation, 20 rows instead of 100. `GetSqlQuery` keeps its response shape (scripts read `columns`) but drops the indentation.
+- `SearchObject` no longer returns `rawXML` unless `include_raw_xml: true` (it repeated every parsed field and was over half the response), omits empty description / package, decodes entities, defaults to 50 results instead of 100 and flags `truncated: true` when the limit is hit.
+
 ## [4.8.6] - 2026-09-22
 
 ### Added
