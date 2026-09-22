@@ -1,6 +1,12 @@
 import * as z from 'zod';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  isFileOutput,
+  OUTPUT_PARAM_DESCRIPTION,
+  sourceFileName,
+  writeSourceFile,
+} from '../../../lib/sourceOutput';
+import {
   ErrorCode,
   encodeSapObjectName,
   McpError,
@@ -20,6 +26,10 @@ export const TOOL_DEFINITION = {
     '[read-only] Retrieve source code of a specific ABAP include file.',
   inputSchema: {
     include_name: z.string().describe('Name of the ABAP Include'),
+    output: z
+      .enum(['inline', 'file'])
+      .optional()
+      .describe(OUTPUT_PARAM_DESCRIPTION),
   },
 } as const;
 
@@ -42,6 +52,25 @@ export async function handleGetInclude(context: HandlerContext, args: any) {
       writeResultToFile(plainText, args.filePath);
     }
     logger?.info(`✅ GetInclude completed: ${args.include_name}`);
+    if (isFileOutput(args)) {
+      const written = writeSourceFile(
+        sourceFileName(args.include_name, 'incl'),
+        String(plainText),
+      );
+      return {
+        isError: false,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              include_name: String(args.include_name).toUpperCase(),
+              output: 'file',
+              ...written,
+            }),
+          },
+        ],
+      };
+    }
     return {
       isError: false,
       content: [

@@ -8,6 +8,12 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  isFileOutput,
+  OUTPUT_PARAM_DESCRIPTION,
+  sourceFileName,
+  writeSourceFile,
+} from '../../../lib/sourceOutput';
+import {
   type AxiosResponse,
   return_error,
   return_response,
@@ -32,6 +38,12 @@ export const TOOL_DEFINITION = {
           'Version to read: "active" (default) for deployed version, "inactive" for modified but not activated version.',
         default: 'active',
       },
+      output: {
+        type: 'string',
+        enum: ['inline', 'file'],
+        description: OUTPUT_PARAM_DESCRIPTION,
+        default: 'inline',
+      },
     },
     required: ['interface_name'],
   },
@@ -40,6 +52,7 @@ export const TOOL_DEFINITION = {
 interface GetInterfaceArgs {
   interface_name: string;
   version?: 'active' | 'inactive';
+  output?: 'inline' | 'file';
 }
 
 /**
@@ -84,6 +97,22 @@ export async function handleGetInterface(
           : JSON.stringify(readResult.readResult.data);
 
       logger?.info(`✅ GetInterface completed successfully: ${interfaceName}`);
+
+      if (isFileOutput(args)) {
+        const written = writeSourceFile(
+          sourceFileName(interfaceName, 'intf', version),
+          interfaceData,
+        );
+        return return_response({
+          data: JSON.stringify({
+            success: true,
+            interface_name: interfaceName,
+            version,
+            output: 'file',
+            ...written,
+          }),
+        } as AxiosResponse);
+      }
 
       return return_response({
         data: JSON.stringify(

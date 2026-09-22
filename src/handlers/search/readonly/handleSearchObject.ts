@@ -4,6 +4,9 @@ import { createAdtClient } from '../../../lib/clients';
 import { objectsListCache } from '../../../lib/getObjectsListCache';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { ErrorCode, McpError, return_response } from '../../../lib/utils';
+import { decodeXmlEntities } from '../../../lib/xmlEntities';
+
+const DEFAULT_MAX_RESULTS = 50;
 
 export const TOOL_DEFINITION = {
   name: 'SearchObject',
@@ -24,8 +27,14 @@ export const TOOL_DEFINITION = {
       },
       maxResults: {
         type: 'number',
-        description: '[read-only] Maximum number of results to return',
-        default: 100,
+        description: `[read-only] Maximum number of results to return (default ${DEFAULT_MAX_RESULTS}). The response has truncated=true when this limit was hit.`,
+        default: DEFAULT_MAX_RESULTS,
+      },
+      include_raw_xml: {
+        type: 'boolean',
+        description:
+          'Also return the raw ADT XML (the parsed results already carry every field). Default false.',
+        default: false,
       },
     },
     required: ['object_name'],
@@ -53,17 +62,18 @@ function detectAdtSearchError(
 export async function handleSearchObject(context: HandlerContext, args: any) {
   const { connection, logger } = context;
   try {
-    const { object_name, object_type, maxResults } = args;
+    const { object_name, object_type } = args;
     if (!object_name) {
       throw new McpError(ErrorCode.InvalidParams, 'object_name is required');
     }
+    const maxResults: number = args.maxResults || DEFAULT_MAX_RESULTS;
 
     const client = createAdtClient(connection, logger);
     const utils = client.getUtils();
 
     const searchParams: SearchObjectsParams = {
       query: object_name,
-      maxResults: maxResults || 100,
+      maxResults,
     };
 
     if (object_type) {
@@ -111,8 +121,8 @@ export async function handleSearchObject(context: HandlerContext, args: any) {
     const resultsArr: Array<{
       name: string;
       type: string;
-      description: string;
-      packageName: string;
+      description?: string;
+      packageName?: string;
     }> = [];
     for (const m of matches as Array<RegExpMatchArray>) {
       const attrs = m[1];
@@ -120,9 +130,9 @@ export async function handleSearchObject(context: HandlerContext, args: any) {
         const mm = attrs.match(new RegExp(`${attr}="([^"]*)"`));
         return mm ? mm[1] : def;
       }
-      const name = extract('adtcore:name');
+      const name = decodeXmlEntities(extract('adtcore:name'));
       const type = extract('adtcore:type');
-      const description = extract('adtcore:description');
+      const description = decodeXmlEntities(extract('adtcore:description'));
       let pkgName = extract('adtcore:packageName');
       // If packageName is missing, attempt to pull it from the raw XML via <adtcore:packageName>
       if (!pkgName) {
@@ -133,16 +143,27 @@ export async function handleSearchObject(context: HandlerContext, args: any) {
           pkgName = pkgMatch[1];
         }
       }
-      resultsArr.push({ name, type, description, packageName: pkgName });
+      // Empty description / package are left out rather than sent as "".
+      resultsArr.push({
+        name,
+        type,
+        ...(description ? { description } : {}),
+        ...(pkgName ? { packageName: pkgName } : {}),
+      });
     }
 
     objectsListCache.setCache(result);
+    // rawXML repeated every parsed field and was over half of the response;
+    // it is now opt-in.
+    const body: Record<string, unknown> = { results: resultsArr };
+    if (resultsArr.length >= maxResults) body.truncated = true;
+    if (args.include_raw_xml === true) body.rawXML = xmlText;
     return {
       isError: false,
       content: [
         {
           type: 'text',
-          text: JSON.stringify({ results: resultsArr, rawXML: xmlText }),
+          text: JSON.stringify(body),
         },
       ],
     };

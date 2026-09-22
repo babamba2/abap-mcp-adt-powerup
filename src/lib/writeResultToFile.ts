@@ -2,10 +2,12 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { safeOutputPath } from './sourceOutput';
 
 /**
- * Writes result to a file if the path is allowed (must be inside ./output).
- * Throws error if path is outside allowed directory.
+ * Writes result to a file if the path is allowed (must be inside the MCP
+ * output directory: MCP_OUTPUT_DIR, default ./output). Relative paths resolve
+ * against that directory. Throws if the path is outside it.
  * @param result - Data to write (string or object)
  * @param filePath - Relative or absolute path to file (string)
  */
@@ -13,7 +15,7 @@ export function writeResultToFile(
   result: string | object,
   filePath: string,
 ): void {
-  const resolvedPath = path.resolve(filePath);
+  const resolvedPath = safeOutputPath(filePath);
 
   // DEBUG: log every call
   if (process.env.DEBUG) {

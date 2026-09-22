@@ -1,4 +1,3 @@
-import { XMLParser } from 'fast-xml-parser';
 import convert from 'xml-js';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
@@ -80,38 +79,25 @@ async function enrichNodeWithSearchObject(
   let description = fallbackDescription;
   let type = objectType;
   try {
+    // SearchObject answers with JSON { results: [{ name, type, description?, packageName? }] }.
     const searchResult = await handleSearchObject(context, {
-      query: objectName,
+      object_name: objectName,
       object_type: objectType,
-      maxResults: 1,
+      maxResults: 5,
     });
     if (!searchResult.isError && Array.isArray(searchResult.content)) {
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '',
-      });
       for (const entry of searchResult.content) {
-        if (
-          'text' in entry &&
-          typeof entry.text === 'string' &&
-          !entry.text.trim().startsWith('Error: <?xml')
-        ) {
-          const parsed = parser.parse(entry.text);
-          const refs =
-            parsed?.['adtcore:objectReferences']?.['adtcore:objectReference'];
-          const objects = refs ? (Array.isArray(refs) ? refs : [refs]) : [];
-          for (const obj of objects) {
-            if (
-              obj['adtcore:type'] &&
-              obj['adtcore:name'] &&
-              obj['adtcore:name'].toUpperCase() === objectName.toUpperCase()
-            ) {
-              packageName = obj['adtcore:packageName'];
-              description = obj['adtcore:description'] || description;
-              type = obj['adtcore:type'];
-              return { packageName, description, type };
-            }
-          }
+        if (!('text' in entry) || typeof entry.text !== 'string') continue;
+        const results: Array<Record<string, string>> =
+          JSON.parse(entry.text)?.results ?? [];
+        const obj = results.find(
+          (r) => r.name?.toUpperCase() === objectName.toUpperCase(),
+        );
+        if (obj) {
+          packageName = obj.packageName;
+          description = obj.description || description;
+          type = obj.type || type;
+          return { packageName, description, type };
         }
       }
     }

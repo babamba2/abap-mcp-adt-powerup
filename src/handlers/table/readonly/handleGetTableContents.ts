@@ -7,19 +7,38 @@ import {
   evaluateHits,
 } from '../../../lib/policy/tableBlocklist';
 import { ErrorCode, McpError } from '../../../lib/utils';
-import { parseSqlQueryXml } from '../../system/readonly/handleGetSqlQuery';
+import {
+  parseSqlQueryXml,
+  type SqlQueryResponse,
+} from '../../system/readonly/handleGetSqlQuery';
+
+const DEFAULT_MAX_ROWS = 20;
 
 export const TOOL_DEFINITION = {
   name: 'GetTableContents',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    '[read-only] Retrieve contents (data preview) of an ABAP database table or CDS view. Returns rows of data like SE16/SE16N.',
+    '[read-only] Retrieve contents (data preview) of an ABAP database table or CDS view, like SE16. Compact by default: column names only, empty cell values left out of each row, 20 rows. Use fields to keep only some columns and include_metadata for column types/descriptions.',
   inputSchema: {
     table_name: z.string().describe('Name of the ABAP table'),
     max_rows: z
       .number()
       .optional()
-      .describe('Maximum number of rows to retrieve'),
+      .describe(
+        `Maximum number of rows to retrieve (default ${DEFAULT_MAX_ROWS})`,
+      ),
+    fields: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'Keep only these columns in the result, e.g. ["MANDT","MTEXT"]. Names are case-insensitive.',
+      ),
+    include_metadata: z
+      .boolean()
+      .optional()
+      .describe(
+        'Return full column metadata (type, length, description) instead of column names only. Default false.',
+      ),
     acknowledge_risk: z
       .boolean()
       .optional()
@@ -28,6 +47,52 @@ export const TOOL_DEFINITION = {
       ),
   },
 } as const;
+
+interface CompactOptions {
+  fields?: string[];
+  includeMetadata?: boolean;
+}
+
+/**
+ * Shrink a parsed data preview for the model: keep the requested columns,
+ * drop empty cells from each row and report column names only unless full
+ * metadata was asked for. Every requested column stays listed in `columns`,
+ * so a key missing from a row means that cell is empty.
+ */
+export function compactTableContents(
+  tableName: string,
+  parsed: SqlQueryResponse,
+  opts: CompactOptions = {},
+): Record<string, unknown> {
+  let columns = parsed.columns;
+  let unknownFields: string[] = [];
+  if (opts.fields?.length) {
+    const wanted = opts.fields.map((f) => f.trim().toUpperCase());
+    columns = columns.filter((c) => wanted.includes(c.name.toUpperCase()));
+    const known = new Set(columns.map((c) => c.name.toUpperCase()));
+    unknownFields = wanted.filter((f) => !known.has(f));
+  }
+
+  const rows = parsed.rows.map((row) => {
+    const out: Record<string, unknown> = {};
+    for (const c of columns) {
+      const v = row[c.name];
+      if (v !== null && v !== undefined && v !== '') out[c.name] = v;
+    }
+    return out;
+  });
+
+  const result: Record<string, unknown> = {
+    table: tableName,
+    rows_returned: rows.length,
+  };
+  if (parsed.truncated) result.truncated = true;
+  if (unknownFields.length) result.unknown_fields = unknownFields;
+  result.columns = opts.includeMetadata ? columns : columns.map((c) => c.name);
+  result.rows = rows;
+  result.note = 'empty cell values are omitted from rows';
+  return result;
+}
 
 export async function handleGetTableContents(
   context: HandlerContext,
@@ -40,7 +105,7 @@ export async function handleGetTableContents(
     }
 
     const tableName = args.table_name;
-    const maxRows = args.max_rows || 100;
+    const maxRows = args.max_rows || DEFAULT_MAX_ROWS;
 
     const hits = checkTables([tableName]);
     const verdict = evaluateHits(
@@ -88,12 +153,17 @@ export async function handleGetTableContents(
         `Parsed table data: rows=${parsedData.rows.length}/${parsedData.total_rows ?? 0}, columns=${parsedData.columns.length}`,
       );
 
+      const compact = compactTableContents(tableName, parsedData, {
+        fields: Array.isArray(args.fields) ? args.fields : undefined,
+        includeMetadata: args.include_metadata === true,
+      });
+
       return {
         isError: false,
         content: [
           {
             type: 'text',
-            text: JSON.stringify(parsedData, null, 2),
+            text: JSON.stringify(compact),
           },
         ],
       };

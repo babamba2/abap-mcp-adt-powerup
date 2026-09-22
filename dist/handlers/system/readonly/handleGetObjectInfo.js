@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetObjectInfo = handleGetObjectInfo;
-const fast_xml_parser_1 = require("fast-xml-parser");
 const xml_js_1 = __importDefault(require("xml-js"));
 const clients_1 = require("../../../lib/clients");
 const utils_1 = require("../../../lib/utils");
@@ -64,33 +63,23 @@ async function enrichNodeWithSearchObject(context, objectType, objectName, fallb
     let description = fallbackDescription;
     let type = objectType;
     try {
+        // SearchObject answers with JSON { results: [{ name, type, description?, packageName? }] }.
         const searchResult = await (0, handleSearchObject_1.handleSearchObject)(context, {
-            query: objectName,
+            object_name: objectName,
             object_type: objectType,
-            maxResults: 1,
+            maxResults: 5,
         });
         if (!searchResult.isError && Array.isArray(searchResult.content)) {
-            const parser = new fast_xml_parser_1.XMLParser({
-                ignoreAttributes: false,
-                attributeNamePrefix: '',
-            });
             for (const entry of searchResult.content) {
-                if ('text' in entry &&
-                    typeof entry.text === 'string' &&
-                    !entry.text.trim().startsWith('Error: <?xml')) {
-                    const parsed = parser.parse(entry.text);
-                    const refs = parsed?.['adtcore:objectReferences']?.['adtcore:objectReference'];
-                    const objects = refs ? (Array.isArray(refs) ? refs : [refs]) : [];
-                    for (const obj of objects) {
-                        if (obj['adtcore:type'] &&
-                            obj['adtcore:name'] &&
-                            obj['adtcore:name'].toUpperCase() === objectName.toUpperCase()) {
-                            packageName = obj['adtcore:packageName'];
-                            description = obj['adtcore:description'] || description;
-                            type = obj['adtcore:type'];
-                            return { packageName, description, type };
-                        }
-                    }
+                if (!('text' in entry) || typeof entry.text !== 'string')
+                    continue;
+                const results = JSON.parse(entry.text)?.results ?? [];
+                const obj = results.find((r) => r.name?.toUpperCase() === objectName.toUpperCase());
+                if (obj) {
+                    packageName = obj.packageName;
+                    description = obj.description || description;
+                    type = obj.type || type;
+                    return { packageName, description, type };
                 }
             }
         }

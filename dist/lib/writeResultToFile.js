@@ -37,14 +37,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.writeResultToFile = writeResultToFile;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
+const sourceOutput_1 = require("./sourceOutput");
 /**
- * Writes result to a file if the path is allowed (must be inside ./output).
- * Throws error if path is outside allowed directory.
+ * Writes result to a file if the path is allowed (must be inside the MCP
+ * output directory: MCP_OUTPUT_DIR, default ./output). Relative paths resolve
+ * against that directory. Throws if the path is outside it.
  * @param result - Data to write (string or object)
  * @param filePath - Relative or absolute path to file (string)
  */
 function writeResultToFile(result, filePath) {
-    const resolvedPath = path.resolve(filePath);
+    const resolvedPath = (0, sourceOutput_1.safeOutputPath)(filePath);
     // DEBUG: log every call
     if (process.env.DEBUG) {
         // eslint-disable-next-line no-console

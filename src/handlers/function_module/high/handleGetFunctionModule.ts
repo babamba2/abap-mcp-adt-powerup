@@ -8,6 +8,12 @@
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  isFileOutput,
+  OUTPUT_PARAM_DESCRIPTION,
+  sourceFileName,
+  writeSourceFile,
+} from '../../../lib/sourceOutput';
+import {
   type AxiosResponse,
   return_error,
   return_response,
@@ -37,6 +43,12 @@ export const TOOL_DEFINITION = {
           'Version to read: "active" (default) for deployed version, "inactive" for modified but not activated version.',
         default: 'active',
       },
+      output: {
+        type: 'string',
+        enum: ['inline', 'file'],
+        description: OUTPUT_PARAM_DESCRIPTION,
+        default: 'inline',
+      },
     },
     required: ['function_module_name', 'function_group_name'],
   },
@@ -46,6 +58,7 @@ interface GetFunctionModuleArgs {
   function_module_name: string;
   function_group_name: string;
   version?: 'active' | 'inactive';
+  output?: 'inline' | 'file';
 }
 
 /**
@@ -108,6 +121,23 @@ export async function handleGetFunctionModule(
       logger?.info(
         `✅ GetFunctionModule completed successfully: ${functionModuleName}`,
       );
+
+      if (isFileOutput(args)) {
+        const written = writeSourceFile(
+          sourceFileName(functionModuleName, 'func', version),
+          functionModuleData,
+        );
+        return return_response({
+          data: JSON.stringify({
+            success: true,
+            function_module_name: functionModuleName,
+            function_group_name: functionGroupName,
+            version,
+            output: 'file',
+            ...written,
+          }),
+        } as AxiosResponse);
+      }
 
       return return_response({
         data: JSON.stringify(

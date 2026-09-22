@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetInclude = handleGetInclude;
 const z = __importStar(require("zod"));
+const sourceOutput_1 = require("../../../lib/sourceOutput");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
 // TODO: Migrate to infrastructure module
@@ -48,6 +49,10 @@ exports.TOOL_DEFINITION = {
     description: '[read-only] Retrieve source code of a specific ABAP include file.',
     inputSchema: {
         include_name: z.string().describe('Name of the ABAP Include'),
+        output: z
+            .enum(['inline', 'file'])
+            .optional()
+            .describe(sourceOutput_1.OUTPUT_PARAM_DESCRIPTION),
     },
 };
 async function handleGetInclude(context, args) {
@@ -64,6 +69,22 @@ async function handleGetInclude(context, args) {
             (0, writeResultToFile_1.writeResultToFile)(plainText, args.filePath);
         }
         logger?.info(`✅ GetInclude completed: ${args.include_name}`);
+        if ((0, sourceOutput_1.isFileOutput)(args)) {
+            const written = (0, sourceOutput_1.writeSourceFile)((0, sourceOutput_1.sourceFileName)(args.include_name, 'incl'), String(plainText));
+            return {
+                isError: false,
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({
+                            include_name: String(args.include_name).toUpperCase(),
+                            output: 'file',
+                            ...written,
+                        }),
+                    },
+                ],
+            };
+        }
         return {
             isError: false,
             content: [

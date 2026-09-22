@@ -9,8 +9,9 @@
  * Parameters:
  * - name: technical name of the program or function group (string, e.g., "/CBY/MM_INVENTORY") — required
  * - type: "PROG/P" for program or "FUGR" for function group (string, required)
+ * - output: "inline" (default) or "file"
  *
- * Returns: JSON:
+ * Returns (inline): JSON:
  *   {
  *     name: string, // technical name of the main object
  *     type: string, // "PROG/P" or "FUGR"
@@ -19,26 +20,36 @@
  *       {
  *         OBJECT_TYPE: string, // "PROG/P" (main program), "FUGR" (function group), or "PROG/I" (include)
  *         OBJECT_NAME: string, // technical name of the object
- *         code: string         // full ABAP source code of the object (entire code, not a fragment)
+ *         code: string         // ABAP source (runs of spaces collapsed to one)
  *       }
  *     ]
  *   }
  *
+ * Returns (file): every object is written unchanged to
+ * <MCP output dir>/src/<main>/<object>.abap and the response lists
+ * { object_type, object_name, path, lines, bytes, outline } per object.
+ *
  * Notes:
- * - The "code" field always contains the full source code for each object (not truncated).
- * - All includes are resolved recursively and added after the main object.
+ * - All includes are resolved recursively (INCLUDE x. with or without a
+ *   trailing " comment, and INCLUDE: a, b.) and added after the main object.
  * - The order is: main object first, then all includes in tree traversal order.
- * - If the object or code is not found, an error is returned.
+ * - A function group's main source is read from its source/main endpoint
+ *   (SAPL<group> cannot be read as a program include).
  *
  * Purpose: mass code export, audit, dependency analysis, migration, backup.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
+exports.findIncludes = findIncludes;
 exports.handleGetProgFullCode = handleGetProgFullCode;
+const clients_1 = require("../../../lib/clients");
+const sourceOutput_1 = require("../../../lib/sourceOutput");
+const utils_1 = require("../../../lib/utils");
+const handleGetInclude_1 = require("../../include/readonly/handleGetInclude");
 exports.TOOL_DEFINITION = {
     name: 'GetProgFullCode',
     available_in: ['onprem', 'legacy'],
-    description: '[read-only] Returns the full code for a program or function group, including all includes, in tree traversal order.',
+    description: '[read-only] Returns the full code for a program or function group, including all includes, in tree traversal order. Use output="file" to get paths + outlines instead of the code.',
     inputSchema: {
         type: 'object',
         properties: {
@@ -51,78 +62,92 @@ exports.TOOL_DEFINITION = {
                 enum: ['PROG/P', 'FUGR'],
                 description: "[read-only] 'PROG/P' for program or 'FUGR' for function group",
             },
+            output: {
+                type: 'string',
+                enum: ['inline', 'file'],
+                description: sourceOutput_1.OUTPUT_PARAM_DESCRIPTION,
+                default: 'inline',
+            },
         },
         required: ['name', 'type'],
     },
 };
-const clients_1 = require("../../../lib/clients");
-const handleGetInclude_1 = require("../../include/readonly/handleGetInclude");
+/** INCLUDE x.  /  INCLUDE x. " comment  /  INCLUDE: a, b. */
+function findIncludes(code) {
+    const names = [];
+    for (const m of code.matchAll(/^\s*INCLUDE\s+([A-Z0-9_/]+)\s*\.\s*(?:".*)?$/gim)) {
+        names.push(m[1].toUpperCase());
+    }
+    for (const m of code.matchAll(/^\s*INCLUDE:\s*([A-Z0-9_/,\s]+)\./gim)) {
+        for (const n of m[1].split(',')) {
+            const name = n.trim();
+            if (name)
+                names.push(name.toUpperCase());
+        }
+    }
+    return names.filter((n) => n !== 'STRUCTURE' && n !== 'TYPE');
+}
+function asText(data) {
+    if (typeof data === 'string')
+        return data;
+    if (data === undefined || data === null)
+        return null;
+    return JSON.stringify(data);
+}
 /**
  * handleGetProgFullCode: returns full code for program (report) or function group with all includes.
- * @param args { name: string, type: "PROG/P" | "FUGR" }
+ * @param args { name: string, type: "PROG/P" | "FUGR", output?: "inline" | "file" }
  */
 async function handleGetProgFullCode(context, args) {
     const { connection } = context;
     const { name, type } = args;
     const typeUpper = type.toUpperCase();
-    // Helper to recursively collect includes for a program/include
-    async function collectIncludes(objectName, collected = new Set()) {
-        if (collected.has(objectName))
-            return [];
-        collected.add(objectName);
-        // Try to get include source
-        const includeResult = await (0, handleGetInclude_1.handleGetInclude)(context, {
-            include_name: objectName,
+    // Each include is fetched once, however often it is referenced.
+    const includeCache = new Map();
+    async function fetchInclude(includeName) {
+        if (includeCache.has(includeName)) {
+            return includeCache.get(includeName) ?? null;
+        }
+        const result = await (0, handleGetInclude_1.handleGetInclude)(context, {
+            include_name: includeName,
         });
         let code = null;
-        if (Array.isArray(includeResult?.content) &&
-            includeResult.content.length > 0) {
-            const c = includeResult.content[0];
-            if (c.type === 'text' && 'data' in c)
-                code = c.data;
+        const c = result?.content?.[0];
+        if (!result?.isError && c?.type === 'text' && 'text' in c) {
+            code = asText(c.text);
         }
-        // Find nested includes in code (ABAP: INCLUDE <name>. or 'INCLUDE <name> .')
-        const includeRegex = /^\s*INCLUDE\s+([A-Z0-9_/]+)\s*\.\s*$/gim;
-        const nested = [];
-        if (typeof code === 'string') {
-            let match = includeRegex.exec(code);
-            while (match !== null) {
-                nested.push(match[1]);
-                match = includeRegex.exec(code);
+        includeCache.set(includeName, code);
+        return code;
+    }
+    // Depth-first: an include is followed directly by the includes it pulls in.
+    async function collect(includeName, seen, out) {
+        if (seen.has(includeName))
+            return;
+        seen.add(includeName);
+        const code = await fetchInclude(includeName);
+        out.push({ OBJECT_TYPE: 'PROG/I', OBJECT_NAME: includeName, code });
+        if (code) {
+            for (const nested of findIncludes(code)) {
+                await collect(nested, seen, out);
             }
         }
-        // Recursively collect all nested includes
-        let allNested = [];
-        for (const inc of nested) {
-            allNested = allNested.concat(await collectIncludes(inc, collected));
-        }
-        return [objectName, ...allNested];
     }
     try {
-        let codeObjects = [];
+        const codeObjects = [];
+        let mainCode = null;
         if (typeUpper === 'PROG/P') {
-            // Get main program code
             const client = (0, clients_1.createAdtClient)(connection);
             const progState = await client.getProgram().read({
                 programName: name,
             });
-            const progResult = progState?.readResult;
-            let progCode = null;
-            if (progResult?.data) {
-                if (typeof progResult.data === 'string') {
-                    progCode = progResult.data;
-                }
-                else {
-                    progCode = JSON.stringify(progResult.data);
-                }
-            }
-            if (typeof progCode !== 'string' || progCode === '') {
+            mainCode = asText(progState?.readResult?.data);
+            if (!mainCode) {
                 return {
                     isError: true,
                     content: [
                         {
                             type: 'text',
-                            text: `No program code found for ${name}. Result: ${progResult ? 'exists but no sourceCode' : 'undefined'}`,
+                            text: `No program code found for ${name}. Result: ${progState?.readResult ? 'exists but no sourceCode' : 'undefined'}`,
                         },
                     ],
                 };
@@ -130,79 +155,21 @@ async function handleGetProgFullCode(context, args) {
             codeObjects.push({
                 OBJECT_TYPE: 'PROG/P',
                 OBJECT_NAME: name,
-                code: progCode,
+                code: mainCode,
             });
-            // Find all includes in program code
-            const includeRegex = /^\s*INCLUDE\s+([A-Z0-9_/]+)\s*\.\s*$/gim;
-            const includeListRegex = /^\s*INCLUDE:\s*([A-Z0-9_/,\s]+)\./gim;
-            const includes = [];
-            if (typeof progCode === 'string') {
-                let match = includeRegex.exec(progCode);
-                // Match single INCLUDE <name>.
-                while (match !== null) {
-                    includes.push(match[1]);
-                    match = includeRegex.exec(progCode);
-                }
-                // Match INCLUDE: <name1>, <name2>, ...
-                let listMatch = includeListRegex.exec(progCode);
-                while (listMatch !== null) {
-                    const list = listMatch[1]
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
-                    includes.push(...list);
-                    listMatch = includeListRegex.exec(progCode);
-                }
-            }
-            // Recursively collect all includes (with deduplication)
-            const collected = new Set();
-            for (const inc of includes) {
-                const all = await collectIncludes(inc, collected);
-                for (const incName of all) {
-                    if (!codeObjects.some((obj) => obj.OBJECT_TYPE === 'PROG/I' && obj.OBJECT_NAME === incName)) {
-                        // Get code for each include
-                        const incResult = await (0, handleGetInclude_1.handleGetInclude)(context, {
-                            include_name: incName,
-                        });
-                        let incCode = null;
-                        if (Array.isArray(incResult?.content) &&
-                            incResult.content.length > 0) {
-                            const c = incResult.content[0];
-                            if (c.type === 'text' && 'text' in c)
-                                incCode = c.text;
-                        }
-                        codeObjects.push({
-                            OBJECT_TYPE: 'PROG/I',
-                            OBJECT_NAME: incName,
-                            code: incCode,
-                        });
-                    }
-                }
-            }
         }
         else if (typeUpper === 'FUGR') {
-            // Get function group main code
-            const client = (0, clients_1.createAdtClient)(connection);
-            const fgState = await client.getFunctionGroup().read({
-                functionGroupName: name,
-            });
-            let fgCode = null;
-            const rawResult = fgState?.readResult;
-            if (rawResult?.data) {
-                if (typeof rawResult.data === 'string') {
-                    fgCode = rawResult.data;
-                }
-                else {
-                    fgCode = JSON.stringify(rawResult.data);
-                }
-            }
-            if (typeof fgCode !== 'string') {
+            // getFunctionGroup().read() returns the group's metadata XML, not its
+            // source; the SAPL main program comes from source/main.
+            const response = await (0, utils_1.makeAdtRequestWithTimeout)(connection, `/sap/bc/adt/functions/groups/${(0, utils_1.encodeSapObjectName)(name)}/source/main`, 'GET', 'default');
+            mainCode = asText(response?.data);
+            if (!mainCode) {
                 return {
                     isError: true,
                     content: [
                         {
                             type: 'text',
-                            text: `No function group code found for ${name}. Result: ${rawResult ? 'exists but no data' : 'undefined'}`,
+                            text: `No function group code found for ${name}.`,
                         },
                     ],
                 };
@@ -210,43 +177,8 @@ async function handleGetProgFullCode(context, args) {
             codeObjects.push({
                 OBJECT_TYPE: 'FUGR',
                 OBJECT_NAME: name,
-                code: fgCode,
+                code: mainCode,
             });
-            // Find all includes in function group code
-            const includeRegex = /^\s*INCLUDE\s+([A-Z0-9_/]+)\s*\.\s*$/gim;
-            const includes = [];
-            if (typeof fgCode === 'string') {
-                let match = includeRegex.exec(fgCode);
-                while (match !== null) {
-                    includes.push(match[1]);
-                    match = includeRegex.exec(fgCode);
-                }
-            }
-            // Recursively collect all includes (with deduplication)
-            const collected = new Set();
-            for (const inc of includes) {
-                const all = await collectIncludes(inc, collected);
-                for (const incName of all) {
-                    if (!codeObjects.some((obj) => obj.OBJECT_TYPE === 'PROG/I' && obj.OBJECT_NAME === incName)) {
-                        // Get code for each include
-                        const incResult = await (0, handleGetInclude_1.handleGetInclude)(context, {
-                            include_name: incName,
-                        });
-                        let incCode = null;
-                        if (Array.isArray(incResult?.content) &&
-                            incResult.content.length > 0) {
-                            const c = incResult.content[0];
-                            if (c.type === 'text' && 'data' in c)
-                                incCode = c.data;
-                        }
-                        codeObjects.push({
-                            OBJECT_TYPE: 'PROG/I',
-                            OBJECT_NAME: incName,
-                            code: incCode,
-                        });
-                    }
-                }
-            }
         }
         else {
             return {
@@ -259,25 +191,65 @@ async function handleGetProgFullCode(context, args) {
                 ],
             };
         }
-        // Normalize spaces in code fields: replace 2+ spaces with 1
-        codeObjects = codeObjects.map((obj) => ({
-            ...obj,
-            code: typeof obj.code === 'string'
-                ? obj.code.replace(/ {2,}/g, ' ')
-                : obj.code,
-        }));
+        const seen = new Set();
+        for (const inc of findIncludes(mainCode)) {
+            await collect(inc, seen, codeObjects);
+        }
+        if ((0, sourceOutput_1.isFileOutput)(args)) {
+            const subdir = (0, sourceOutput_1.sourceFileName)(name, typeUpper === 'FUGR' ? 'fugr' : 'prog').replace(/\.abap$/, '');
+            const files = codeObjects.map((obj) => {
+                if (obj.code === null) {
+                    return {
+                        object_type: obj.OBJECT_TYPE,
+                        object_name: obj.OBJECT_NAME,
+                        error: 'source not found',
+                    };
+                }
+                const kind = obj.OBJECT_TYPE === 'PROG/I'
+                    ? 'incl'
+                    : obj.OBJECT_TYPE === 'FUGR'
+                        ? 'fugr'
+                        : 'prog';
+                return {
+                    object_type: obj.OBJECT_TYPE,
+                    object_name: obj.OBJECT_NAME,
+                    ...(0, sourceOutput_1.writeSourceFile)((0, sourceOutput_1.sourceFileName)(obj.OBJECT_NAME, kind), obj.code, subdir),
+                };
+            });
+            return {
+                isError: false,
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({
+                            name,
+                            type,
+                            output: 'file',
+                            total_code_objects: files.length,
+                            code_objects: files,
+                        }),
+                    },
+                ],
+            };
+        }
+        // Inline: collapse runs of spaces to keep the response small.
         const fullResult = {
             name,
             type,
             total_code_objects: codeObjects.length,
-            code_objects: codeObjects,
+            code_objects: codeObjects.map((obj) => ({
+                ...obj,
+                code: typeof obj.code === 'string'
+                    ? obj.code.replace(/ {2,}/g, ' ')
+                    : obj.code,
+            })),
         };
         return {
             isError: false,
             content: [
                 {
                     type: 'text',
-                    text: JSON.stringify(fullResult, null, 2),
+                    text: JSON.stringify(fullResult),
                 },
             ],
         };

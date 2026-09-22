@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetInterface = handleGetInterface;
 const clients_1 = require("../../../lib/clients");
+const sourceOutput_1 = require("../../../lib/sourceOutput");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'GetInterface',
@@ -26,6 +27,12 @@ exports.TOOL_DEFINITION = {
                 enum: ['active', 'inactive'],
                 description: 'Version to read: "active" (default) for deployed version, "inactive" for modified but not activated version.',
                 default: 'active',
+            },
+            output: {
+                type: 'string',
+                enum: ['inline', 'file'],
+                description: sourceOutput_1.OUTPUT_PARAM_DESCRIPTION,
+                default: 'inline',
             },
         },
         required: ['interface_name'],
@@ -59,6 +66,18 @@ async function handleGetInterface(context, args) {
                 ? readResult.readResult.data
                 : JSON.stringify(readResult.readResult.data);
             logger?.info(`✅ GetInterface completed successfully: ${interfaceName}`);
+            if ((0, sourceOutput_1.isFileOutput)(args)) {
+                const written = (0, sourceOutput_1.writeSourceFile)((0, sourceOutput_1.sourceFileName)(interfaceName, 'intf', version), interfaceData);
+                return (0, utils_1.return_response)({
+                    data: JSON.stringify({
+                        success: true,
+                        interface_name: interfaceName,
+                        version,
+                        output: 'file',
+                        ...written,
+                    }),
+                });
+            }
             return (0, utils_1.return_response)({
                 data: JSON.stringify({
                     success: true,

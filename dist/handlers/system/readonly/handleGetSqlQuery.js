@@ -7,6 +7,7 @@ const clients_1 = require("../../../lib/clients");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
+const xmlEntities_1 = require("../../../lib/xmlEntities");
 exports.TOOL_DEFINITION = {
     name: 'GetSqlQuery',
     available_in: ['onprem', 'cloud'],
@@ -33,6 +34,12 @@ exports.TOOL_DEFINITION = {
     },
 };
 /**
+ * One cell per <dataPreview:data> element. ADT writes an empty cell as a
+ * self-closing <dataPreview:data/>; that form must count as a cell, or every
+ * later value in the column moves up one row.
+ */
+const CELL_RE = /<dataPreview:data\b[^>]*?(?:\/>|>([\s\S]*?)<\/dataPreview:data>)/g;
+/**
  * Parse SAP ADT XML response from freestyle SQL query and convert to JSON format
  * @param xmlData - Raw XML response from ADT
  * @param sqlQuery - Original SQL query
@@ -56,12 +63,13 @@ function parseSqlQueryXml(xmlData, sqlQuery, rowNumber, logger) {
                 const nameMatch = match.match(/dataPreview:name="([^"]+)"/);
                 const typeMatch = match.match(/dataPreview:type="([^"]+)"/);
                 const descMatch = match.match(/dataPreview:description="([^"]+)"/);
+                const description = descMatch ? (0, xmlEntities_1.decodeXmlEntities)(descMatch[1]) : '';
                 const lengthMatch = match.match(/dataPreview:length="(\d+)"/);
                 if (nameMatch) {
                     columns.push({
                         name: nameMatch[1],
                         type: typeMatch ? typeMatch[1] : 'UNKNOWN',
-                        description: descMatch ? descMatch[1] : '',
+                        description,
                         length: lengthMatch ? parseInt(lengthMatch[1], 10) : undefined,
                     });
                 }
@@ -69,6 +77,7 @@ function parseSqlQueryXml(xmlData, sqlQuery, rowNumber, logger) {
         }
         // Extract row data
         const rows = [];
+        let truncated = false;
         // Find all column sections
         const columnSections = xmlData.match(/<dataPreview:columns>.*?<\/dataPreview:columns>/gs);
         if (columnSections && columnSections.length > 0) {
@@ -77,28 +86,22 @@ function parseSqlQueryXml(xmlData, sqlQuery, rowNumber, logger) {
             columnSections.forEach((section, index) => {
                 if (index < columns.length) {
                     const columnName = columns[index].name;
-                    const dataMatches = section.match(/<dataPreview:data[^>]*>(.*?)<\/dataPreview:data>/g);
-                    if (dataMatches) {
-                        columnData[columnName] = dataMatches.map((match) => {
-                            const content = match.replace(/<[^>]+>/g, '');
-                            return content || null;
-                        });
-                    }
-                    else {
-                        columnData[columnName] = [];
-                    }
+                    columnData[columnName] = Array.from(section.matchAll(CELL_RE), (m) => m[1] ? (0, xmlEntities_1.decodeXmlEntities)(m[1]) : null);
                 }
             });
             // Convert column-based data to row-based data
             const maxRowCount = Math.max(...Object.values(columnData).map((arr) => arr.length), 0);
-            for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex++) {
+            // ADT's data preview can return one row more than rowNumber.
+            const rowCount = Math.min(maxRowCount, rowNumber);
+            for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
                 const row = {};
                 columns.forEach((column) => {
                     const columnValues = columnData[column.name] || [];
-                    row[column.name] = columnValues[rowIndex] || null;
+                    row[column.name] = columnValues[rowIndex] ?? null;
                 });
                 rows.push(row);
             }
+            truncated = maxRowCount > rowNumber;
         }
         return {
             sql_query: sqlQuery,
@@ -107,6 +110,7 @@ function parseSqlQueryXml(xmlData, sqlQuery, rowNumber, logger) {
             total_rows: totalRows,
             columns,
             rows,
+            ...(truncated ? { truncated } : {}),
         };
     }
     catch (parseError) {
@@ -168,7 +172,7 @@ async function handleGetSqlQuery(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify(parsedData, null, 2),
+                        text: JSON.stringify(parsedData),
                     },
                 ],
             };
