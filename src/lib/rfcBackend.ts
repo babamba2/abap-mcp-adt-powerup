@@ -2,8 +2,8 @@
  * RFC backend selector.
  *
  * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' /
- * 'native' / 'gateway' opt-in) and re-exports the matching
- * callDispatch / callTextpool implementation.
+ * 'native' / 'gateway' / 'zrfc' opt-in) and routes callDispatch / callTextpool
+ * to the matching backend module on every call.
  *
  * Default changed 2026-04-22 from 'soap' to 'odata': hardened Gateway
  * installs increasingly disable the /sap/bc/soap/rfc ICF node, and the
@@ -18,61 +18,80 @@
  *
  * Handlers import from this file, never directly from soapRfc.ts /
  * nativeRfc.ts / gatewayRfc.ts / odataRfc.ts, so switching backends is
- * a single env flip with no code change. The resolution happens once
- * at module-load time — changing SAP_RFC_BACKEND at runtime requires
- * an MCP server restart, which is already required for any sap.env
- * edit.
+ * a single env flip with no code change.
+ *
+ * Resolution is lazy (per-call) — required because:
+ *   1. The sc4sap profile loader (lib/profile.ts activateProfile()) runs
+ *      inside main() in launcher.ts, AFTER all handler imports complete.
+ *      Handler imports transitively load this module, so eager top-level
+ *      resolution would freeze the backend before sap.env was read.
+ *   2. ReloadProfile (handlers/system/readonly/handleReloadProfile.ts)
+ *      changes SAP_RFC_BACKEND at runtime; eager caching would defeat it.
  */
 
 import * as gateway from './gatewayRfc';
 import * as native from './nativeRfc';
 import * as odata from './odataRfc';
 import * as soap from './soapRfc';
+import * as zrfc from './zrfcProxy';
 
-export type RfcBackend = 'soap' | 'native' | 'gateway' | 'odata';
+export type RfcBackend = 'soap' | 'native' | 'gateway' | 'odata' | 'zrfc';
 
 function resolveBackend(): RfcBackend {
-  const v = (process.env.SAP_RFC_BACKEND ?? 'odata').trim().toLowerCase();
+  const v = (process.env.SAP_RFC_BACKEND ?? '').trim().toLowerCase();
+  // Empty / unset → default. Default flipped from 'soap' to 'odata' 2026-04-22.
+  if (v === '') return 'odata';
   if (v === 'native') return 'native';
   if (v === 'gateway') return 'gateway';
   if (v === 'odata') return 'odata';
-  if (v === 'soap' || v === '') return 'soap';
+  if (v === 'soap') return 'soap';
+  if (v === 'zrfc') return 'zrfc';
   throw new Error(
-    `SAP_RFC_BACKEND must be 'soap' | 'native' | 'gateway' | 'odata' (got '${v}'). ` +
+    `SAP_RFC_BACKEND must be 'soap' | 'native' | 'gateway' | 'odata' | 'zrfc' (got '${v}'). ` +
       `Default is 'odata'. Set in .sc4sap/sap.env.`,
   );
 }
 
-export const backend: RfcBackend = resolveBackend();
+/** Returns the active backend resolved from current process.env. */
+export function getBackend(): RfcBackend {
+  return resolveBackend();
+}
 
-function pickDispatch() {
-  switch (backend) {
+type BackendModule = {
+  callDispatch: typeof odata.callDispatch;
+  callTextpool: typeof odata.callTextpool;
+};
+
+function pickModule(b: RfcBackend): BackendModule {
+  switch (b) {
     case 'native':
-      return native.callDispatch;
+      return native;
     case 'gateway':
-      return gateway.callDispatch;
+      return gateway;
     case 'odata':
-      return odata.callDispatch;
+      return odata;
+    case 'zrfc':
+      return zrfc;
     default:
-      return soap.callDispatch;
+      return soap;
   }
 }
 
-function pickTextpool() {
-  switch (backend) {
-    case 'native':
-      return native.callTextpool;
-    case 'gateway':
-      return gateway.callTextpool;
-    case 'odata':
-      return odata.callTextpool;
-    default:
-      return soap.callTextpool;
-  }
-}
+export const callDispatch: typeof odata.callDispatch = (...args) =>
+  pickModule(resolveBackend()).callDispatch(...args);
 
-export const callDispatch = pickDispatch();
-export const callTextpool = pickTextpool();
+export const callTextpool: typeof odata.callTextpool = (...args) =>
+  pickModule(resolveBackend()).callTextpool(...args);
+
+// Live `backend` getter — preserves the existing read-only constant API
+// while reflecting the *current* env (not the boot-time snapshot).
+Object.defineProperty(module.exports, 'backend', {
+  enumerable: true,
+  configurable: false,
+  get: resolveBackend,
+});
+// Type-only declaration so TS callers can still `import { backend }`.
+export declare const backend: RfcBackend;
 
 /**
  * DDIC fallback helpers — ECC only, OData backend only.
@@ -89,66 +108,57 @@ export const callTextpool = pickTextpool();
  * S/4HANA the native /sap/bc/adt/ddic/... REST endpoints are used and
  * these helpers are never invoked.
  */
-function unsupportedDdic(name: string): never {
+function unsupportedDdic(name: string, current: RfcBackend): never {
   throw new Error(
-    `${name} requires SAP_RFC_BACKEND=odata (current='${backend}'). ` +
+    `${name} requires SAP_RFC_BACKEND=odata (current='${current}'). ` +
       `The ECC DDIC fallback is only implemented against the OData ZMCP_ADT_SRV ` +
       `service. Set SAP_RFC_BACKEND=odata in .sc4sap/sap.env or use S/4HANA (native ADT).`,
   );
 }
 
-function pickDdicTabl(): typeof odata.callDdicTabl {
-  if (backend === 'odata') return odata.callDdicTabl;
-  return (() => unsupportedDdic('callDdicTabl')) as typeof odata.callDdicTabl;
+function lazyDdic<T extends (...args: any[]) => any>(
+  name: string,
+  fn: () => T,
+): T {
+  return ((...args: Parameters<T>) => {
+    const b = resolveBackend();
+    if (b !== 'odata') unsupportedDdic(name, b);
+    return fn()(...args);
+  }) as T;
 }
 
-function pickDdicDtel(): typeof odata.callDdicDtel {
-  if (backend === 'odata') return odata.callDdicDtel;
-  return (() => unsupportedDdic('callDdicDtel')) as typeof odata.callDdicDtel;
-}
-
-function pickDdicDoma(): typeof odata.callDdicDoma {
-  if (backend === 'odata') return odata.callDdicDoma;
-  return (() => unsupportedDdic('callDdicDoma')) as typeof odata.callDdicDoma;
-}
-
-function pickDdicActivate(): typeof odata.callDdicActivate {
-  if (backend === 'odata') return odata.callDdicActivate;
-  return (() =>
-    unsupportedDdic('callDdicActivate')) as typeof odata.callDdicActivate;
-}
-
-function pickDdicBadi(): typeof odata.callDdicBadi {
-  if (backend === 'odata') return odata.callDdicBadi;
-  return (() => unsupportedDdic('callDdicBadi')) as typeof odata.callDdicBadi;
-}
-
-function pickDdicTablRead(): typeof odata.callDdicTablRead {
-  if (backend === 'odata') return odata.callDdicTablRead;
-  return (() =>
-    unsupportedDdic('callDdicTablRead')) as typeof odata.callDdicTablRead;
-}
-
-function pickDdicDtelRead(): typeof odata.callDdicDtelRead {
-  if (backend === 'odata') return odata.callDdicDtelRead;
-  return (() =>
-    unsupportedDdic('callDdicDtelRead')) as typeof odata.callDdicDtelRead;
-}
-
-function pickDdicDomaRead(): typeof odata.callDdicDomaRead {
-  if (backend === 'odata') return odata.callDdicDomaRead;
-  return (() =>
-    unsupportedDdic('callDdicDomaRead')) as typeof odata.callDdicDomaRead;
-}
-
-export const callDdicTabl = pickDdicTabl();
-export const callDdicDtel = pickDdicDtel();
-export const callDdicDoma = pickDdicDoma();
-export const callDdicActivate = pickDdicActivate();
-export const callDdicBadi = pickDdicBadi();
-export const callDdicTablRead = pickDdicTablRead();
-export const callDdicDtelRead = pickDdicDtelRead();
-export const callDdicDomaRead = pickDdicDomaRead();
+export const callDdicTabl: typeof odata.callDdicTabl = lazyDdic(
+  'callDdicTabl',
+  () => odata.callDdicTabl,
+);
+export const callDdicDtel: typeof odata.callDdicDtel = lazyDdic(
+  'callDdicDtel',
+  () => odata.callDdicDtel,
+);
+export const callDdicDoma: typeof odata.callDdicDoma = lazyDdic(
+  'callDdicDoma',
+  () => odata.callDdicDoma,
+);
+export const callDdicActivate: typeof odata.callDdicActivate = lazyDdic(
+  'callDdicActivate',
+  () => odata.callDdicActivate,
+);
+export const callDdicBadi: typeof odata.callDdicBadi = lazyDdic(
+  'callDdicBadi',
+  () => odata.callDdicBadi,
+);
+export const callDdicTablRead: typeof odata.callDdicTablRead = lazyDdic(
+  'callDdicTablRead',
+  () => odata.callDdicTablRead,
+);
+export const callDdicDtelRead: typeof odata.callDdicDtelRead = lazyDdic(
+  'callDdicDtelRead',
+  () => odata.callDdicDtelRead,
+);
+export const callDdicDomaRead: typeof odata.callDdicDomaRead = lazyDdic(
+  'callDdicDomaRead',
+  () => odata.callDdicDomaRead,
+);
 
 export type { DdicResult } from './odataRfc';
 // Re-export shared types so handlers do not need to reach into
