@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [4.8.6] - 2026-09-22
+
+### Added
+- `chapters` parameter on `RuntimeGetDumpById` and `RuntimeAnalyzeDump` (implies `view="formatted"`): keeps the ST22 header plus the requested chapters without box borders or padding. `"developer"` = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. A real S/4HANA dump went from 51.5 KB to 3.4 KB.
+- `RuntimeListDumps` drops each entry’s HTML summary unless `include_summary=true` (also on the compact DumpList handler). A 20-entry list went from ~250 KB to ~30 KB.
+
+### Fixed
+- **Dump key facts pointed at the wrong chapter.** `RuntimeGetDumpById` (`response_mode` summary/both) and `RuntimeAnalyzeDump` returned the first `title` / `line` in the payload — the chapter-index entry "System environment", line 81. They now read the dump root (runtime error, exception, terminated program, user, date, host), the termination link (object + line) and the chapter index; the formatted view falls back to its header block.
+- **`SAP_RFC_BACKEND` was frozen before the profile loaded.** The RFC backend is resolved on every call, so the sc4sap profile value and `ReloadProfile` take effect.
+- **`SAP_RFC_BACKEND=zrfc` was rejected** although `zrfcProxy.ts` implements it; the selector now routes it.
+- **`pino` / `pino-pretty` skipped by `npm install --omit=dev`.** They were listed in both `dependencies` and `devDependencies`, so the lockfile marked them dev-only and fresh installs failed at MCP start. The devDependency entries are gone.
+
+### Note
+- `RuntimeListDumps` can return an empty list on some S/4HANA systems while ST22 shows dumps; `RuntimeListFeeds` with `feed_type: "dumps"` and a time window returns them.
+
 ## [4.8.5] - 2026-08-23
 
 ### Fixed
