@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [4.8.8] - 2026-09-22
+
+### Changed
+- Shorter tool parameter descriptions, same meaning: the repeated version / transport sentences (88 places) and the `[read-only]` tag on parameter descriptions (26 places; tool-level descriptions keep it) are trimmed, and the `output` parameter text is shorter. The 171 high-level tool definitions went from 117,837 to 114,819 characters. No behaviour change.
+
 ## [4.8.7] - 2026-09-22
 
 ### Fixed
