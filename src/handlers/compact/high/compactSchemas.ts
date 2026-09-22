@@ -389,6 +389,11 @@ export const compactDumpListSchema = {
     top: { type: 'number', description: 'Limit number of returned dumps.' },
     skip: { type: 'number', description: 'Offset for pagination.' },
     orderby: { type: 'string', description: 'Sort expression.' },
+    include_summary: {
+      type: 'boolean',
+      description:
+        "Keep each dump's HTML summary (large). Default false; use HandlerDumpView for one dump.",
+    },
   },
   required: [],
 } as const;

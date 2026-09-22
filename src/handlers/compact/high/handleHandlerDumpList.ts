@@ -16,6 +16,7 @@ type HandlerDumpListArgs = {
   top?: number;
   skip?: number;
   orderby?: string;
+  include_summary?: boolean;
 };
 
 export async function handleHandlerDumpList(
