@@ -1,13 +1,18 @@
 import { AdtRuntimeClient } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { return_error, return_response } from '../../../lib/utils';
+import {
+  compactFormattedDump,
+  extractDumpFacts,
+  extractFormattedHeaderFacts,
+} from './runtimeDumpFormat';
 import { parseRuntimePayloadToJson } from './runtimePayloadParser';
 
 export const TOOL_DEFINITION = {
   name: 'RuntimeGetDumpById',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    '[runtime] Read a specific ABAP runtime dump by dump ID. Returns parsed JSON payload. Use response_mode="both" or "summary" to also include a compact key-facts summary (title, exception, program, line, user, date...).',
+    '[runtime] Read a specific ABAP runtime dump by dump ID. Default view (~7 KB): dump metadata, termination link (object + line) and chapter index. Use response_mode="summary" for key facts only (runtime error, exception, program, termination object/line, user, date). For the ST22 long text pass chapters=["developer"] (or chapter titles) to get only those chapters, compacted (~10 KB instead of ~50 KB).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -30,6 +35,12 @@ export const TOOL_DEFINITION = {
           'Controls what is returned: "payload" (default, legacy) — full parsed dump data only, "summary" — compact key facts only (title, exception, program, line, user, date...), "both" — summary + full payload.',
         default: 'payload',
       },
+      chapters: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Formatted long text only (implies view="formatted"): keep just these chapters, without box borders or padding. "developer" = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. Other entries match chapter titles by prefix, e.g. "Selected Variables".',
+      },
     },
     required: ['dump_id'],
   },
@@ -39,6 +50,7 @@ interface RuntimeGetDumpByIdArgs {
   dump_id: string;
   view?: 'default' | 'summary' | 'formatted';
   response_mode?: 'payload' | 'summary' | 'both';
+  chapters?: string[];
 }
 
 function collectKeyFacts(
@@ -111,18 +123,30 @@ export async function handleRuntimeGetDumpById(
       throw new Error('Parameter "dump_id" is required');
     }
 
-    const view = args.view ?? 'default';
+    const chapters = Array.isArray(args.chapters)
+      ? args.chapters.filter((c) => typeof c === 'string' && c.trim() !== '')
+      : [];
+    const view = chapters.length ? 'formatted' : (args.view ?? 'default');
     const responseMode = args.response_mode ?? 'payload';
     const runtimeClient = new AdtRuntimeClient(connection, logger);
     const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
       view,
     });
-    const parsedPayload = parseRuntimePayloadToJson(response.data);
+    let parsedPayload: unknown = parseRuntimePayloadToJson(response.data);
 
     let summary: Record<string, unknown> | undefined;
     if (responseMode === 'summary' || responseMode === 'both') {
-      summary = {};
-      collectKeyFacts(parsedPayload, summary);
+      summary = { ...extractDumpFacts(parsedPayload) };
+      if (!Object.keys(summary).length) {
+        summary = { ...extractFormattedHeaderFacts(parsedPayload) };
+      }
+      if (!Object.keys(summary).length) {
+        collectKeyFacts(parsedPayload, summary);
+      }
+    }
+
+    if (chapters.length && typeof parsedPayload === 'string') {
+      parsedPayload = compactFormattedDump(parsedPayload, chapters);
     }
 
     const body: Record<string, unknown> = {

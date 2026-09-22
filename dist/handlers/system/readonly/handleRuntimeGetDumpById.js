@@ -4,11 +4,12 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeGetDumpById = handleRuntimeGetDumpById;
 const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
+const runtimeDumpFormat_1 = require("./runtimeDumpFormat");
 const runtimePayloadParser_1 = require("./runtimePayloadParser");
 exports.TOOL_DEFINITION = {
     name: 'RuntimeGetDumpById',
     available_in: ['onprem', 'cloud'],
-    description: '[runtime] Read a specific ABAP runtime dump by dump ID. Returns parsed JSON payload. Use response_mode="both" or "summary" to also include a compact key-facts summary (title, exception, program, line, user, date...).',
+    description: '[runtime] Read a specific ABAP runtime dump by dump ID. Default view (~7 KB): dump metadata, termination link (object + line) and chapter index. Use response_mode="summary" for key facts only (runtime error, exception, program, termination object/line, user, date). For the ST22 long text pass chapters=["developer"] (or chapter titles) to get only those chapters, compacted (~10 KB instead of ~50 KB).',
     inputSchema: {
         type: 'object',
         properties: {
@@ -27,6 +28,11 @@ exports.TOOL_DEFINITION = {
                 enum: ['payload', 'summary', 'both'],
                 description: 'Controls what is returned: "payload" (default, legacy) — full parsed dump data only, "summary" — compact key facts only (title, exception, program, line, user, date...), "both" — summary + full payload.',
                 default: 'payload',
+            },
+            chapters: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Formatted long text only (implies view="formatted"): keep just these chapters, without box borders or padding. "developer" = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. Other entries match chapter titles by prefix, e.g. "Selected Variables".',
             },
         },
         required: ['dump_id'],
@@ -82,17 +88,28 @@ async function handleRuntimeGetDumpById(context, args) {
         if (!args?.dump_id) {
             throw new Error('Parameter "dump_id" is required');
         }
-        const view = args.view ?? 'default';
+        const chapters = Array.isArray(args.chapters)
+            ? args.chapters.filter((c) => typeof c === 'string' && c.trim() !== '')
+            : [];
+        const view = chapters.length ? 'formatted' : (args.view ?? 'default');
         const responseMode = args.response_mode ?? 'payload';
         const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
         const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
             view,
         });
-        const parsedPayload = (0, runtimePayloadParser_1.parseRuntimePayloadToJson)(response.data);
+        let parsedPayload = (0, runtimePayloadParser_1.parseRuntimePayloadToJson)(response.data);
         let summary;
         if (responseMode === 'summary' || responseMode === 'both') {
-            summary = {};
-            collectKeyFacts(parsedPayload, summary);
+            summary = { ...(0, runtimeDumpFormat_1.extractDumpFacts)(parsedPayload) };
+            if (!Object.keys(summary).length) {
+                summary = { ...(0, runtimeDumpFormat_1.extractFormattedHeaderFacts)(parsedPayload) };
+            }
+            if (!Object.keys(summary).length) {
+                collectKeyFacts(parsedPayload, summary);
+            }
+        }
+        if (chapters.length && typeof parsedPayload === 'string') {
+            parsedPayload = (0, runtimeDumpFormat_1.compactFormattedDump)(parsedPayload, chapters);
         }
         const body = {
             success: true,

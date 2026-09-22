@@ -4,11 +4,12 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeAnalyzeDump = handleRuntimeAnalyzeDump;
 const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
 const utils_1 = require("../../../lib/utils");
+const runtimeDumpFormat_1 = require("./runtimeDumpFormat");
 const runtimePayloadParser_1 = require("./runtimePayloadParser");
 exports.TOOL_DEFINITION = {
     name: 'RuntimeAnalyzeDump',
     available_in: ['onprem', 'cloud'],
-    description: '[runtime] Read runtime dump by ID and return compact analysis summary with key fields.',
+    description: '[runtime] Read runtime dump by ID and return key facts (runtime error, exception, program, termination object/line, user, date, chapter index). Set include_payload=false for facts only. Pass chapters=["developer"] to get the ST22 long text reduced to the developer chapters (~10 KB instead of ~50 KB).',
     inputSchema: {
         type: 'object',
         properties: {
@@ -26,6 +27,11 @@ exports.TOOL_DEFINITION = {
                 type: 'boolean',
                 description: 'Include full parsed payload in response.',
                 default: true,
+            },
+            chapters: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Formatted long text only (implies view="formatted"): keep just these chapters, without box borders or padding. "developer" = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. Other entries match chapter titles by prefix.',
             },
         },
         required: ['dump_id'],
@@ -81,14 +87,27 @@ async function handleRuntimeAnalyzeDump(context, args) {
         if (!args?.dump_id) {
             throw new Error('Parameter "dump_id" is required');
         }
-        const view = args.view ?? 'default';
+        const chapters = Array.isArray(args.chapters)
+            ? args.chapters.filter((c) => typeof c === 'string' && c.trim() !== '')
+            : [];
+        const view = chapters.length ? 'formatted' : (args.view ?? 'default');
         const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
         const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
             view,
         });
-        const parsedPayload = (0, runtimePayloadParser_1.parseRuntimePayloadToJson)(response.data);
-        const summary = {};
-        collectKeyFacts(parsedPayload, summary);
+        let parsedPayload = (0, runtimePayloadParser_1.parseRuntimePayloadToJson)(response.data);
+        let summary = {
+            ...(0, runtimeDumpFormat_1.extractDumpFacts)(parsedPayload),
+        };
+        if (!Object.keys(summary).length) {
+            summary = { ...(0, runtimeDumpFormat_1.extractFormattedHeaderFacts)(parsedPayload) };
+        }
+        if (!Object.keys(summary).length) {
+            collectKeyFacts(parsedPayload, summary);
+        }
+        if (chapters.length && typeof parsedPayload === 'string') {
+            parsedPayload = (0, runtimeDumpFormat_1.compactFormattedDump)(parsedPayload, chapters);
+        }
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: true,
