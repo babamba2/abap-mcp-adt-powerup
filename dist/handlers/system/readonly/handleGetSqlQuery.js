@@ -4,6 +4,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.parseSqlQueryXml = parseSqlQueryXml;
 exports.handleGetSqlQuery = handleGetSqlQuery;
 const clients_1 = require("../../../lib/clients");
+const legacyTableRead_1 = require("../../../lib/legacyTableRead");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
@@ -159,9 +160,40 @@ async function handleGetSqlQuery(context, args) {
         }
         logger?.info(`Executing SQL query (rows=${rowNumber})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
-        const response = await client
-            .getUtils()
-            .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+        let response;
+        try {
+            response = await client
+                .getUtils()
+                .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+        }
+        catch (e) {
+            // BASIS < 7.50 has no freestyle data preview: answer a single-table
+            // SELECT on an allow-listed table through ZMCP_ADT_DISPATCH TABLE_READ.
+            if (!(0, legacyTableRead_1.isLegacyUnsupported)(e))
+                throw e;
+            const simple = (0, legacyTableRead_1.parseSimpleSelect)(sqlQuery);
+            if (!simple) {
+                throw new Error(`${e.message} Fallback (ZMCP_ADT_DISPATCH TABLE_READ) handles only single-table SELECT … FROM … WHERE … — no JOIN, UNION, GROUP BY or aggregates.`);
+            }
+            logger?.info(`Legacy fallback: TABLE_READ ${simple.table}`);
+            const parsed = await (0, legacyTableRead_1.legacyTableRead)(connection, {
+                ...simple,
+                maxRows: rowNumber,
+                sqlQuery,
+            });
+            return {
+                isError: false,
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({
+                            ...parsed,
+                            path: 'ecc-dispatch-table-read',
+                        }),
+                    },
+                ],
+            };
+        }
         if (response.status === 200 && response.data) {
             logger?.info('SQL query request completed successfully');
             // Parse the XML response

@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [4.8.9] - 2026-10-07
+
+### Added
+- **`GetSqlQuery` / `GetTableContents` on BASIS < 7.50 (ECC).** The ADT data preview does not exist there, so the client library refused both. They now fall back to the `ZMCP_ADT_DISPATCH` action `TABLE_READ` (`abap/zmcp_adt_dispatch_ecc.abap`, FORM `table_read`) and answer with `path: "ecc-dispatch-table-read"`.
+  - Only a single-table `SELECT f1, f2 | * FROM tab [WHERE …] [ORDER BY …]` is translated; JOIN, UNION, GROUP BY and aggregates are refused with a clear message. The ABAP side rejects sub-queries in the condition.
+  - Read-only and allow-listed to customizing / repository tables: `MODACT`, `MODATTR`, `MODSAP` (CMOD), `GB31`, `GB92`, `GB93`, `T001D`, `T001Q` (GGB validations / substitutions), `TBE24`, `TBE34`, `TPS34` (BTE), `TFRM`, `TFRMT` (VOFM routines), `T100` (messages). Any other table gets an error naming the list. The protected-table checks run first, as before.
+  - Rows are capped at 5000 (the ABAP limit). `truncated` is true only when more rows exist: one extra row is read to tell.
+  - Systems without the `TABLE_READ` action keep the original "not supported on this SAP system" error.
+
 ## [4.8.8] - 2026-09-22
 
 ### Changed

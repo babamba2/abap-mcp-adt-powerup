@@ -2,6 +2,11 @@ import type { ILogger } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  isLegacyUnsupported,
+  legacyTableRead,
+  parseSimpleSelect,
+} from '../../../lib/legacyTableRead';
+import {
   activeProfile,
   checkTables,
   evaluateHits,
@@ -234,9 +239,40 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
     logger?.info(`Executing SQL query (rows=${rowNumber})`);
 
     const client = createAdtClient(connection, logger);
-    const response = await client
-      .getUtils()
-      .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+    let response: any;
+    try {
+      response = await client
+        .getUtils()
+        .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+    } catch (e) {
+      // BASIS < 7.50 has no freestyle data preview: answer a single-table
+      // SELECT on an allow-listed table through ZMCP_ADT_DISPATCH TABLE_READ.
+      if (!isLegacyUnsupported(e)) throw e;
+      const simple = parseSimpleSelect(sqlQuery);
+      if (!simple) {
+        throw new Error(
+          `${(e as Error).message} Fallback (ZMCP_ADT_DISPATCH TABLE_READ) handles only single-table SELECT … FROM … WHERE … — no JOIN, UNION, GROUP BY or aggregates.`,
+        );
+      }
+      logger?.info(`Legacy fallback: TABLE_READ ${simple.table}`);
+      const parsed = await legacyTableRead(connection, {
+        ...simple,
+        maxRows: rowNumber,
+        sqlQuery,
+      });
+      return {
+        isError: false,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              ...parsed,
+              path: 'ecc-dispatch-table-read',
+            }),
+          },
+        ],
+      };
+    }
 
     if (response.status === 200 && response.data) {
       logger?.info('SQL query request completed successfully');

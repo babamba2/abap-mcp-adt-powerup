@@ -2,6 +2,10 @@ import * as z from 'zod';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  isLegacyUnsupported,
+  legacyTableRead,
+} from '../../../lib/legacyTableRead';
+import {
   activeProfile,
   checkTables,
   evaluateHits,
@@ -135,9 +139,37 @@ export async function handleGetTableContents(
     logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
 
     const client = createAdtClient(connection, logger);
-    const response = await client
-      .getUtils()
-      .getTableContents({ table_name: tableName, max_rows: maxRows });
+    let response: any;
+    try {
+      response = await client
+        .getUtils()
+        .getTableContents({ table_name: tableName, max_rows: maxRows });
+    } catch (e) {
+      // BASIS < 7.50 has no DDIC data preview: allow-listed tables are read
+      // through ZMCP_ADT_DISPATCH TABLE_READ instead.
+      if (!isLegacyUnsupported(e)) throw e;
+      logger?.info(`Legacy fallback: TABLE_READ ${tableName}`);
+      const parsed = await legacyTableRead(connection, {
+        table: tableName,
+        fields: Array.isArray(args.fields) ? args.fields : undefined,
+        maxRows,
+      });
+      const compact = compactTableContents(tableName, parsed, {
+        includeMetadata: args.include_metadata === true,
+      });
+      return {
+        isError: false,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              ...compact,
+              path: 'ecc-dispatch-table-read',
+            }),
+          },
+        ],
+      };
+    }
 
     if (response.status === 200 && response.data) {
       logger?.info('Table contents request completed successfully');

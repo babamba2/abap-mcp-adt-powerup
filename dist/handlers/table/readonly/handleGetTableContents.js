@@ -38,6 +38,7 @@ exports.compactTableContents = compactTableContents;
 exports.handleGetTableContents = handleGetTableContents;
 const z = __importStar(require("zod"));
 const clients_1 = require("../../../lib/clients");
+const legacyTableRead_1 = require("../../../lib/legacyTableRead");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const handleGetSqlQuery_1 = require("../../system/readonly/handleGetSqlQuery");
@@ -127,9 +128,39 @@ async function handleGetTableContents(context, args) {
         }
         logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
-        const response = await client
-            .getUtils()
-            .getTableContents({ table_name: tableName, max_rows: maxRows });
+        let response;
+        try {
+            response = await client
+                .getUtils()
+                .getTableContents({ table_name: tableName, max_rows: maxRows });
+        }
+        catch (e) {
+            // BASIS < 7.50 has no DDIC data preview: allow-listed tables are read
+            // through ZMCP_ADT_DISPATCH TABLE_READ instead.
+            if (!(0, legacyTableRead_1.isLegacyUnsupported)(e))
+                throw e;
+            logger?.info(`Legacy fallback: TABLE_READ ${tableName}`);
+            const parsed = await (0, legacyTableRead_1.legacyTableRead)(connection, {
+                table: tableName,
+                fields: Array.isArray(args.fields) ? args.fields : undefined,
+                maxRows,
+            });
+            const compact = compactTableContents(tableName, parsed, {
+                includeMetadata: args.include_metadata === true,
+            });
+            return {
+                isError: false,
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({
+                            ...compact,
+                            path: 'ecc-dispatch-table-read',
+                        }),
+                    },
+                ],
+            };
+        }
         if (response.status === 200 && response.data) {
             logger?.info('Table contents request completed successfully');
             const parsedData = (0, handleGetSqlQuery_1.parseSqlQueryXml)(response.data, `SELECT * FROM ${tableName}`, maxRows, logger);
