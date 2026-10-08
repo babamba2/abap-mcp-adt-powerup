@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [4.8.10] - 2026-10-08
+
+### Added
+- **`RunUnitTest` `container_type`** (`CLAS` | `PROG` | `FUGR`, default `CLAS`). On BASIS < 7.50 (ECC), `PROG` / `FUGR` run the local test classes of a report or function group. Every test class of the container runs; `test_class` is not a filter there. On S/4HANA only `CLAS` is supported, and `PROG` / `FUGR` return a clear error instead of running the wrong object.
+  - `PROG` / `FUGR` need `@babamba2/mcp-abap-adt-clients` 3.14.0. An older library ignores `container_type` and runs the name as a class.
+
+### Fixed
+- **`RunUnitTest` on ECC returned no result.** The legacy run is synchronous and its result was lost between handlers, so `GetUnitTestResult` came back empty. `RunUnitTest` now returns the result inline as `run_result` (`run_id: "legacy-sync"`). `GetUnitTestResult` / `GetUnitTestStatus` called with `legacy-sync` return an error that points to `run_result` instead of an empty success.
+
 ## [4.8.9] - 2026-10-07
 
 ### Added
