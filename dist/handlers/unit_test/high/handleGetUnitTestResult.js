@@ -46,6 +46,9 @@ async function handleGetUnitTestResult(context, args) {
         if (!run_id) {
             return (0, utils_1.return_error)(new Error('run_id is required'));
         }
+        if (run_id === 'legacy-sync') {
+            return (0, utils_1.return_error)(new Error('Legacy (ECC) unit test runs are synchronous; the result was returned in the RunUnitTest response (run_result). Re-run RunUnitTest to get it again.'));
+        }
         const client = (0, clients_1.createAdtClient)(connection, logger);
         const unitTest = client.getUnitTest();
         logger?.info(`Reading unit test result for run_id: ${run_id}`);

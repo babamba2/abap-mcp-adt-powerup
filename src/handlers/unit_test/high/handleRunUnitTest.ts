@@ -7,6 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { getSystemContext } from '../../../lib/systemContext';
 import {
   type AxiosResponse,
   return_error,
@@ -17,7 +18,11 @@ export const TOOL_DEFINITION = {
   name: 'RunUnitTest',
   available_in: ['onprem', 'cloud', 'legacy'] as const,
   description:
-    'Start an ABAP Unit test run for provided class test definitions. Returns run_id for status/result queries.',
+    'Start an ABAP Unit test run for provided test definitions. Returns run_id for status/result queries. ' +
+    'On legacy systems (ECC / BASIS < 7.50) the run is synchronous: the result is returned inline as run_result ' +
+    '(run_id "legacy-sync" cannot be queried later), every test class of the container runs (test_class is not a filter), ' +
+    'and container_type PROG/FUGR runs local test classes of a program / function group. ' +
+    'On S/4HANA only CLAS containers are supported.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -30,12 +35,18 @@ export const TOOL_DEFINITION = {
             container_class: {
               type: 'string',
               description:
-                'Class that owns the test include (e.g., ZCL_MAIN_CLASS).',
+                'Object that owns the test classes: class (e.g., ZCL_MAIN_CLASS), or program / function group when container_type is set.',
             },
             test_class: {
               type: 'string',
               description:
                 'Test class name inside the include (e.g., LTCL_MAIN_CLASS).',
+            },
+            container_type: {
+              type: 'string',
+              enum: ['CLAS', 'PROG', 'FUGR'],
+              description:
+                'Type of container_class. Default CLAS. PROG/FUGR: legacy systems only.',
             },
           },
           required: ['container_class', 'test_class'],
@@ -78,10 +89,13 @@ export const TOOL_DEFINITION = {
   },
 } as const;
 
+const LEGACY_SYNC_RUN_ID = 'legacy-sync';
+
 interface RunUnitTestArgs {
   tests: Array<{
     container_class: string;
     test_class: string;
+    container_type?: 'CLAS' | 'PROG' | 'FUGR';
   }>;
   title?: string;
   context?: string;
@@ -129,10 +143,24 @@ export async function handleRunUnitTest(
       );
     }
 
+    // The modern run (/abapunit/runs) addresses tests by containerClass only.
+    // Reject non-class containers there instead of running a nonexistent class.
+    const nonClass = tests.find(
+      (test) => test.container_type && test.container_type !== 'CLAS',
+    );
+    if (nonClass && !getSystemContext().isLegacy) {
+      return return_error(
+        new Error(
+          `container_type ${nonClass.container_type} is not supported on S/4HANA yet; only CLAS containers can be run`,
+        ),
+      );
+    }
+
     // Format tests for AdtClient
     const formattedTests = tests.map((test) => ({
       containerClass: test.container_class.toUpperCase(),
       testClass: test.test_class.toUpperCase(),
+      containerType: test.container_type,
     }));
 
     const client = createAdtClient(connection, logger);
@@ -166,6 +194,25 @@ export async function handleRunUnitTest(
       }
 
       logger?.info(`✅ RunUnitTest started. Run ID: ${createResult.runId}`);
+
+      // Legacy runs synchronously and the result lives only on this client
+      // instance, so it must be returned now — a later GetUnitTestResult
+      // call creates a new client and cannot see it.
+      if (createResult.runId === LEGACY_SYNC_RUN_ID) {
+        return return_response({
+          data: JSON.stringify(
+            {
+              success: true,
+              run_id: createResult.runId,
+              message:
+                'ABAP Unit run completed (legacy, synchronous). Result is in run_result.',
+              run_result: createResult.runResult,
+            },
+            null,
+            2,
+          ),
+        } as AxiosResponse);
+      }
 
       return return_response({
         data: JSON.stringify(
