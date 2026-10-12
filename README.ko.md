@@ -47,7 +47,7 @@ Claude Code, Cline, Cursor, Windsurf 등 MCP 호환 클라이언트에서 ABAP �
 
 ## 주요 기능
 
-- **287개의 MCP 툴** — SAP ABAP 개발 전반 지원
+- **288개의 MCP 툴** — SAP ABAP 개발 전반 지원
 - **30종 이상의 ABAP 오브젝트 타입** (Class, Interface, CDS View, Table, RAP 등)
 - **다중 전송 프로토콜**: stdio, HTTP(StreamableHTTP), SSE
 - **유연한 인증**: JWT/XSUAA(OAuth2), Basic Auth, Service Key
@@ -244,7 +244,7 @@ SAP_JWT_TOKEN=eyJhbGciOiJSUzI1NiIs...
 
 ## 제공 툴
 
-**287개** 툴이 핸들러 그룹으로 나뉘어 제공됩니다.
+**288개** 툴이 핸들러 그룹으로 나뉘어 제공됩니다.
 
 ### 카테고리
 
@@ -559,7 +559,7 @@ ADT HTTP API가 없는 Legacy 시스템용으로 지원됩니다. 테스트 설�
 | [Installation](docs/installation/INSTALLATION.md) | 플랫폼별 설치 |
 | [Client Configuration](docs/user-guide/CLIENT_CONFIGURATION.md) | MCP 클라이언트 설정 |
 | [Authentication](docs/user-guide/AUTHENTICATION.md) | 인증·Destination |
-| [Available Tools](docs/user-guide/AVAILABLE_TOOLS.md) | 287 툴 레퍼런스 |
+| [Available Tools](docs/user-guide/AVAILABLE_TOOLS.md) | 288 툴 레퍼런스 |
 | [CLI Options](docs/user-guide/CLI_OPTIONS.md) | CLI 레퍼런스 |
 | [YAML Config](docs/configuration/YAML_CONFIG.md) | YAML 설정 |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | 시스템 아키텍처 |

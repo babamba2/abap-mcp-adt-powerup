@@ -21,9 +21,12 @@
  * of an opaque AxiosResponse.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isEmptyActivationBody = isEmptyActivationBody;
 exports.parseActivationResults = parseActivationResults;
+exports.applyInactiveCheck = applyInactiveCheck;
 exports.activateObjectsLocal = activateObjectsLocal;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const clients_1 = require("./clients");
 const resolveAdtUri_1 = require("./resolveAdtUri");
 const utils_1 = require("./utils");
 const ACTIVATION_CT = 'application/vnd.sap.adt.activation.request+xml; charset=utf-8';
@@ -79,12 +82,44 @@ async function waitForRun(connection, runId, maxWaitMs, pollMs) {
     throw new Error(`Activation run ${runId} did not finish within ${maxWaitMs}ms`);
 }
 /**
+ * True when the activation response carries no document at all. BASIS 7.40
+ * answers a successful sync activation (POST /sap/bc/adt/activation) with
+ * HTTP 200 and an empty body — no <chkl:messages>, no properties.
+ */
+function isEmptyActivationBody(body) {
+    if (body === undefined || body === null)
+        return true;
+    return (String(body)
+        .replace(/^\uFEFF/, '')
+        .trim() === '');
+}
+/**
  * Parse `<chkl:messages>` + per-object markup from an activation response
  * into structured per-object results. Handles both the run-results shape
  * (`/sap/bc/adt/activation/results/{id}`) and the sync shape
  * (`/sap/bc/adt/activation`), which differ slightly.
  */
 function parseActivationResults(xmlBody, inputObjects) {
+    if (isEmptyActivationBody(xmlBody)) {
+        // HTTP 200 without a message document = no errors, no warnings (7.40).
+        // Callers should confirm against the inactive-objects list.
+        return {
+            activated: true,
+            checked: true,
+            generated: true,
+            objects: inputObjects.map((obj) => ({
+                name: obj.name,
+                type: obj.type,
+                uri: obj.uri,
+                status: 'activated',
+                errors: [],
+                warnings: [],
+            })),
+            errors: [],
+            warnings: [],
+            emptyResponse: true,
+        };
+    }
     const parser = new fast_xml_parser_1.XMLParser({
         ignoreAttributes: false,
         attributeNamePrefix: '@_',
@@ -181,7 +216,53 @@ function parseActivationResults(xmlBody, inputObjects) {
         objects: perObject,
         errors: allErrors,
         warnings: allWarnings,
+        emptyResponse: false,
     };
+}
+const norm = (v) => (v ?? '').toLowerCase();
+/**
+ * After an empty activation response, mark every requested object that is
+ * still in GET /sap/bc/adt/activation/inactiveobjects as failed. If the list
+ * cannot be read, the inferred result is kept and a note says so.
+ */
+function applyInactiveCheck(parsed, stillInactive) {
+    const notes = [
+        'SAP returned an empty activation response (BASIS 7.40 style: no messages). Result inferred from HTTP 200.',
+    ];
+    if (!stillInactive) {
+        notes.push('Could not read /sap/bc/adt/activation/inactiveobjects to confirm; verify with GetInactiveObjects.');
+        return { parsed, notes };
+    }
+    notes.push('Confirmed against /sap/bc/adt/activation/inactiveobjects.');
+    const errors = [...parsed.errors];
+    const objects = parsed.objects.map((obj) => {
+        const hit = stillInactive.find((i) => (i.uri &&
+            norm(i.uri.split(/[?#]/)[0]) === norm(obj.uri.split(/[?#]/)[0])) ||
+            (norm(i.name) === norm(obj.name) &&
+                (!obj.type || !i.type || norm(i.type) === norm(obj.type))));
+        if (!hit)
+            return obj;
+        const msg = {
+            type: 'E',
+            text: `${obj.name} is still inactive after activation (SAP sent no messages). Run a syntax check (GetAbapSemanticAnalysis) or activate it in SE80 to see the reason.`,
+            objectName: obj.name,
+            objectUri: obj.uri,
+        };
+        errors.push(msg);
+        return { ...obj, status: 'failed', errors: [...obj.errors, msg] };
+    });
+    return { parsed: { ...parsed, objects, errors }, notes };
+}
+async function readInactiveList(connection) {
+    try {
+        const res = await (0, clients_1.createAdtClient)(connection)
+            .getUtils()
+            .getInactiveObjects();
+        return (res?.objects ?? []);
+    }
+    catch {
+        return null;
+    }
 }
 /**
  * Activate many ABAP objects in a single request. Attempts the run-based
@@ -223,7 +304,13 @@ async function activateObjectsLocal(connection, objects, options = {}) {
             const body = typeof resultsResp.data === 'string'
                 ? resultsResp.data
                 : String(resultsResp.data ?? '');
-            const parsed = parseActivationResults(body, resolved);
+            let parsed = parseActivationResults(body, resolved);
+            let notes;
+            if (parsed.emptyResponse) {
+                const checked = applyInactiveCheck(parsed, await readInactiveList(connection));
+                parsed = checked.parsed;
+                notes = checked.notes;
+            }
             return {
                 endpoint: 'runs',
                 success: parsed.activated && parsed.errors.length === 0,
@@ -234,6 +321,7 @@ async function activateObjectsLocal(connection, objects, options = {}) {
                 objects: parsed.objects,
                 errors: parsed.errors,
                 warnings: parsed.warnings,
+                ...(notes ? { notes } : {}),
                 raw_response: body,
             };
         }
@@ -255,7 +343,13 @@ async function activateObjectsLocal(connection, objects, options = {}) {
     const body = typeof syncResp.data === 'string'
         ? syncResp.data
         : String(syncResp.data ?? '');
-    const parsed = parseActivationResults(body, resolved);
+    let parsed = parseActivationResults(body, resolved);
+    let notes;
+    if (parsed.emptyResponse) {
+        const checked = applyInactiveCheck(parsed, await readInactiveList(connection));
+        parsed = checked.parsed;
+        notes = checked.notes;
+    }
     return {
         endpoint: 'sync',
         success: parsed.activated && parsed.errors.length === 0,
@@ -265,6 +359,7 @@ async function activateObjectsLocal(connection, objects, options = {}) {
         objects: parsed.objects,
         errors: parsed.errors,
         warnings: parsed.warnings,
+        ...(notes ? { notes } : {}),
         raw_response: body,
     };
 }

@@ -172,7 +172,10 @@ export async function handlePatchGuiStatus(
     if (args.skip_validation !== true) {
       const problems = validateCuaData(merged);
       const hard = problems.filter(
-        (p) => p.field !== 'PFKCODE' && p.field !== 'PFK_CODE',
+        (p) =>
+          p.field !== 'PFKCODE' &&
+          p.field !== 'PFK_CODE' &&
+          p.field !== 'MODAL',
       );
       if (hard.length > 0) {
         const summary = hard.map((p) => `- ${p.message}`).join('\n');

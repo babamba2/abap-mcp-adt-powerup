@@ -5,6 +5,7 @@
  * adds the new status entry, and writes back.
  */
 
+import { fromStaModal, toStaModal } from '../../../lib/cuaSchema';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { callDispatch } from '../../../lib/rfcBackend';
 import {
@@ -38,7 +39,7 @@ export const TOOL_DEFINITION = {
       status_type: {
         type: 'string',
         description:
-          'Status type: "N" (normal/dialog), "P" (popup/dialog box), "C" (context menu). Default: "N".',
+          'Status type: "N" (normal screen/list status, stored as MODAL D), "P" (dialog box/popup, MODAL P), "C" (context menu, MODAL C). Default: "N".',
         enum: ['N', 'P', 'C'],
       },
       transport_request: {
@@ -144,14 +145,16 @@ export async function handleCreateGuiStatus(
       // No existing CUA data - start fresh
     }
 
-    // Add new status entry. Note: rsmpe_stat does not have a TXT column —
-    // status descriptions live in the TIT table (rsmpe_titt). Here we only
-    // add the status row itself; a richer create path should also append
-    // to TIT for localized text.
+    // Add new status entry. The status short text shown in SE41 is
+    // STA.INT_NOTE (60 chars). The TIT row with the same code is kept for
+    // backward compatibility (it is a GUI title, usable via SET TITLEBAR).
+    // STA.MODAL stores D / P / C — the tool's "N" maps to "D".
+    const modal = toStaModal(status_type);
     const newStatus: Record<string, any> = {
       CODE: sName,
-      MODAL: status_type || 'D',
+      MODAL: modal,
     };
+    if (description) newStatus.INT_NOTE = description.slice(0, 60);
     cuaData.STA = Array.isArray(cuaData.STA) ? cuaData.STA : [];
     cuaData.STA.push(newStatus);
 
@@ -174,7 +177,8 @@ export async function handleCreateGuiStatus(
           success: true,
           program_name: programName,
           status_name: sName,
-          status_type: status_type || 'N',
+          status_type: fromStaModal(modal),
+          modal,
           session_id: session_id || null,
           message: `GUI Status ${programName}/${sName} created successfully.`,
         },

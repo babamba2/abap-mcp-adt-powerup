@@ -47,7 +47,7 @@ Read, create, update, and delete ABAP objects directly from Claude Code, Cline, 
 
 ## Features
 
-- **287 MCP Tools** for comprehensive SAP ABAP development
+- **288 MCP Tools** for comprehensive SAP ABAP development
 - **30+ ABAP object types** supported (Classes, Interfaces, CDS Views, Tables, RAP, and more)
 - **Multiple transport protocols**: stdio, HTTP (StreamableHTTP), SSE
 - **Flexible authentication**: JWT/XSUAA (OAuth2), Basic Auth, Service Key
@@ -85,7 +85,7 @@ Verified on ECC 7.40 (SAP_VERSION=ECC, ABAP_RELEASE=740, SAP_SYSTEM_TYPE=onprem)
 | Session / Discovery | `GetSession`, `SearchObject`, `GetObjectInfo`, `GetObjectStructure` | ✅ | Basic ADT present on all releases |
 | Inactive objects | `GetInactiveObjects` | ✅ | — |
 | Package read | `GetPackageContents`, `GetPackageTree` | ✅ | ADT repository informationsystem |
-| Package metadata | `GetPackage` | ❌ | `/sap/bc/adt/packages` not present on BASIS < 7.50 — use SE80/SE21 in SAP GUI |
+| Package metadata | `GetPackage` | ⚠️ | Needs client library 3.15.0+. Resolved through the informationsystem search: name / type / description only (`legacy_limited: true`); super-package, components and transport layer are not returned. A missing package gives "not found". Package create/update/delete stay SE80/SE21 |
 | DDIC read | `GetTable`, `GetStructure`, `GetDataElement`, `GetDomain` | ❌ | `/sap/bc/adt/ddic/{tables,structures,dataelements,domains}` added in BASIS 7.50 |
 | DDIC write | `CreateTable`, `CreateStructure`, `CreateDataElement`, `CreateDomain` (+ Update/Delete) | ❌ | Same endpoint gap — create from SAP GUI (SE11) instead |
 | CDS view (DDLS) | `GetView`, `CreateView`, `UpdateView` | ✅ | DDL endpoint (`/sap/bc/adt/ddic/ddl/sources/`) present and activates cleanly from BASIS 7.40 SP05+ |
@@ -93,7 +93,7 @@ Verified on ECC 7.40 (SAP_VERSION=ECC, ABAP_RELEASE=740, SAP_SYSTEM_TYPE=onprem)
 | ABAP source read | `GetProgram`, `GetClass`, `GetInterface`, `GetInclude`, `GetFunctionGroup`, `GetFunctionModule` | ✅ | `/sap/bc/adt/{programs,oo/classes,oo/interfaces,programs/includes,functions/groups}` all present |
 | ABAP source write | `Create*` / `Update*` for Program, Class, Interface, Include, FunctionGroup, FunctionModule | ✅ | `UpdateFunctionModule` defaults `transport_request` to `"local"` when omitted (consistent with FunctionGroup/Class) |
 | AST / Semantic analysis | `GetAbapSemanticAnalysis`, `GetAbapAST` | ✅ | Client-side parse, no SAP call |
-| WhereUsed | `GetWhereUsed` | ⚠️ | Classic object types only — `TABL` reports "Unsupported object type for where-used"; class/program targets work |
+| WhereUsed | `GetWhereUsed`, `GetUsageSnippets` | ✅ | Needs client library 3.15.0+. No scope step on 7.40 (server default scope; `enable_all_types` ignored); tables / structures / data elements / domains / DDIC views / table types / transactions / function modules go through workbench VIT URIs; function module by plain name; `SAP_TIMEOUT_LONG` (120 s) because VBAK-sized searches take ~60 s |
 | Enhancements | `GetEnhancements`, `GetEnhancementSpot`, `GetEnhancementImpl` | ❌ | `/sap/bc/adt/enhancements` discovery endpoints return 404 on BASIS < 7.50 — use SE18/SE19 or CMOD/SMOD in SAP GUI |
 | Transport | `ListTransports`, `GetTransport`, `CreateTransport` | ✅ | CTS endpoints present |
 | Runtime | `RuntimeListDumps`, `RuntimeAnalyzeDump`, `RuntimeGetDumpById` | ✅ | `/sap/bc/adt/runtime/dumps` present |
@@ -281,7 +281,7 @@ For multi-tenant or proxy setups, pass SAP connection details via HTTP headers (
 
 ## Available Tools
 
-The server provides **287 tools** organized into handler groups:
+The server provides **288 tools** organized into handler groups:
 
 ### Tool Categories
 
@@ -553,7 +553,7 @@ mcp-abap-adt/
 │   ├── mcp-abap-adt.js    # Main CLI
 │   └── mcp-abap-adt-v2.js # V2 server variant
 ├── src/
-│   ├── handlers/           # 30 handler categories (287 tools)
+│   ├── handlers/           # 30 handler categories (288 tools)
 │   ├── lib/
 │   │   ├── auth/           # Auth broker, JWT/XSUAA
 │   │   ├── config/         # Configuration management
@@ -710,7 +710,7 @@ Yes, for legacy systems where ADT HTTP APIs are unavailable. Set `connection_typ
 | [Installation](docs/installation/INSTALLATION.md) | Platform-specific installation |
 | [Client Configuration](docs/user-guide/CLIENT_CONFIGURATION.md) | MCP client setup |
 | [Authentication](docs/user-guide/AUTHENTICATION.md) | Auth methods & destinations |
-| [Available Tools](docs/user-guide/AVAILABLE_TOOLS.md) | Complete tool reference (287 tools) |
+| [Available Tools](docs/user-guide/AVAILABLE_TOOLS.md) | Complete tool reference (288 tools) |
 | [CLI Options](docs/user-guide/CLI_OPTIONS.md) | Command-line reference |
 | [YAML Config](docs/configuration/YAML_CONFIG.md) | YAML configuration guide |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | System architecture overview |

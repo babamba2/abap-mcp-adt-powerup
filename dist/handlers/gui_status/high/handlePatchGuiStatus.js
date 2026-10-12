@@ -125,7 +125,9 @@ async function handlePatchGuiStatus(context, params) {
         // 3) Validate merged result
         if (args.skip_validation !== true) {
             const problems = (0, cuaSchema_1.validateCuaData)(merged);
-            const hard = problems.filter((p) => p.field !== 'PFKCODE' && p.field !== 'PFK_CODE');
+            const hard = problems.filter((p) => p.field !== 'PFKCODE' &&
+                p.field !== 'PFK_CODE' &&
+                p.field !== 'MODAL');
             if (hard.length > 0) {
                 const summary = hard.map((p) => `- ${p.message}`).join('\n');
                 throw new Error(`PatchGuiStatus rejected — merged cua has ${hard.length} validation problem(s). Fix changes (or pass skip_validation=true):\n${summary}`);

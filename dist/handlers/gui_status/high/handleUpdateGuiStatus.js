@@ -66,7 +66,7 @@ async function handleUpdateGuiStatus(context, params) {
     }
     if (args.skip_validation !== true) {
         const problems = (0, cuaSchema_1.validateCuaData)(cuaObject);
-        const hard = problems.filter((p) => p.field !== 'PFKCODE' && p.field !== 'PFK_CODE');
+        const hard = problems.filter((p) => p.field !== 'PFKCODE' && p.field !== 'PFK_CODE' && p.field !== 'MODAL');
         if (hard.length > 0) {
             const summary = hard.map((p) => `- ${p.message}`).join('\n');
             return (0, utils_1.return_error)(new Error(`UpdateGuiStatus rejected — cua_data has ${hard.length} validation problem(s). Fix these (or pass skip_validation=true to bypass):\n${summary}`));

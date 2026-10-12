@@ -1,9 +1,51 @@
 import {
   type CuaData,
+  fromStaModal,
   mergeCuaData,
   normalizeCuaInput,
+  toStaModal,
   validateCuaData,
 } from '../../lib/cuaSchema';
+
+// STA.MODAL codes observed in real CUAs (BASIS 7.40): D = normal screen/list,
+// P = dialog box, C = context menu. 'N' is not a stored code.
+describe('STA.MODAL mapping', () => {
+  it('maps tool status types to stored codes', () => {
+    expect(toStaModal('N')).toBe('D');
+    expect(toStaModal(undefined)).toBe('D');
+    expect(toStaModal('')).toBe('D');
+    expect(toStaModal('D')).toBe('D');
+    expect(toStaModal('p')).toBe('P');
+    expect(toStaModal('C')).toBe('C');
+    expect(toStaModal('popup')).toBe('P');
+    expect(toStaModal('context_menu')).toBe('C');
+  });
+
+  it('maps stored codes back to tool status types', () => {
+    expect(fromStaModal('D')).toBe('N');
+    expect(fromStaModal('P')).toBe('P');
+    expect(fromStaModal('C')).toBe('C');
+  });
+
+  it('normalizeCuaInput rewrites MODAL "N" to "D" and leaves other codes alone', () => {
+    const out = normalizeCuaInput({
+      STA: [
+        { CODE: 'S1', MODAL: 'N' },
+        { CODE: 'S2', MODAL: 'P' },
+        { CODE: 'S3', MODAL: 'C' },
+        { CODE: 'S4' },
+      ],
+    });
+    expect(out.STA?.map((r) => r.MODAL)).toEqual(['D', 'P', 'C', undefined]);
+  });
+
+  it('validateCuaData warns on an unknown MODAL code', () => {
+    const problems = validateCuaData({ STA: [{ CODE: 'S1', MODAL: 'X' }] });
+    expect(problems).toHaveLength(1);
+    expect(problems[0].field).toBe('MODAL');
+    expect(validateCuaData({ STA: [{ CODE: 'S1', MODAL: 'D' }] })).toEqual([]);
+  });
+});
 
 describe('normalizeCuaInput', () => {
   it('parses a JSON string', () => {

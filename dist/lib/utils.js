@@ -1748,7 +1748,21 @@ function parseActivationResponse(responseData) {
     try {
         const data = typeof responseData === 'string'
             ? responseData
-            : responseData?.data || JSON.stringify(responseData);
+            : responseData?.data || JSON.stringify(responseData ?? '');
+        // BASIS 7.40: a successful sync activation answers HTTP 200 with an
+        // empty body (no <chkl:messages>). Treat that as success without messages.
+        if (responseData === undefined ||
+            responseData === null ||
+            (typeof data === 'string' && data.replace(/^\uFEFF/, '').trim() === '') ||
+            data === '""') {
+            return {
+                activated: true,
+                checked: true,
+                generated: true,
+                messages: [],
+                empty_response: true,
+            };
+        }
         const result = parser.parse(data);
         const properties = result['chkl:messages']?.['chkl:properties'];
         const activated = properties?.['@_activationExecuted'] === 'true' ||

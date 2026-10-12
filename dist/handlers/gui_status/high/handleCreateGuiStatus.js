@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateGuiStatus = handleCreateGuiStatus;
+const cuaSchema_1 = require("../../../lib/cuaSchema");
 const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -31,7 +32,7 @@ exports.TOOL_DEFINITION = {
             },
             status_type: {
                 type: 'string',
-                description: 'Status type: "N" (normal/dialog), "P" (popup), "C" (context menu). Default: "N".',
+                description: 'Status type: "N" (normal screen/list status, stored as MODAL D), "P" (dialog box/popup, MODAL P), "C" (context menu, MODAL C). Default: "N".',
                 enum: ['N', 'P', 'C'],
             },
             transport_request: {
@@ -89,12 +90,17 @@ async function handleCreateGuiStatus(context, params) {
         catch {
             // No existing CUA data - start fresh
         }
-        // Add new status entry. rsmpe_stat has no TXT column — status
-        // descriptions live in the TIT table (rsmpe_titt).
+        // Add new status entry. The status short text shown in SE41 is
+        // STA.INT_NOTE (60 chars). The TIT row with the same code is kept for
+        // backward compatibility (it is a GUI title, usable via SET TITLEBAR).
+        // STA.MODAL stores D / P / C — the tool's "N" maps to "D".
+        const modal = (0, cuaSchema_1.toStaModal)(args.status_type);
         const newStatus = {
             CODE: statusName,
-            MODAL: args.status_type || 'D',
+            MODAL: modal,
         };
+        if (args.description)
+            newStatus.INT_NOTE = args.description.slice(0, 60);
         cuaData.STA = Array.isArray(cuaData.STA) ? cuaData.STA : [];
         cuaData.STA.push(newStatus);
         if (args.description) {
@@ -122,7 +128,8 @@ async function handleCreateGuiStatus(context, params) {
                 success: true,
                 program_name: programName,
                 status_name: statusName,
-                status_type: args.status_type || 'N',
+                status_type: (0, cuaSchema_1.fromStaModal)(modal),
+                modal,
                 type: 'CUAD',
                 activated: shouldActivate,
                 message: shouldActivate

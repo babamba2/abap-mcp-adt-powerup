@@ -49,7 +49,7 @@ const fullCua = {
   STA: [
     {
       CODE: 'S0100',
-      MODAL: 'N',
+      MODAL: 'D',
       ACTCODE: '000001',
       PFKCODE: '000001',
       BUTCODE: '0001',
@@ -57,7 +57,7 @@ const fullCua = {
     },
     {
       CODE: 'S0200',
-      MODAL: 'N',
+      MODAL: 'D',
       ACTCODE: '000001',
       PFKCODE: '000001',
       BUTCODE: '0001',

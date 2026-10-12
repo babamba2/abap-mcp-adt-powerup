@@ -22,6 +22,7 @@
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import { XMLParser } from 'fast-xml-parser';
+import { createAdtClient } from './clients';
 import { resolveAdtUri } from './resolveAdtUri';
 import { makeAdtRequestWithTimeout } from './utils';
 
@@ -61,6 +62,8 @@ export interface GroupActivationResult {
   objects: ActivationObjectResult[];
   errors: ActivationMessage[];
   warnings: ActivationMessage[];
+  /** Set when SAP sent no message document and the result was inferred. */
+  notes?: string[];
   raw_response?: string;
 }
 
@@ -148,6 +151,20 @@ async function waitForRun(
 }
 
 /**
+ * True when the activation response carries no document at all. BASIS 7.40
+ * answers a successful sync activation (POST /sap/bc/adt/activation) with
+ * HTTP 200 and an empty body — no <chkl:messages>, no properties.
+ */
+export function isEmptyActivationBody(body: unknown): boolean {
+  if (body === undefined || body === null) return true;
+  return (
+    String(body)
+      .replace(/^\uFEFF/, '')
+      .trim() === ''
+  );
+}
+
+/**
  * Parse `<chkl:messages>` + per-object markup from an activation response
  * into structured per-object results. Handles both the run-results shape
  * (`/sap/bc/adt/activation/results/{id}`) and the sync shape
@@ -163,7 +180,28 @@ export function parseActivationResults(
   objects: ActivationObjectResult[];
   errors: ActivationMessage[];
   warnings: ActivationMessage[];
+  emptyResponse: boolean;
 } {
+  if (isEmptyActivationBody(xmlBody)) {
+    // HTTP 200 without a message document = no errors, no warnings (7.40).
+    // Callers should confirm against the inactive-objects list.
+    return {
+      activated: true,
+      checked: true,
+      generated: true,
+      objects: inputObjects.map((obj) => ({
+        name: obj.name,
+        type: obj.type,
+        uri: obj.uri,
+        status: 'activated' as const,
+        errors: [],
+        warnings: [],
+      })),
+      errors: [],
+      warnings: [],
+      emptyResponse: true,
+    };
+  }
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -271,7 +309,68 @@ export function parseActivationResults(
     objects: perObject,
     errors: allErrors,
     warnings: allWarnings,
+    emptyResponse: false,
   };
+}
+
+const norm = (v: string | undefined) => (v ?? '').toLowerCase();
+
+/**
+ * After an empty activation response, mark every requested object that is
+ * still in GET /sap/bc/adt/activation/inactiveobjects as failed. If the list
+ * cannot be read, the inferred result is kept and a note says so.
+ */
+export function applyInactiveCheck(
+  parsed: ReturnType<typeof parseActivationResults>,
+  stillInactive: Array<{ name: string; type?: string; uri?: string }> | null,
+): { parsed: ReturnType<typeof parseActivationResults>; notes: string[] } {
+  const notes: string[] = [
+    'SAP returned an empty activation response (BASIS 7.40 style: no messages). Result inferred from HTTP 200.',
+  ];
+  if (!stillInactive) {
+    notes.push(
+      'Could not read /sap/bc/adt/activation/inactiveobjects to confirm; verify with GetInactiveObjects.',
+    );
+    return { parsed, notes };
+  }
+  notes.push('Confirmed against /sap/bc/adt/activation/inactiveobjects.');
+  const errors = [...parsed.errors];
+  const objects = parsed.objects.map((obj) => {
+    const hit = stillInactive.find(
+      (i) =>
+        (i.uri &&
+          norm(i.uri.split(/[?#]/)[0]) === norm(obj.uri.split(/[?#]/)[0])) ||
+        (norm(i.name) === norm(obj.name) &&
+          (!obj.type || !i.type || norm(i.type) === norm(obj.type))),
+    );
+    if (!hit) return obj;
+    const msg: ActivationMessage = {
+      type: 'E',
+      text: `${obj.name} is still inactive after activation (SAP sent no messages). Run a syntax check (GetAbapSemanticAnalysis) or activate it in SE80 to see the reason.`,
+      objectName: obj.name,
+      objectUri: obj.uri,
+    };
+    errors.push(msg);
+    return { ...obj, status: 'failed' as const, errors: [...obj.errors, msg] };
+  });
+  return { parsed: { ...parsed, objects, errors }, notes };
+}
+
+async function readInactiveList(
+  connection: IAbapConnection,
+): Promise<Array<{ name: string; type?: string; uri?: string }> | null> {
+  try {
+    const res = await createAdtClient(connection)
+      .getUtils()
+      .getInactiveObjects();
+    return (res?.objects ?? []) as Array<{
+      name: string;
+      type?: string;
+      uri?: string;
+    }>;
+  } catch {
+    return null;
+  }
 }
 
 export interface LocalGroupActivationOptions {
@@ -347,7 +446,16 @@ export async function activateObjectsLocal(
         typeof resultsResp.data === 'string'
           ? resultsResp.data
           : String(resultsResp.data ?? '');
-      const parsed = parseActivationResults(body, resolved);
+      let parsed = parseActivationResults(body, resolved);
+      let notes: string[] | undefined;
+      if (parsed.emptyResponse) {
+        const checked = applyInactiveCheck(
+          parsed,
+          await readInactiveList(connection),
+        );
+        parsed = checked.parsed;
+        notes = checked.notes;
+      }
       return {
         endpoint: 'runs',
         success: parsed.activated && parsed.errors.length === 0,
@@ -358,6 +466,7 @@ export async function activateObjectsLocal(
         objects: parsed.objects,
         errors: parsed.errors,
         warnings: parsed.warnings,
+        ...(notes ? { notes } : {}),
         raw_response: body,
       };
     }
@@ -388,7 +497,16 @@ export async function activateObjectsLocal(
     typeof syncResp.data === 'string'
       ? syncResp.data
       : String(syncResp.data ?? '');
-  const parsed = parseActivationResults(body, resolved);
+  let parsed = parseActivationResults(body, resolved);
+  let notes: string[] | undefined;
+  if (parsed.emptyResponse) {
+    const checked = applyInactiveCheck(
+      parsed,
+      await readInactiveList(connection),
+    );
+    parsed = checked.parsed;
+    notes = checked.notes;
+  }
   return {
     endpoint: 'sync',
     success: parsed.activated && parsed.errors.length === 0,
@@ -398,6 +516,7 @@ export async function activateObjectsLocal(
     objects: parsed.objects,
     errors: parsed.errors,
     warnings: parsed.warnings,
+    ...(notes ? { notes } : {}),
     raw_response: body,
   };
 }

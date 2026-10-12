@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [4.8.11] - 2026-10-12
+
+### Fixed
+- **`GetWhereUsed` on ECC (BASIS < 7.50) returned nothing or failed.** Every call failed with 404 because the scope step does not exist on 7.40. DDIC objects returned 500. A successful answer was parsed as 0 references. The client library 3.15.0 fixes all three. It searches without a scope, addresses tables, structures, data elements, domains, DDIC views, table types, transactions and function modules through workbench VIT URIs, and parses both namespace prefixes. Needs `@babamba2/mcp-abap-adt-clients` 3.15.0.
+  - On ECC a function module may be given by plain name (`GROUP|FM` still works). The ECC search uses `SAP_TIMEOUT_LONG` (default 120 s), because a widely used standard table such as VBAK takes about 60 s.
+- **`ActivateObjects` / `ActivateObject` reported `success:false` on ECC after a successful activation.** On BASIS 7.40 `/sap/bc/adt/activation/runs` returns 404 and the sync `POST /sap/bc/adt/activation` answers a clean activation with HTTP 200 and an empty body (no `<chkl:messages>`), which was read as "not activated". An empty body now counts as activated without messages. The result is then checked against `GET /sap/bc/adt/activation/inactiveobjects`: an object still listed there is marked `failed` with an error that says so. The response carries `notes` when the result was inferred this way. The per-type activation tools (`ActivateProgram`, `ActivateClass`, ...) also treat an empty body as success.
+- **`GetInactiveObjects` returned 0 objects on ECC.** BASIS 7.40 sends a plain `<adtcore:objectReferences>` list, which the parser did not know. Needs client library 3.15.0. Each object now also carries `uri`. `available_in` now includes `legacy`.
+- **`GetPackage` failed on ECC (BASIS < 7.50).** The client library threw for every package read. With client library 3.15.0 the package is resolved through the Information System search and the tool returns name, type and description with `legacy_limited: true`; a missing package returns "Package <name> not found.". Needs `@babamba2/mcp-abap-adt-clients` 3.15.0.
+- **`CreateGuiStatus` wrote `MODAL = 'N'`, which is not a status type.** `RSMPE_STAT-MODAL` stores `D` (normal screen or list status), `P` (dialog box) and `C` (context menu). `status_type` `N` / `P` / `C` now maps to `D` / `P` / `C` (high and low tool). The description now goes to `STA.INT_NOTE`, the status short text shown in SE41. The TIT row is still written. `UpdateGuiStatus` / `PatchGuiStatus` rewrite an incoming or existing `MODAL = 'N'` to `D` and log a warning for any other unknown code.
+- **`GetGuiStatusList` returned 0 statuses for a GUI status written by the dispatcher.** ADT's object structure lists only the statuses known to the workbench navigation index, and a CUA written through `CUA_WRITE` is not in it. When ADT lists no status, the list now comes from the `CUA_FETCH` STA rows (`source: "cua_fetch"`, each entry with `description` and `status_type`). Without the dispatcher the result stays empty and `notes` says why.
+
+### Added
+- **`GetWhereUsed` options** (all optional, default off): `max_results` (cap), `customer_only` (Z / Y name, or package Z* / Y* / $*; /namespace/ objects such as SAP industry solutions or generated /1BCDWB/ modules are dropped, use `package: "/ACME/*"` for a customer namespace), `package` (exact or prefix `*`), `timeout_ms`. The filters run after the SAP search, so they shrink the answer but not the search time.
+- **`GetWhereUsed` response fields** (additive): `returned_references`, `truncated`, `filtered_out`, `notes`, and `object_identifier` per reference. Calls without the new options return the same references as before.
+- **`GetWhereUsed` error hints** for unresolvable object types, timeouts and unsupported types. `available_in` now includes `legacy`.
+- **`GetUsageSnippets`** (read-only, new tool): line-level where-used hits. For each referencing object it returns the source lines with `uri` (`…/source/main#start=<line>,<col>`), `line`, `column` and the source line. Input is either `object_identifiers` from `GetWhereUsed`, or `object_name` + `object_type` (runs the where-used search first, with `customer_only` / `package` / `max_objects`). Works on ECC 7.40 and S/4HANA. Needs client library 3.15.0. With an older library the tool reports this.
+
 ## [4.8.10] - 2026-10-08
 
 ### Added

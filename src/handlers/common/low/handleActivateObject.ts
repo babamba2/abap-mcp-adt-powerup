@@ -112,6 +112,7 @@ export async function handleActivateObject(
         messages: [...grp.errors, ...grp.warnings],
         warnings: grp.warnings,
         errors: grp.errors,
+        ...(grp.notes ? { notes: grp.notes } : {}),
         message: grp.success
           ? `Successfully activated ${grp.objects.length} object(s)`
           : `Activation completed with ${grp.errors.length} error(s) and ${grp.warnings.length} warning(s)`,

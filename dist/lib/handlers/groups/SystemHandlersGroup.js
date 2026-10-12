@@ -23,6 +23,7 @@ const handleGetTransaction_1 = require("../../../handlers/system/readonly/handle
 // Import system handlers
 // Import TOOL_DEFINITION from handlers
 const handleGetTypeInfo_1 = require("../../../handlers/system/readonly/handleGetTypeInfo");
+const handleGetUsageSnippets_1 = require("../../../handlers/system/readonly/handleGetUsageSnippets");
 const handleGetWhereUsed_1 = require("../../../handlers/system/readonly/handleGetWhereUsed");
 const handleReloadProfile_1 = require("../../../handlers/system/readonly/handleReloadProfile");
 const handleRuntimeAnalyzeDump_1 = require("../../../handlers/system/readonly/handleRuntimeAnalyzeDump");
@@ -112,6 +113,10 @@ class SystemHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetWhereUsed_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetWhereUsed_1.handleGetWhereUsed)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetUsageSnippets_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetUsageSnippets_1.handleGetUsageSnippets)(this.context, args),
             },
             {
                 toolDefinition: handleGetObjectInfo_1.TOOL_DEFINITION,

@@ -63,6 +63,10 @@ import {
   handleGetTypeInfo,
 } from '../../../handlers/system/readonly/handleGetTypeInfo';
 import {
+  TOOL_DEFINITION as GetUsageSnippets_Tool,
+  handleGetUsageSnippets,
+} from '../../../handlers/system/readonly/handleGetUsageSnippets';
+import {
   TOOL_DEFINITION as GetWhereUsed_Tool,
   handleGetWhereUsed,
 } from '../../../handlers/system/readonly/handleGetWhereUsed';
@@ -203,6 +207,10 @@ export class SystemHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetWhereUsed_Tool,
         handler: (args: any) => handleGetWhereUsed(this.context, args),
+      },
+      {
+        toolDefinition: GetUsageSnippets_Tool,
+        handler: (args: any) => handleGetUsageSnippets(this.context, args),
       },
       {
         toolDefinition: GetObjectInfo_Tool,

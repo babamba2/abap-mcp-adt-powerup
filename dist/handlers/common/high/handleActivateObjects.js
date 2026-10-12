@@ -102,6 +102,7 @@ async function handleActivateObjects(context, args) {
             objects: result.objects,
             errors: result.errors,
             warnings: result.warnings,
+            ...(result.notes ? { notes: result.notes } : {}),
             message: result.success
                 ? `Activated ${result.objects.length} object(s) via ${result.endpoint} endpoint`
                 : `Activation finished with ${result.errors.length} error(s) across ${failed} object(s)`,

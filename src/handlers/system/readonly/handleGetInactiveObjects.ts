@@ -8,7 +8,7 @@ import { return_error, return_response } from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
   name: 'GetInactiveObjects',
-  available_in: ['onprem', 'cloud'] as const,
+  available_in: ['onprem', 'cloud', 'legacy'] as const,
   description:
     '[read-only] Get a list of inactive ABAP objects — modified but not yet activated, pending activation. Shows classes, tables, CDS views, and other objects awaiting activation.',
   inputSchema: {

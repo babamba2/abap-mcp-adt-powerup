@@ -108,7 +108,8 @@ export async function handleUpdateGuiStatus(
   if (args.skip_validation !== true) {
     const problems = validateCuaData(cuaObject);
     const hard = problems.filter(
-      (p) => p.field !== 'PFKCODE' && p.field !== 'PFK_CODE',
+      (p) =>
+        p.field !== 'PFKCODE' && p.field !== 'PFK_CODE' && p.field !== 'MODAL',
     );
     if (hard.length > 0) {
       const summary = hard.map((p) => `- ${p.message}`).join('\n');

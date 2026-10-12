@@ -112,6 +112,53 @@ const CUA_TABLES = [
   'BIV',
 ] as const;
 
+/**
+ * STA.MODAL (RSMPE_STAT-MODAL) as stored by the Menu Painter:
+ *   'D' = normal screen / list status, 'P' = dialog box (popup),
+ *   'C' = context menu.
+ * Verified on BASIS 7.40 (SAPLKKBL, SAPLSPO1, SAPLSLVC_FULLSCREEN,
+ * DEMO_DYNPRO_CONTEXT_MENU). The domain CUA_STYPE fixed values
+ * (' ' / X / L / B) are NOT the stored codes. 'N' is never valid.
+ */
+export const STA_MODAL_CODES = ['D', 'P', 'C'] as const;
+
+/**
+ * Map the tool-level status type (N / P / C, also D / '' / long names) to
+ * the stored STA.MODAL code. Unknown values are returned unchanged.
+ */
+export function toStaModal(statusType: string | undefined | null): string {
+  const v = String(statusType ?? '')
+    .trim()
+    .toUpperCase();
+  switch (v) {
+    case '':
+    case 'N':
+    case 'D':
+    case 'NORMAL':
+    case 'DIALOG':
+    case 'SCREEN':
+    case 'LIST':
+      return 'D';
+    case 'P':
+    case 'POPUP':
+    case 'DIALOG_BOX':
+    case 'DIALOGBOX':
+      return 'P';
+    case 'C':
+    case 'CONTEXT':
+    case 'CONTEXT_MENU':
+      return 'C';
+    default:
+      return v;
+  }
+}
+
+/** Reverse of toStaModal for tool output: D→N, P→P, C→C. */
+export function fromStaModal(modal: string | undefined | null): string {
+  const v = String(modal ?? '').toUpperCase();
+  return v === 'D' || v === '' ? 'N' : v;
+}
+
 export function normalizeCuaInput(input: string | CuaData | unknown): CuaData {
   let raw: any = input;
   if (typeof input === 'string') {
@@ -140,7 +187,17 @@ export function normalizeCuaInput(input: string | CuaData | unknown): CuaData {
       if (!Array.isArray(v)) {
         throw new Error(`cua_data.${upper} must be an array, got ${typeof v}`);
       }
-      (normalized as any)[upper] = v;
+      (normalized as any)[upper] =
+        upper === 'STA'
+          ? (v as any[]).map((row) =>
+              // 'N' (an old tool default) is not a stored MODAL code → 'D'.
+              row &&
+              typeof row === 'object' &&
+              String((row as any).MODAL ?? '').toUpperCase() === 'N'
+                ? { ...(row as any), MODAL: 'D' }
+                : row,
+            )
+          : v;
     } else {
       (normalized as any)[k] = v;
     }
@@ -192,6 +249,26 @@ export function validateCuaData(data: CuaData): CuaValidationProblem[] {
   requireField('PFK', data.PFK, ['CODE', 'PFNO', 'FUNCODE']);
   requireField('BUT', data.BUT, ['PFK_CODE', 'CODE', 'NO', 'PFNO']);
   requireField('TIT', data.TIT, ['CODE']);
+
+  // STA.MODAL must be a stored Menu Painter code (D / P / C).
+  if (Array.isArray(data.STA)) {
+    data.STA.forEach((s, i) => {
+      const m = s?.MODAL;
+      if (
+        m !== undefined &&
+        m !== null &&
+        m !== '' &&
+        !(STA_MODAL_CODES as readonly string[]).includes(String(m))
+      ) {
+        problems.push({
+          table: 'STA',
+          rowIndex: i,
+          field: 'MODAL',
+          message: `STA[${i}].MODAL="${m}" is not a Menu Painter status type (D = normal, P = dialog box, C = context menu)`,
+        });
+      }
+    });
+  }
 
   // Cross-reference: STA.PFKCODE must have at least one PFK.CODE match if PFK is supplied.
   if (
