@@ -4,10 +4,10 @@
 
 ## [Unreleased]
 
+## [4.8.12] - 2026-10-14
+
 ### Changed
 - **ADT source writes on BASIS < 7.40 now explain the invalid-lock-handle failure.** Some 7.31 systems never send a `sap-contextid` cookie, so no stateful ADT session exists and the lock is gone before the write: the PUT fails with HTTP 423 `ExceptionResourceInvalidLockHandle` in every session mode. No client-side setting fixes it. The error now carries a hint that ADT source writes cannot work on that system and that the source has to be edited in SE38 / SE24 / SE37. Applies to every tool error that mentions an invalid lock handle when `ABAP_RELEASE` < 740.
-
-## [4.8.12] - 2026-10-14
 
 ### Fixed
 - **`ReloadProfile` switched the profile but not the connection.** The stdio server kept the connection context it built at boot, so after a switch every tool still talked to the previous system until Claude Code was restarted. A profile switch now rebinds the stdio connection context and drops the RFC sessions of the previous system (SOAP / OData CSRF session, native RFC pool, ZRFC proxy session). Every `SAP_RFC_*` key of the previous profile is cleared, so a profile that does not set one no longer inherits it. The default `MCP_OUTPUT_DIR` (`.sc4sap/work/<alias>/mcp-output`) follows the new alias; a user-chosen directory is left alone. When part of the switch fails, the result is `ok: false` with `restartRequired: true` and `errors`.
