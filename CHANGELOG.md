@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [4.8.12] - 2026-10-14
+
+### Fixed
+- **`ReloadProfile` switched the profile but not the connection.** The stdio server kept the connection context it built at boot, so after a switch every tool still talked to the previous system until Claude Code was restarted. A profile switch now rebinds the stdio connection context and drops the RFC sessions of the previous system (SOAP / OData CSRF session, native RFC pool, ZRFC proxy session). Every `SAP_RFC_*` key of the previous profile is cleared, so a profile that does not set one no longer inherits it. The default `MCP_OUTPUT_DIR` (`.sc4sap/work/<alias>/mcp-output`) follows the new alias; a user-chosen directory is left alone. When part of the switch fails, the result is `ok: false` with `restartRequired: true` and `errors`.
+- **`ListTransports` / `GetTransport` returned nothing on BASIS < 7.40.** The ADT transport organizer does not exist there: the list URL answers an empty body, which parsed to 0 transports. On these releases the request header, tasks and objects are read from E070 / E07T / E071 with the standard `RFC_READ_TABLE` over SOAP RFC. No custom ABAP is needed.
+- **`GetWhereUsed` failed on BASIS < 7.40.** There is no repository information system resource. The search now runs in SAP through `ZMCP_ADT_DISPATCH` action `WHERE_USED` (cross-reference tables, DDIC usage) and returns the same shape, with a note that says so.
+- **Read-only DDIC helpers on BASIS 7.31.** There is no SAP Gateway there, so the OData service cannot exist. The table / data element / domain read helpers now also run over SOAP RFC.
+
+### Added
+- **`GetTcodeUsage`** (read-only, ECC): was each transaction used in the last N months, from the ST03N workload monthly aggregates. One boolean per transaction plus `coverage` (months that actually hold data). No user names leave SAP. `destination` (or `SAP_USAGE_RFCDEST` in the profile) reads another system's aggregates over an SM59 destination. Needs the `ZMCP_WL_TCODE_USAGE` FM and the `WlTcodeUsage` function import.
+- **`GetJobUsage`** (read-only, ECC): is each program a step of a background job that is scheduled now or ran inside the window (TBTCO / TBTCP). One boolean per program. Needs the `ZMCP_WL_JOB_USAGE` FM and the `WlJobUsage` function import.
+- **`GetTransaction` `transaction_names`**: several transactions in one call. The result also shows the kind of transaction (program, parameter transaction with its target t-code and parameters, variant transaction).
+- Legacy table reads (`ZMCP_ADT_DISPATCH TABLE_READ`) also allow TSTC, TSTCP, DD03L and DD04L.
+
 ## [4.8.11] - 2026-10-12
 
 ### Fixed

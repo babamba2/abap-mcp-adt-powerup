@@ -90,6 +90,10 @@ describe('legacy table read (BASIS < 7.50 fallback)', () => {
       'TFRM',
       'TFRMT',
       'T100',
+      'TSTC',
+      'TSTCP',
+      'DD03L',
+      'DD04L',
     ]);
   });
 

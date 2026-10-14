@@ -241,3 +241,66 @@ export async function callTextpool(
 
   return { result, subrc, message };
 }
+
+export interface SoapDdicResult {
+  subrc: number;
+  message: string;
+  result: any;
+}
+
+/**
+ * Read-only DDIC readers over SOAP RFC — for systems without SAP Gateway
+ * (BASIS 7.31). Same FMs and EV_RESULT JSON as the OData FunctionImports
+ * DdicTablRead / DdicDtelRead / DdicDomaRead (see odataRfc.ts for the
+ * result schemas). subrc 4 = not found (result still carries the name);
+ * subrc >= 8 throws.
+ */
+async function callDdicRead(
+  connection: IAbapConnection,
+  fmName: string,
+  params: { name: string; version?: 'A' | 'I' },
+): Promise<SoapDdicResult> {
+  const { raw } = await callSoapRfc(connection, fmName, {
+    IV_NAME: params.name,
+    IV_VERSION: params.version ?? 'A',
+  });
+
+  const subrc = Number(raw.EV_SUBRC ?? raw.ev_subrc ?? 0);
+  const message = String(raw.EV_MESSAGE ?? raw.ev_message ?? '');
+  const resultStr = String(raw.EV_RESULT ?? raw.ev_result ?? '{}');
+
+  let result: any;
+  try {
+    result = JSON.parse(resultStr || '{}');
+  } catch {
+    result = {};
+  }
+
+  if (subrc >= 8) {
+    throw new Error(
+      `${fmName} error (name=${params.name}, subrc=${subrc}): ${message}`,
+    );
+  }
+  return { subrc, message, result };
+}
+
+export function callDdicTablRead(
+  connection: IAbapConnection,
+  params: { name: string; version?: 'A' | 'I' },
+): Promise<SoapDdicResult> {
+  return callDdicRead(connection, 'ZMCP_ADT_DDIC_TABL_READ', params);
+}
+
+export function callDdicDtelRead(
+  connection: IAbapConnection,
+  params: { name: string; version?: 'A' | 'I' },
+): Promise<SoapDdicResult> {
+  return callDdicRead(connection, 'ZMCP_ADT_DDIC_DTEL_READ', params);
+}
+
+export function callDdicDomaRead(
+  connection: IAbapConnection,
+  params: { name: string; version?: 'A' | 'I' },
+): Promise<SoapDdicResult> {
+  return callDdicRead(connection, 'ZMCP_ADT_DDIC_DOMA_READ', params);
+}

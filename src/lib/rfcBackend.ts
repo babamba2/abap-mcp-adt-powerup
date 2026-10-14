@@ -127,6 +127,23 @@ function lazyDdic<T extends (...args: any[]) => any>(
   }) as T;
 }
 
+/**
+ * Read-only DDIC helpers also run over SOAP RFC (BASIS 7.31 has no SAP
+ * Gateway, so the OData service cannot exist there). Same FMs, same result.
+ */
+function lazyDdicRead<T extends (...args: any[]) => any>(
+  name: string,
+  odataFn: () => T,
+  soapFn: () => T,
+): T {
+  return ((...args: Parameters<T>) => {
+    const b = resolveBackend();
+    if (b === 'odata') return odataFn()(...args);
+    if (b === 'soap') return soapFn()(...args);
+    unsupportedDdic(name, b);
+  }) as T;
+}
+
 export const callDdicTabl: typeof odata.callDdicTabl = lazyDdic(
   'callDdicTabl',
   () => odata.callDdicTabl,
@@ -147,17 +164,28 @@ export const callDdicBadi: typeof odata.callDdicBadi = lazyDdic(
   'callDdicBadi',
   () => odata.callDdicBadi,
 );
-export const callDdicTablRead: typeof odata.callDdicTablRead = lazyDdic(
+export const callDdicTablRead: typeof odata.callDdicTablRead = lazyDdicRead(
   'callDdicTablRead',
   () => odata.callDdicTablRead,
+  () => soap.callDdicTablRead,
 );
-export const callDdicDtelRead: typeof odata.callDdicDtelRead = lazyDdic(
+export const callDdicDtelRead: typeof odata.callDdicDtelRead = lazyDdicRead(
   'callDdicDtelRead',
   () => odata.callDdicDtelRead,
+  () => soap.callDdicDtelRead,
 );
-export const callDdicDomaRead: typeof odata.callDdicDomaRead = lazyDdic(
+export const callDdicDomaRead: typeof odata.callDdicDomaRead = lazyDdicRead(
   'callDdicDomaRead',
   () => odata.callDdicDomaRead,
+  () => soap.callDdicDomaRead,
+);
+export const callWlTcodeUsage: typeof odata.callWlTcodeUsage = lazyDdic(
+  'callWlTcodeUsage',
+  () => odata.callWlTcodeUsage,
+);
+export const callWlJobUsage: typeof odata.callWlJobUsage = lazyDdic(
+  'callWlJobUsage',
+  () => odata.callWlJobUsage,
 );
 
 export type { DdicResult } from './odataRfc';

@@ -20,8 +20,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.callDispatch = callDispatch;
 exports.callTextpool = callTextpool;
+const profileEvents_1 = require("./profileEvents");
 let pool = null;
 let loadErr = null;
+// The pool was opened with the previous profile's connection parameters.
+(0, profileEvents_1.registerProfileChangeHook)(() => {
+    pool = null;
+});
 /**
  * Lazily initialise the node-rfc pool on first use. Kept out of
  * module-top so MCP server boot does not require the native addon

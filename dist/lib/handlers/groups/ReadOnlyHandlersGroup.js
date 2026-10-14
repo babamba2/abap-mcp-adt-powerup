@@ -29,6 +29,8 @@ const handleReadScreen_1 = require("../../../handlers/screen/readonly/handleRead
 const handleReadServiceBinding_1 = require("../../../handlers/service_binding/readonly/handleReadServiceBinding");
 const handleReadServiceDefinition_1 = require("../../../handlers/service_definition/readonly/handleReadServiceDefinition");
 const handleReadStructure_1 = require("../../../handlers/structure/readonly/handleReadStructure");
+const handleGetJobUsage_1 = require("../../../handlers/system/readonly/handleGetJobUsage");
+const handleGetTcodeUsage_1 = require("../../../handlers/system/readonly/handleGetTcodeUsage");
 const handleGetTableContents_1 = require("../../../handlers/table/readonly/handleGetTableContents");
 const handleReadTable_1 = require("../../../handlers/table/readonly/handleReadTable");
 const handleGetTransport_1 = require("../../../handlers/transport/readonly/handleGetTransport");
@@ -78,6 +80,14 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetBadiImplementations_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetBadiImplementations_1.handleGetBadiImplementations)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetTcodeUsage_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetTcodeUsage_1.handleGetTcodeUsage)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetJobUsage_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetJobUsage_1.handleGetJobUsage)(this.context, args),
             },
             {
                 toolDefinition: handleGetTransport_1.TOOL_DEFINITION,

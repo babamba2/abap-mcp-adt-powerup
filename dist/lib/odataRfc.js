@@ -57,9 +57,16 @@ exports.callDdicBadi = callDdicBadi;
 exports.callDdicTablRead = callDdicTablRead;
 exports.callDdicDtelRead = callDdicDtelRead;
 exports.callDdicDomaRead = callDdicDomaRead;
+exports.callWlTcodeUsage = callWlTcodeUsage;
+exports.callWlJobUsage = callWlJobUsage;
+const profileEvents_1 = require("./profileEvents");
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
 let cachedSession = null;
+// The CSRF token and cookies belong to the previous system after a switch.
+(0, profileEvents_1.registerProfileChangeHook)(() => {
+    cachedSession = null;
+});
 function required(key) {
     const v = process.env[key];
     if (!v) {
@@ -458,6 +465,72 @@ async function callDdicDomaRead(_connection, params) {
         throw new Error(`ZMCP_ADT_DDIC_DOMA_READ error (name=${params.name}, subrc=${subrc}): ${message}`);
     }
     return { subrc, message, result };
+}
+/**
+ * Read-only transaction usage from the workload monitor (ST03N monthly
+ * aggregates) — ECC bridge.
+ *
+ * Calls ZMCP_WL_TCODE_USAGE via the OData FunctionImport `WlTcodeUsage`.
+ * `coverage` < `months` means the system keeps fewer monthly aggregates
+ * than requested: a false then only means "not used in the last
+ * `coverage` months". subrc 4 = no workload rows at all (usage unknown).
+ * `rfcdest` (SM59 destination) reads another system's aggregates (QA / PRD).
+ * IV_RFCDEST is always sent (Gateway V2 rejects a defined parameter that is
+ * missing); a bridge from before IV_RFCDEST answers "Invalid Function Import
+ * Parameter" → retried without it when no destination was asked for.
+ */
+async function callWlTcodeUsage(_connection, params) {
+    const base = {
+        IV_TCODES: params.tcodes.join(','),
+        IV_MONTHS: String(params.months ?? 12),
+    };
+    let raw;
+    try {
+        raw = await postFunctionImport('WlTcodeUsage', {
+            ...base,
+            IV_RFCDEST: params.rfcdest ?? '',
+        });
+    }
+    catch (e) {
+        const old = /Invalid Function Import Parameter/i.test(String(e));
+        if (!old)
+            throw e;
+        if (params.rfcdest) {
+            throw new Error(`The WlTcodeUsage bridge on this system has no IV_RFCDEST parameter — update ZMCP_WL_TCODE_USAGE + ZCL_ZMCP_ADT_MPC_EXT / DPC_EXT to read usage over destination ${params.rfcdest}.`);
+        }
+        raw = await postFunctionImport('WlTcodeUsage', base);
+    }
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const coverage = Number(raw?.EV_COVERAGE ?? 0);
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    const sysid = String(raw?.EV_SYSID ?? '');
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_WL_TCODE_USAGE error (subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, coverage, result, sysid };
+}
+/**
+ * Read-only background-job usage of programs (TBTCO + TBTCP) — ECC bridge.
+ *
+ * Calls ZMCP_WL_JOB_USAGE via the OData FunctionImport `WlJobUsage`.
+ * Dialog runs (SE38/SA38) do not count. Job reorganization deletes old
+ * finished jobs, so `oldest` later than the window start means a false
+ * only covers "no job since `oldest`".
+ */
+async function callWlJobUsage(_connection, params) {
+    const raw = await postFunctionImport('WlJobUsage', {
+        IV_PROGRAMS: params.programs.join(','),
+        IV_MONTHS: String(params.months ?? 12),
+    });
+    const subrc = Number(raw?.EV_SUBRC ?? 0);
+    const message = String(raw?.EV_MESSAGE ?? '');
+    const oldest = String(raw?.EV_OLDEST ?? '').trim();
+    const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+    if (subrc >= 8) {
+        throw new Error(`ZMCP_WL_JOB_USAGE error (subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, oldest, result };
 }
 /**
  * Internal — exposed for tests. Production code should never need to

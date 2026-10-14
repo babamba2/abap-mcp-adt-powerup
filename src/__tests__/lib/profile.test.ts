@@ -282,4 +282,122 @@ describe('profile — load and apply', () => {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
+
+  it('applyProfile clears every SAP_RFC_* key the new profile does not set', () => {
+    const cwd = makeTempCwd();
+    try {
+      // An OData profile switched to one without an RFC backend.
+      process.env.SAP_RFC_BACKEND = 'odata';
+      process.env.SAP_RFC_ODATA_SERVICE_URL =
+        'http://old/sap/opu/odata/sap/zmcp_adt_srv';
+      process.env.SAP_RFC_ODATA_CSRF_TTL_SEC = '600';
+      process.env.SAP_RFC_ZRFC_BASE_URL = 'http://old/zrfc';
+      writeProfile(
+        home,
+        'X',
+        'SAP_URL=http://new\nSAP_RFC_BACKEND=soap\nSAP_TIER=DEV\n',
+      );
+      writeActivePointer(cwd, 'X');
+      const {
+        activateProfile,
+        __resetProfileState,
+      } = require('../../lib/profile');
+      __resetProfileState();
+      activateProfile(cwd);
+      expect(process.env.SAP_RFC_BACKEND).toBe('soap');
+      expect(process.env.SAP_RFC_ODATA_SERVICE_URL).toBeUndefined();
+      expect(process.env.SAP_RFC_ODATA_CSRF_TTL_SEC).toBeUndefined();
+      expect(process.env.SAP_RFC_ZRFC_BASE_URL).toBeUndefined();
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('activateProfile moves the bridge-default MCP_OUTPUT_DIR to the new alias', () => {
+    const cwd = makeTempCwd();
+    try {
+      writeProfile(home, 'A', 'SAP_URL=http://a\n');
+      writeProfile(home, 'B', 'SAP_URL=http://b\n');
+      const {
+        activateProfile,
+        __resetProfileState,
+      } = require('../../lib/profile');
+      __resetProfileState();
+      writeActivePointer(cwd, 'A');
+      activateProfile(cwd);
+      process.env.MCP_OUTPUT_DIR = path.join(
+        cwd,
+        '.sc4sap',
+        'work',
+        'A',
+        'mcp-output',
+      );
+
+      writeActivePointer(cwd, 'B');
+      activateProfile(cwd);
+      expect(process.env.MCP_OUTPUT_DIR).toBe(
+        path.join(cwd, '.sc4sap', 'work', 'B', 'mcp-output'),
+      );
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('activateProfile leaves a user-chosen MCP_OUTPUT_DIR alone', () => {
+    const cwd = makeTempCwd();
+    try {
+      writeProfile(home, 'A', 'SAP_URL=http://a\n');
+      writeProfile(home, 'B', 'SAP_URL=http://b\n');
+      const {
+        activateProfile,
+        __resetProfileState,
+      } = require('../../lib/profile');
+      __resetProfileState();
+      writeActivePointer(cwd, 'A');
+      activateProfile(cwd);
+      const custom = path.join(cwd, 'my-output');
+      process.env.MCP_OUTPUT_DIR = custom;
+
+      writeActivePointer(cwd, 'B');
+      activateProfile(cwd);
+      expect(process.env.MCP_OUTPUT_DIR).toBe(custom);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('profileEvents — profile change fan-out', () => {
+  beforeEach(() => {
+    jest.resetModules();
+  });
+
+  it('calls every hook with the loaded profile and collects thrown errors', () => {
+    const {
+      registerProfileChangeHook,
+      notifyProfileChanged,
+    } = require('../../lib/profileEvents');
+    const seen: string[] = [];
+    registerProfileChangeHook((p: any) => seen.push(`a:${p.alias}`));
+    registerProfileChangeHook(() => {
+      throw new Error('cannot rebind');
+    });
+    registerProfileChangeHook((p: any) => seen.push(`c:${p.alias}`));
+
+    const errors = notifyProfileChanged({ alias: 'QA-DEV' } as any);
+    expect(seen).toEqual(['a:QA-DEV', 'c:QA-DEV']);
+    expect(errors.map((e: Error) => e.message)).toEqual(['cannot rebind']);
+  });
+
+  it('unregister stops a hook from firing', () => {
+    const {
+      registerProfileChangeHook,
+      notifyProfileChanged,
+    } = require('../../lib/profileEvents');
+    const hook = jest.fn();
+    const off = registerProfileChangeHook(hook);
+    off();
+    expect(notifyProfileChanged({ alias: 'X' } as any)).toEqual([]);
+    expect(hook).not.toHaveBeenCalled();
+  });
 });

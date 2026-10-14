@@ -18,11 +18,15 @@
  * not found in the path response AND `owner` was supplied, retry with the list URL
  * (handles cross-user queries, especially on ECC where the path URL only reveals the
  * session user's list).
+ *
+ * BASIS < 7.40 (e.g. 7.31) has no transport organizer resource at all; the TR
+ * is read from E070 / E07T / E071 over SOAP RFC instead (lib/legacyTransport).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetTransport = handleGetTransport;
 const fast_xml_parser_1 = require("fast-xml-parser");
+const legacyTransport_1 = require("../../../lib/legacyTransport");
 const systemContext_1 = require("../../../lib/systemContext");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_ORGANIZER_V1 = 'application/vnd.sap.adt.transportorganizer.v1+xml, application/vnd.sap.adt.transportorganizertree.v1+xml';
@@ -238,6 +242,26 @@ async function handleGetTransport(context, args) {
         const sessionUser = (0, systemContext_1.getSystemContext)().responsible || process.env.SAP_USERNAME || '';
         const owner = typedArgs.owner || '';
         const headers = { Accept: ACCEPT_ORGANIZER_V1 };
+        if ((0, legacyTransport_1.needsLegacyTransportRead)()) {
+            logger?.debug(`GetTransport: BASIS < 7.40 — E070/E071 read for ${trNumber}`);
+            const legacy = await (0, legacyTransport_1.readTransportLegacy)(connection, trNumber, includeObjects, includeTasks);
+            if (!legacy) {
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `Transport ${trNumber} not found (E070).`);
+            }
+            return (0, utils_1.return_response)({
+                data: JSON.stringify({
+                    success: true,
+                    transport_number: trNumber.toUpperCase(),
+                    resolved_via: 'e070',
+                    ...legacy,
+                    message: `Transport ${trNumber} retrieved from E070/E071 (BASIS < 7.40 has no ADT transport organizer)`,
+                }, null, 2),
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+        }
         // Attempt 1: path-based single-TR read.
         const pathUrl = `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(trNumber)}`;
         logger?.debug(`GetTransport: path URL attempt — ${pathUrl}`);

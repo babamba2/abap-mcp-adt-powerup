@@ -18,6 +18,7 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
+import { registerProfileChangeHook } from './profileEvents';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
 type NodeRfcPool = {
@@ -34,6 +35,11 @@ type NodeRfcClient = {
 
 let pool: NodeRfcPool | null = null;
 let loadErr: Error | null = null;
+
+// The pool was opened with the previous profile's connection parameters.
+registerProfileChangeHook(() => {
+  pool = null;
+});
 
 /**
  * Lazily initialise the node-rfc pool on first use. Kept out of

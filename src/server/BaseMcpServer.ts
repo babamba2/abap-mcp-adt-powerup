@@ -13,6 +13,7 @@ import type {
 } from '../lib/handlers/interfaces.js';
 import { CompositeHandlersRegistry } from '../lib/handlers/registry/CompositeHandlersRegistry.js';
 import { jsonSchemaToZod } from '../lib/handlers/utils/schemaUtils.js';
+import type { LoadedProfile } from '../lib/profile.js';
 import {
   resetSystemContextCache,
   resolveSystemContext,
@@ -242,6 +243,68 @@ export abstract class BaseMcpServer extends McpServer {
         'Either x-sap-jwt-token or x-sap-login+x-sap-password headers are required',
       );
     }
+  }
+
+  /**
+   * Rebinds the connection context to a profile that was just applied to
+   * process.env (ReloadProfile). The stdio server builds its context once at
+   * boot and caches the connection; without this, calls keep going to the
+   * system that was active at boot.
+   *
+   * Returns false (context left untouched) when the profile carries neither
+   * basic credentials nor a JWT — a restart is then the only way to switch.
+   */
+  protected rebindToProfile(loaded: LoadedProfile): boolean {
+    if (!this.connectionContext) return false;
+    const env = loaded.envVars;
+    const url = env.SAP_URL || '';
+    const client = env.SAP_CLIENT || '';
+    const connectionType =
+      env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
+        ? ('rfc' as const)
+        : undefined;
+    const wantsJwt = env.SAP_AUTH_TYPE?.trim().toLowerCase() === 'jwt';
+
+    let connectionParams: ConnectionContext['connectionParams'];
+    if (!wantsJwt && url && env.SAP_USERNAME && env.SAP_PASSWORD) {
+      connectionParams = {
+        url,
+        authType: 'basic',
+        username: env.SAP_USERNAME,
+        password: env.SAP_PASSWORD,
+        client,
+        ...(connectionType && { connectionType }),
+      };
+    } else if (url && env.SAP_JWT_TOKEN) {
+      connectionParams = {
+        url,
+        authType: 'jwt',
+        jwtToken: env.SAP_JWT_TOKEN,
+        client,
+      };
+    } else {
+      this.logger.warn?.(
+        `[BaseMcpServer] Profile ${loaded.alias ?? '(legacy)'} has no usable credentials; connection stays on the previous system until restart`,
+      );
+      return false;
+    }
+
+    this.connectionContext = {
+      ...this.connectionContext,
+      connectionParams,
+      // masterSystem/responsible were resolved against the previous system
+      metadata: {
+        ...this.connectionContext.metadata,
+        masterSystem: undefined,
+        responsible: undefined,
+      },
+    };
+    this.cachedConnection = null;
+    resetSystemContextCache();
+    this.logger.info?.(
+      `[BaseMcpServer] Connection rebound to profile ${loaded.alias ?? '(legacy)'} (${url}, client ${client || '-'})`,
+    );
+    return true;
   }
 
   /**

@@ -28,6 +28,7 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
+import { registerProfileChangeHook } from './profileEvents';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -40,6 +41,11 @@ interface CsrfSession {
 }
 
 let cachedSession: CsrfSession | null = null;
+
+// The CSRF token and cookies belong to the previous system after a switch.
+registerProfileChangeHook(() => {
+  cachedSession = null;
+});
 
 function required(key: string): string {
   const v = process.env[key];

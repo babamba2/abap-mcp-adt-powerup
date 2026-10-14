@@ -9,6 +9,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.callSoapRfc = callSoapRfc;
 exports.callDispatch = callDispatch;
 exports.callTextpool = callTextpool;
+exports.callDdicTablRead = callDdicTablRead;
+exports.callDdicDtelRead = callDdicDtelRead;
+exports.callDdicDomaRead = callDdicDomaRead;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const utils_1 = require("./utils");
 const SOAP_RFC_PATH = '/sap/bc/soap/rfc';
@@ -158,5 +161,41 @@ async function callTextpool(connection, action, params) {
         throw new Error(`ZMCP_ADT_TEXTPOOL error (action=${action}, subrc=${subrc}): ${message}`);
     }
     return { result, subrc, message };
+}
+/**
+ * Read-only DDIC readers over SOAP RFC — for systems without SAP Gateway
+ * (BASIS 7.31). Same FMs and EV_RESULT JSON as the OData FunctionImports
+ * DdicTablRead / DdicDtelRead / DdicDomaRead (see odataRfc.ts for the
+ * result schemas). subrc 4 = not found (result still carries the name);
+ * subrc >= 8 throws.
+ */
+async function callDdicRead(connection, fmName, params) {
+    const { raw } = await callSoapRfc(connection, fmName, {
+        IV_NAME: params.name,
+        IV_VERSION: params.version ?? 'A',
+    });
+    const subrc = Number(raw.EV_SUBRC ?? raw.ev_subrc ?? 0);
+    const message = String(raw.EV_MESSAGE ?? raw.ev_message ?? '');
+    const resultStr = String(raw.EV_RESULT ?? raw.ev_result ?? '{}');
+    let result;
+    try {
+        result = JSON.parse(resultStr || '{}');
+    }
+    catch {
+        result = {};
+    }
+    if (subrc >= 8) {
+        throw new Error(`${fmName} error (name=${params.name}, subrc=${subrc}): ${message}`);
+    }
+    return { subrc, message, result };
+}
+function callDdicTablRead(connection, params) {
+    return callDdicRead(connection, 'ZMCP_ADT_DDIC_TABL_READ', params);
+}
+function callDdicDtelRead(connection, params) {
+    return callDdicRead(connection, 'ZMCP_ADT_DDIC_DTEL_READ', params);
+}
+function callDdicDomaRead(connection, params) {
+    return callDdicRead(connection, 'ZMCP_ADT_DDIC_DOMA_READ', params);
 }
 //# sourceMappingURL=soapRfc.js.map

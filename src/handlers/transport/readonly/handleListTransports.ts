@@ -2,12 +2,17 @@
  * ListTransports Handler - List user's transport requests via ADT API
  *
  * Retrieves transport requests for the current user or specified user.
- * Uses AdtClient.getRequest().list() with proper Accept negotiation.
+ * Uses AdtClient.getRequest().list() with proper Accept negotiation; on
+ * BASIS < 7.40 reads E070 / E07T instead (lib/legacyTransport).
  */
 
 import { XMLParser } from 'fast-xml-parser';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  listTransportsLegacy,
+  needsLegacyTransportRead,
+} from '../../../lib/legacyTransport';
 import { getSystemContext } from '../../../lib/systemContext';
 import { return_error } from '../../../lib/utils';
 
@@ -136,13 +141,19 @@ export async function handleListTransports(
       `ListTransports: user=${user}, modifiable_only=${modifiableOnly}`,
     );
 
-    const client = createAdtClient(connection, logger);
-    const state = await client.getRequest().list({
-      user,
-      status: modifiableOnly ? 'D' : undefined,
-    });
-
-    const transports = parseTransportListXml(state.listResult?.data || '');
+    let transports: TransportEntry[];
+    if (needsLegacyTransportRead()) {
+      // BASIS < 7.40: no ADT transport organizer (the list URL answers an
+      // empty body, which parsed to 0 transports) — read E070 instead.
+      transports = await listTransportsLegacy(connection, user, modifiableOnly);
+    } else {
+      const client = createAdtClient(connection, logger);
+      const state = await client.getRequest().list({
+        user,
+        status: modifiableOnly ? 'D' : undefined,
+      });
+      transports = parseTransportListXml(state.listResult?.data || '');
+    }
 
     logger?.info(`ListTransports: found ${transports.length} transport(s)`);
 

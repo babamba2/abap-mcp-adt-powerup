@@ -36,6 +36,10 @@ exports.LEGACY_READABLE_TABLES = [
     'TFRM',
     'TFRMT',
     'T100',
+    'TSTC',
+    'TSTCP',
+    'DD03L',
+    'DD04L',
 ];
 /** Row cap of the ABAP TABLE_READ action (FORM table_read: max_rows > 5000 → 5000). */
 exports.DISPATCH_MAX_ROWS = 5000;

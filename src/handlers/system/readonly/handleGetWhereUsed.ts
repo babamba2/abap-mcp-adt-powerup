@@ -5,12 +5,18 @@
  *
  * On legacy systems (BASIS < 7.50) createAdtClient() returns AdtClientLegacy,
  * whose utils skip the scope step and address DDIC objects through VIT URIs
- * (client library >= 3.15.0). The handler itself does not branch on ECC.
+ * (client library >= 3.15.0).
+ *
+ * BASIS < 7.40 (e.g. 7.31) has no repository information system resource at
+ * all, so the search runs in SAP through ZMCP_ADT_DISPATCH action WHERE_USED
+ * (cross-reference tables WBCROSSGT / CROSS / D010INC, DDIC usage DD03L /
+ * DD04L) instead.
  */
 
 import { createAdtClient } from '../../../lib/clients';
 import { objectsListCache } from '../../../lib/getObjectsListCache';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDispatch } from '../../../lib/rfcBackend';
 import { ErrorCode, McpError } from '../../../lib/utils';
 
 export const SUPPORTED_WHERE_USED_TYPES =
@@ -140,6 +146,56 @@ export function applyWhereUsedFilters(
   return { references: refs, filtered_out, truncated };
 }
 
+/** True on BASIS releases without /sap/bc/adt/repository/informationsystem. */
+export function needsDispatchWhereUsed(): boolean {
+  const release = parseInt(process.env.ABAP_RELEASE || '', 10);
+  return !Number.isNaN(release) && release < 740;
+}
+
+interface DispatchWhereUsedRow {
+  name?: string;
+  type?: string;
+  include?: string;
+  package_name?: string;
+  usage?: string;
+}
+
+/**
+ * Where-used through ZMCP_ADT_DISPATCH (BASIS 7.31). Returns the same shape
+ * as utils.getWhereUsedList so the rest of the handler is unchanged.
+ */
+async function dispatchWhereUsed(context: HandlerContext, args: WhereUsedArgs) {
+  const { result, message } = await callDispatch(
+    context.connection,
+    'WHERE_USED',
+    {
+      object_name: args.object_name,
+      object_type: args.object_type,
+    },
+  );
+  const rows: DispatchWhereUsedRow[] = Array.isArray(result?.references)
+    ? result.references
+    : [];
+  return {
+    objectName: args.object_name.toUpperCase(),
+    objectType: args.object_type,
+    totalReferences: rows.length,
+    resultDescription: message,
+    references: rows.map((r) => ({
+      name: r.name ?? '',
+      type: r.type ?? '',
+      uri: '',
+      packageName: r.package_name || undefined,
+      responsible: undefined as string | undefined,
+      usageInformation: r.include ? `include ${r.include}` : r.usage,
+      objectIdentifier: undefined as string | undefined,
+    })),
+    notes: [
+      'BASIS < 7.40: searched by ZMCP_ADT_DISPATCH WHERE_USED (cross-reference tables), not the ADT information system.',
+    ],
+  };
+}
+
 /** Add an actionable hint to well-known ADT where-used failures. */
 export function whereUsedErrorHint(error: unknown): string | undefined {
   const e = error as any;
@@ -200,12 +256,14 @@ export async function handleGetWhereUsed(
         : undefined;
 
     // Use getWhereUsedList for parsed results
-    const result = await utils.getWhereUsedList({
-      object_name: typedArgs.object_name,
-      object_type: typedArgs.object_type,
-      enableAllTypes: typedArgs.enable_all_types,
-      ...(timeoutMs ? { timeoutMs } : {}),
-    });
+    const result = needsDispatchWhereUsed()
+      ? await dispatchWhereUsed(context, typedArgs)
+      : await utils.getWhereUsedList({
+          object_name: typedArgs.object_name,
+          object_type: typedArgs.object_type,
+          enableAllTypes: typedArgs.enable_all_types,
+          ...(timeoutMs ? { timeoutMs } : {}),
+        });
 
     logger?.debug(
       `Where-used search completed for ${typedArgs.object_type}/${typedArgs.object_name}: ${result.totalReferences} references`,

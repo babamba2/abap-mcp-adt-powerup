@@ -31,9 +31,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.__test__ = void 0;
 exports.callDispatch = callDispatch;
 exports.callTextpool = callTextpool;
+const profileEvents_1 = require("./profileEvents");
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
 let cachedSession = null;
+// The CSRF token and cookies belong to the previous system after a switch.
+(0, profileEvents_1.registerProfileChangeHook)(() => {
+    cachedSession = null;
+});
 function required(key) {
     const v = process.env[key];
     if (!v) {

@@ -66,10 +66,14 @@ const SAP_ENV_KEYS_TO_CLEAR = [
   'SAP_UAA_CLIENT_SECRET',
   'SAP_MASTER_SYSTEM',
   'SAP_RESPONSIBLE',
+  'SAP_USAGE_RFCDEST',
   'MCP_BLOCKLIST_PROFILE',
   'MCP_BLOCKLIST_EXTEND',
   'MCP_ALLOW_TABLE',
 ];
+
+/** Every key with this prefix is wiped on apply (see applyProfile). */
+const SAP_RFC_KEY_PREFIX = 'SAP_RFC_';
 
 function sc4sapHomeDir(): string {
   // Optional override for tests and custom installs. Value is the .sc4sap
@@ -172,6 +176,12 @@ export function applyProfile(loaded: LoadedProfile): void {
   for (const key of SAP_ENV_KEYS_TO_CLEAR) {
     delete process.env[key];
   }
+  // RFC backend settings come in backend-specific families
+  // (SAP_RFC_ODATA_*, SAP_RFC_ZRFC_*, SAP_RFC_GATEWAY_*, SAP_RFC_ASHOST, ...).
+  // A profile that does not set one must not inherit the previous profile's.
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith(SAP_RFC_KEY_PREFIX)) delete process.env[key];
+  }
   for (const [k, v] of Object.entries(loaded.envVars)) {
     process.env[k] = v;
   }
@@ -199,9 +209,42 @@ export function isReadOnlyTier(): boolean {
  * safe to call multiple times. Used at server startup and by ReloadProfile.
  */
 export function activateProfile(cwd: string = process.cwd()): LoadedProfile {
+  const previousAlias = activeAlias;
   const loaded = loadActiveProfile(cwd);
   applyProfile(loaded);
+  followProfileOutputDir(cwd, previousAlias, loaded.alias);
   return loaded;
+}
+
+/**
+ * The sc4sap bridge defaults MCP_OUTPUT_DIR to
+ * `<cwd>/.sc4sap/work/<alias>/mcp-output` at boot. When the profile switches
+ * in-session, move that default to the new alias. A user-chosen
+ * MCP_OUTPUT_DIR (anything else) is left alone.
+ */
+function followProfileOutputDir(
+  cwd: string,
+  previousAlias: string | undefined,
+  nextAlias: string | undefined,
+): void {
+  const current = process.env.MCP_OUTPUT_DIR;
+  if (!current || !previousAlias || !nextAlias || previousAlias === nextAlias) {
+    return;
+  }
+  const workDir = path.join(cwd, '.sc4sap', 'work');
+  if (
+    path.resolve(current) !== path.join(workDir, previousAlias, 'mcp-output')
+  ) {
+    return;
+  }
+  if (
+    !/^[A-Za-z0-9._-]+$/.test(nextAlias) ||
+    nextAlias === '.' ||
+    nextAlias === '..'
+  ) {
+    return;
+  }
+  process.env.MCP_OUTPUT_DIR = path.join(workDir, nextAlias, 'mcp-output');
 }
 
 /** Test-only reset of the cached tier/alias. */

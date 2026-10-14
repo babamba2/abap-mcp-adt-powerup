@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StdioServer = void 0;
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const handlerLogger_js_1 = require("../lib/handlerLogger.js");
+const profileEvents_js_1 = require("../lib/profileEvents.js");
 const BaseMcpServer_js_1 = require("./BaseMcpServer.js");
 const DEFAULT_VERSION = process.env.npm_package_version ?? '1.0.0';
 /**
@@ -23,6 +24,14 @@ class StdioServer extends BaseMcpServer_js_1.BaseMcpServer {
     }
     async start(destination) {
         await this.setConnectionContext(destination, this.broker);
+        // One process, one context: follow ReloadProfile instead of staying on
+        // the system that was active at boot. (Per-request SSE/HTTP servers
+        // build a fresh context per request and do not need this.)
+        (0, profileEvents_js_1.registerProfileChangeHook)((loaded) => {
+            if (!this.rebindToProfile(loaded)) {
+                throw new Error(`connection could not be rebound to profile ${loaded.alias ?? '(legacy)'} — restart the MCP server`);
+            }
+        });
         this.registerHandlers(this.handlersRegistry);
         const transport = new stdio_js_1.StdioServerTransport();
         await this.connect(transport);

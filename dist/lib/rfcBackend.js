@@ -63,7 +63,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = void 0;
+exports.callWlJobUsage = exports.callWlTcodeUsage = exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = void 0;
 exports.getBackend = getBackend;
 const gateway = __importStar(require("./gatewayRfc"));
 const native = __importStar(require("./nativeRfc"));
@@ -145,12 +145,28 @@ function lazyDdic(name, fn) {
         return fn()(...args);
     });
 }
+/**
+ * Read-only DDIC helpers also run over SOAP RFC (BASIS 7.31 has no SAP
+ * Gateway, so the OData service cannot exist there). Same FMs, same result.
+ */
+function lazyDdicRead(name, odataFn, soapFn) {
+    return ((...args) => {
+        const b = resolveBackend();
+        if (b === 'odata')
+            return odataFn()(...args);
+        if (b === 'soap')
+            return soapFn()(...args);
+        unsupportedDdic(name, b);
+    });
+}
 exports.callDdicTabl = lazyDdic('callDdicTabl', () => odata.callDdicTabl);
 exports.callDdicDtel = lazyDdic('callDdicDtel', () => odata.callDdicDtel);
 exports.callDdicDoma = lazyDdic('callDdicDoma', () => odata.callDdicDoma);
 exports.callDdicActivate = lazyDdic('callDdicActivate', () => odata.callDdicActivate);
 exports.callDdicBadi = lazyDdic('callDdicBadi', () => odata.callDdicBadi);
-exports.callDdicTablRead = lazyDdic('callDdicTablRead', () => odata.callDdicTablRead);
-exports.callDdicDtelRead = lazyDdic('callDdicDtelRead', () => odata.callDdicDtelRead);
-exports.callDdicDomaRead = lazyDdic('callDdicDomaRead', () => odata.callDdicDomaRead);
+exports.callDdicTablRead = lazyDdicRead('callDdicTablRead', () => odata.callDdicTablRead, () => soap.callDdicTablRead);
+exports.callDdicDtelRead = lazyDdicRead('callDdicDtelRead', () => odata.callDdicDtelRead, () => soap.callDdicDtelRead);
+exports.callDdicDomaRead = lazyDdicRead('callDdicDomaRead', () => odata.callDdicDomaRead, () => soap.callDdicDomaRead);
+exports.callWlTcodeUsage = lazyDdic('callWlTcodeUsage', () => odata.callWlTcodeUsage);
+exports.callWlJobUsage = lazyDdic('callWlJobUsage', () => odata.callWlJobUsage);
 //# sourceMappingURL=rfcBackend.js.map

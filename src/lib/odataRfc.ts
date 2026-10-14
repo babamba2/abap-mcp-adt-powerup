@@ -46,6 +46,7 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
+import { registerProfileChangeHook } from './profileEvents';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -58,6 +59,11 @@ interface CsrfSession {
 }
 
 let cachedSession: CsrfSession | null = null;
+
+// The CSRF token and cookies belong to the previous system after a switch.
+registerProfileChangeHook(() => {
+  cachedSession = null;
+});
 
 function required(key: string): string {
   const v = process.env[key];
@@ -656,6 +662,111 @@ export async function callDdicDomaRead(
     );
   }
   return { subrc, message, result };
+}
+
+export interface WlTcodeUsageResult {
+  subrc: number;
+  message: string;
+  /** Months in the window that hold any workload rows. */
+  coverage: number;
+  /** TCODE → used in the window. */
+  result: Record<string, boolean>;
+  /** System the statistics come from (the RFC destination's SID, else this system). '' on an older bridge. */
+  sysid: string;
+}
+
+/**
+ * Read-only transaction usage from the workload monitor (ST03N monthly
+ * aggregates) — ECC bridge.
+ *
+ * Calls ZMCP_WL_TCODE_USAGE via the OData FunctionImport `WlTcodeUsage`.
+ * `coverage` < `months` means the system keeps fewer monthly aggregates
+ * than requested: a false then only means "not used in the last
+ * `coverage` months". subrc 4 = no workload rows at all (usage unknown).
+ * `rfcdest` (SM59 destination) reads another system's aggregates (QA / PRD).
+ * IV_RFCDEST is always sent (Gateway V2 rejects a defined parameter that is
+ * missing); a bridge from before IV_RFCDEST answers "Invalid Function Import
+ * Parameter" → retried without it when no destination was asked for.
+ */
+export async function callWlTcodeUsage(
+  _connection: IAbapConnection,
+  params: {
+    tcodes: string[];
+    months?: number;
+    rfcdest?: string;
+  },
+): Promise<WlTcodeUsageResult> {
+  const base = {
+    IV_TCODES: params.tcodes.join(','),
+    IV_MONTHS: String(params.months ?? 12),
+  };
+  let raw: any;
+  try {
+    raw = await postFunctionImport('WlTcodeUsage', {
+      ...base,
+      IV_RFCDEST: params.rfcdest ?? '',
+    });
+  } catch (e) {
+    const old = /Invalid Function Import Parameter/i.test(String(e));
+    if (!old) throw e;
+    if (params.rfcdest) {
+      throw new Error(
+        `The WlTcodeUsage bridge on this system has no IV_RFCDEST parameter — update ZMCP_WL_TCODE_USAGE + ZCL_ZMCP_ADT_MPC_EXT / DPC_EXT to read usage over destination ${params.rfcdest}.`,
+      );
+    }
+    raw = await postFunctionImport('WlTcodeUsage', base);
+  }
+
+  const subrc = Number(raw?.EV_SUBRC ?? 0);
+  const message = String(raw?.EV_MESSAGE ?? '');
+  const coverage = Number(raw?.EV_COVERAGE ?? 0);
+  const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+  const sysid = String(raw?.EV_SYSID ?? '');
+
+  if (subrc >= 8) {
+    throw new Error(`ZMCP_WL_TCODE_USAGE error (subrc=${subrc}): ${message}`);
+  }
+  return { subrc, message, coverage, result, sysid };
+}
+
+export interface WlJobUsageResult {
+  subrc: number;
+  message: string;
+  /** Start date (YYYYMMDD) of the oldest finished/cancelled job still kept, '' if none. */
+  oldest: string;
+  /** PROGRAM → step of a scheduled job or of a job run in the window. */
+  result: Record<string, boolean>;
+}
+
+/**
+ * Read-only background-job usage of programs (TBTCO + TBTCP) — ECC bridge.
+ *
+ * Calls ZMCP_WL_JOB_USAGE via the OData FunctionImport `WlJobUsage`.
+ * Dialog runs (SE38/SA38) do not count. Job reorganization deletes old
+ * finished jobs, so `oldest` later than the window start means a false
+ * only covers "no job since `oldest`".
+ */
+export async function callWlJobUsage(
+  _connection: IAbapConnection,
+  params: {
+    programs: string[];
+    months?: number;
+  },
+): Promise<WlJobUsageResult> {
+  const raw = await postFunctionImport('WlJobUsage', {
+    IV_PROGRAMS: params.programs.join(','),
+    IV_MONTHS: String(params.months ?? 12),
+  });
+
+  const subrc = Number(raw?.EV_SUBRC ?? 0);
+  const message = String(raw?.EV_MESSAGE ?? '');
+  const oldest = String(raw?.EV_OLDEST ?? '').trim();
+  const result = tryParseJson(String(raw?.EV_RESULT ?? '{}'), {});
+
+  if (subrc >= 8) {
+    throw new Error(`ZMCP_WL_JOB_USAGE error (subrc=${subrc}): ${message}`);
+  }
+  return { subrc, message, oldest, result };
 }
 
 /**

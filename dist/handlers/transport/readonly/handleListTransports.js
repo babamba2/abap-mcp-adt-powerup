@@ -3,13 +3,15 @@
  * ListTransports Handler - List user's transport requests via ADT API
  *
  * Retrieves transport requests for the current user or specified user.
- * Uses AdtClient.getRequest().list() with proper Accept negotiation.
+ * Uses AdtClient.getRequest().list() with proper Accept negotiation; on
+ * BASIS < 7.40 reads E070 / E07T instead (lib/legacyTransport).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleListTransports = handleListTransports;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const clients_1 = require("../../../lib/clients");
+const legacyTransport_1 = require("../../../lib/legacyTransport");
 const systemContext_1 = require("../../../lib/systemContext");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
@@ -102,12 +104,20 @@ async function handleListTransports(context, args) {
             process.env.SAP_USERNAME ||
             '';
         logger?.debug(`ListTransports: user=${user}, modifiable_only=${modifiableOnly}`);
-        const client = (0, clients_1.createAdtClient)(connection, logger);
-        const state = await client.getRequest().list({
-            user,
-            status: modifiableOnly ? 'D' : undefined,
-        });
-        const transports = parseTransportListXml(state.listResult?.data || '');
+        let transports;
+        if ((0, legacyTransport_1.needsLegacyTransportRead)()) {
+            // BASIS < 7.40: no ADT transport organizer (the list URL answers an
+            // empty body, which parsed to 0 transports) — read E070 instead.
+            transports = await (0, legacyTransport_1.listTransportsLegacy)(connection, user, modifiableOnly);
+        }
+        else {
+            const client = (0, clients_1.createAdtClient)(connection, logger);
+            const state = await client.getRequest().list({
+                user,
+                status: modifiableOnly ? 'D' : undefined,
+            });
+            transports = parseTransportListXml(state.listResult?.data || '');
+        }
         logger?.info(`ListTransports: found ${transports.length} transport(s)`);
         return {
             isError: false,

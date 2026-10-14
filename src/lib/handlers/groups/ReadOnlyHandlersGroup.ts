@@ -105,6 +105,14 @@ import {
   TOOL_DEFINITION as ReadStructure_Tool,
 } from '../../../handlers/structure/readonly/handleReadStructure';
 import {
+  TOOL_DEFINITION as GetJobUsage_Tool,
+  handleGetJobUsage,
+} from '../../../handlers/system/readonly/handleGetJobUsage';
+import {
+  TOOL_DEFINITION as GetTcodeUsage_Tool,
+  handleGetTcodeUsage,
+} from '../../../handlers/system/readonly/handleGetTcodeUsage';
+import {
   TOOL_DEFINITION as GetTableContents_Tool,
   handleGetTableContents,
 } from '../../../handlers/table/readonly/handleGetTableContents';
@@ -172,6 +180,14 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
         toolDefinition: GetBadiImplementations_Tool,
         handler: (args: any) =>
           handleGetBadiImplementations(this.context, args),
+      },
+      {
+        toolDefinition: GetTcodeUsage_Tool,
+        handler: (args: any) => handleGetTcodeUsage(this.context, args),
+      },
+      {
+        toolDefinition: GetJobUsage_Tool,
+        handler: (args: any) => handleGetJobUsage(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,
