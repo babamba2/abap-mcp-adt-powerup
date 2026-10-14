@@ -97,6 +97,21 @@ describe('legacy table read (BASIS < 7.50 fallback)', () => {
     ]);
   });
 
+  it('leaves the table check to the dispatcher and explains its refusal', async () => {
+    dispatch.mockResolvedValueOnce({ result: { rows: [{ BSART: 'NB' }] } });
+    const ok = await legacyTableRead({} as any, { table: 't161', maxRows: 10 });
+    expect(dispatch.mock.calls[0][2].table_name).toBe('T161');
+    expect(ok.rows).toEqual([{ BSART: 'NB' }]);
+
+    dispatch.mockRejectedValueOnce(
+      new Error('TABLE_READ: table EKKO is not allowed'),
+    );
+    await expect(
+      legacyTableRead({} as any, { table: 'EKKO', maxRows: 10 }),
+    ).rejects.toThrow(/EKKO is not allowed — .*delivery class C, G, E, S/);
+    dispatch.mockClear();
+  });
+
   it('reports truncated only when more rows exist than requested', async () => {
     const read = (maxRows: number) =>
       legacyTableRead({} as any, {
