@@ -13,6 +13,7 @@ import type {
 } from '../lib/handlers/interfaces.js';
 import { CompositeHandlersRegistry } from '../lib/handlers/registry/CompositeHandlersRegistry.js';
 import { jsonSchemaToZod } from '../lib/handlers/utils/schemaUtils.js';
+import { withLegacyLockHint } from '../lib/legacyLockHint.js';
 import type { LoadedProfile } from '../lib/profile.js';
 import {
   resetSystemContextCache,
@@ -453,7 +454,15 @@ export abstract class BaseMcpServer extends McpServer {
               handlerPromise = (entry.handler as HandlerFnArgsOnly)(args);
             }
 
-            const result = await handlerPromise;
+            let result: unknown;
+            try {
+              result = await handlerPromise;
+            } catch (error) {
+              if (error instanceof Error) {
+                error.message = withLegacyLockHint(error.message);
+              }
+              throw error;
+            }
 
             // Handle errors: if handler returns isError, throw McpError
             type ContentItem = {
@@ -481,7 +490,10 @@ export abstract class BaseMcpServer extends McpServer {
                       : String(item);
                   })
                   .join('\n') || 'Unknown error';
-              throw new McpError(ErrorCode.InternalError, errorText);
+              throw new McpError(
+                ErrorCode.InternalError,
+                withLegacyLockHint(errorText),
+              );
             }
 
             // Normalize content: SDK expects text/image/audio/resource, convert custom json to text

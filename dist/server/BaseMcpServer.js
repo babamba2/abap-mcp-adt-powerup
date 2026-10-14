@@ -6,6 +6,7 @@ const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const schemaUtils_js_1 = require("../lib/handlers/utils/schemaUtils.js");
+const legacyLockHint_js_1 = require("../lib/legacyLockHint.js");
 const systemContext_js_1 = require("../lib/systemContext.js");
 const utils_js_1 = require("../lib/utils.js");
 /**
@@ -356,7 +357,16 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                             }
                             handlerPromise = entry.handler(args);
                         }
-                        const result = await handlerPromise;
+                        let result;
+                        try {
+                            result = await handlerPromise;
+                        }
+                        catch (error) {
+                            if (error instanceof Error) {
+                                error.message = (0, legacyLockHint_js_1.withLegacyLockHint)(error.message);
+                            }
+                            throw error;
+                        }
                         if (result?.isError) {
                             const { ErrorCode, McpError } = await import('@modelcontextprotocol/sdk/types.js');
                             const errorText = (result?.content || [])
@@ -369,7 +379,7 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                                     : String(item);
                             })
                                 .join('\n') || 'Unknown error';
-                            throw new McpError(ErrorCode.InternalError, errorText);
+                            throw new McpError(ErrorCode.InternalError, (0, legacyLockHint_js_1.withLegacyLockHint)(errorText));
                         }
                         // Normalize content: SDK expects text/image/audio/resource, convert custom json to text
                         const content = (result?.content || []).map((item) => {
