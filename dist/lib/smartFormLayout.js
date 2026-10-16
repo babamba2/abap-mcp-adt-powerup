@@ -205,8 +205,8 @@ function translateSmartFormLayoutError(error, formName) {
     }
     const m = msg.match(/subrc=(\d+)\):\s*([\s\S]*)$/);
     if (m) {
-        // subrc 4 = not found; the SAP message says whether the form header
-        // (STXFADM) is missing or the Form Builder found no form for it.
+        // subrc 4 = not found; the FM sends SAP message SMARTFORMS 200 (as in
+        // transaction SMARTFORMS), with " (language X)" when only LOAD failed.
         if (m[1] === '4')
             return m[2].trim() || `SmartForm ${formName} not found`;
         return m[2].trim() || msg;

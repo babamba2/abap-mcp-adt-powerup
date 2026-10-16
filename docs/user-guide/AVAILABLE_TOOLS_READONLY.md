@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: Read-Only
-- Total tools: 65
+- Total tools: 66
 
 ## Navigation
 
@@ -68,6 +68,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetObjectNodeFromCache](#getobjectnodefromcache-read-only-system)
     - [GetObjectStructure](#getobjectstructure-read-only-system)
     - [GetSession](#getsession-read-only-system)
+    - [GetSmartFormContent](#getsmartformcontent-read-only-system)
     - [GetSmartFormLayout](#getsmartformlayout-read-only-system)
     - [GetSqlQuery](#getsqlquery-read-only-system)
     - [GetTcodeUsage](#gettcodeusage-read-only-system)
@@ -113,7 +114,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_definition_name` (string, required) - Behavior definition name (e.g., Z_MY_BDEF).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -128,7 +129,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_implementation_name` (string, required) - Behavior implementation name (e.g., ZBP_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -143,7 +144,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -158,7 +159,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - Data element name (e.g., Z_MY_DATA_ELEMENT).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -173,7 +174,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_DOMAIN).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -182,7 +183,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getbadiimplementations-read-only-enhancement"></a>
 #### GetBadiImplementations (Read-Only / Enhancement)
-**Description:** [read-only] Find implementations of a (classic) BAdI definition. Use during symptom analysis when a standard SAP BAdI is implicated — answers 
+**Description:** [read-only] Find implementations of a (classic) BAdI definition. Use during symptom analysis when a standard SAP BAdI is implicated — answers 'which Z class extends this standard BAdI?'. Example flow: PO BAPI error → ME_PROCESS_PO_CUST → list Z impls → read the impl class source via GetClass to find the bug. Currently ECC-only (routes through the ZMCP_ADT_DDIC_BADI bridge FM). Classic BAdI only; kernel BAdI returns kind='unknown'.
 
 **Source:** `src/handlers/enhancement/readonly/handleGetBadiImplementations.ts`
 
@@ -240,7 +241,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - Function group name (e.g., Z_MY_FG).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -256,7 +257,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - Function group name containing the function module (e.g., Z_MY_FG).
 - `function_module_name` (string, required) - Function module name (e.g., Z_MY_FM).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -324,7 +325,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., ZIF_MY_INTERFACE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -339,7 +340,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `metadata_extension_name` (string, required) - Metadata extension name (e.g., Z_MY_DDLX).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -365,7 +366,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `package_name` (string, required) - Package name (e.g., Z_MY_PACKAGE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -374,14 +375,14 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getprogfullcode-read-only-program"></a>
 #### GetProgFullCode (Read-Only / Program)
-**Description:** [read-only] Returns the full code for a program or function group, including all includes, in tree traversal order. Use output=
+**Description:** [read-only] Returns the full code for a program or function group, including all includes, in tree traversal order. Use output="file" to get paths + outlines instead of the code.
 
 **Source:** `src/handlers/program/readonly/handleGetProgFullCode.ts`
 
 **Parameters:**
-- `name` (string, required) - Technical name of the program or function group (e.g., 
+- `name` (string, required) - Technical name of the program or function group (e.g., '/CBY/MM_INVENTORY')
 - `output` (string, optional (default: inline)) - 
-- `type` (string, required) - 
+- `type` (string, required) - 'PROG/P' for program or 'FUGR' for function group
 
 ---
 
@@ -393,7 +394,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -433,7 +434,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/search/readonly/handleGetObjectsByType.ts`
 
 **Parameters:**
-- `format` (string, optional) - Output format: 
+- `format` (string, optional) - Output format: 'raw' or 'parsed'
 - `node_id` (string, required) - [read-only] Node ID
 - `parent_name` (string, required) - Parent object name
 - `parent_tech_name` (string, required) - Parent technical name
@@ -458,15 +459,15 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="searchobject-read-only-search"></a>
 #### SearchObject (Read-Only / Search)
-**Description:** [read-only] Find, search, locate, or check if an ABAP repository object exists by name or wildcard pattern (e.g. 
+**Description:** [read-only] Find, search, locate, or check if an ABAP repository object exists by name or wildcard pattern (e.g. 'ZOK*'). Use this tool to answer questions like 'is there a program named...', 'find all objects starting with...', 'does this class exist?', 'list objects matching...'. Supports all repository object types — optionally filter by type (PROG, CLAS, INTF, DEVC, TABL, DDLS, DTEL, FUGR, SRVD, SRVB, BDEF, DDLX, etc.).
 
 **Source:** `src/handlers/search/readonly/handleSearchObject.ts`
 
 **Parameters:**
 - `include_raw_xml` (boolean, optional (default: false)) - Also return the raw ADT XML (the parsed results already carry every field). Default false.
-- `maxResults` (number, optional (default: DEFAULT_MAX_RESULTS)) - 
-- `object_name` (string, required) - Object name or mask (e.g. 
-- `object_type` (string, optional) - Optional ABAP object type (e.g. 
+- `maxResults` (number, optional (default: DEFAULT_MAX_RESULTS)) - Maximum number of results to return (default ${DEFAULT_MAX_RESULTS}). The response has truncated=true when this limit was hit.
+- `object_name` (string, required) - Object name or mask (e.g. 'MARA*')
+- `object_type` (string, optional) - Optional ABAP object type (e.g. 'TABL', 'CLAS/OC')
 
 ---
 
@@ -495,7 +496,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `service_definition_name` (string, required) - Service definition name (e.g., Z_MY_SRVD).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -510,7 +511,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_STRUCTURE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -588,13 +589,13 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getjobusage-read-only-system"></a>
 #### GetJobUsage (Read-Only / System)
-**Description:** [read-only] Check whether programs are used as background job steps (SM37 jobs, TBTCO/TBTCP): true when the program is a step of a job that is scheduled now (released/ready/active, incl. periodic) or that finished/was cancelled in the last N months. SE38/SA38 dialog runs do not count. `oldest` = start date of the oldest finished job still kept; job reorganization deletes older ones, so when `complete` is false a false means 
+**Description:** [read-only] Check whether programs are used as background job steps (SM37 jobs, TBTCO/TBTCP): true when the program is a step of a job that is scheduled now (released/ready/active, incl. periodic) or that finished/was cancelled in the last N months. SE38/SA38 dialog runs do not count. `oldest` = start date of the oldest finished job still kept; job reorganization deletes older ones, so when `complete` is false a false means "no job since <oldest>". No user names are returned. ECC-only (ZMCP_WL_JOB_USAGE bridge FM).
 
 **Source:** `src/handlers/system/readonly/handleGetJobUsage.ts`
 
 **Parameters:**
 - `months` (number, optional (default: 12)) - Months back including the current one (1-36). Default: 12.
-- `programs` (array, required) - ABAP program names to check (e.g. [
+- `programs` (array, required) - ABAP program names to check (e.g. ["ZMY_REPORT"]).
 
 ---
 
@@ -648,15 +649,31 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getsmartformcontent-read-only-system"></a>
+#### GetSmartFormContent (Read-Only / System)
+**Description:** [read-only] Read what a SmartForm prints, for a preview: per page and window (position in mm) the content tree — text nodes with their lines (paragraph format + text with inline tags and &symbols&), include texts, tables / templates / loops with line types and cells, graphics, addresses, conditions; code nodes appear only as markers (no program lines). Also fetches the SmartStyles as CSS, the SE78 graphics with a fixed key as BMP files (with printed size) and the include texts with a fixed key. Graphics / texts whose key holds a &symbol& are listed under dynamicReferences. Active version, texts in the logon language. Files go under the MCP output directory (smartforms/<form>/), including <form>.content.json with the full result; summary=true answers with an overview (windows, data declarations, &symbols&, files) instead of the content tree. Needs the ZMCP_SSF_CONTENT FM and the SSF_CONTENT dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleGetSmartFormContent.ts`
+
+**Parameters:**
+- `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
+- `include_graphics` (boolean, optional) - Fetch SE78 graphics with a fixed key as BMP files. Default true.
+- `include_styles` (boolean, optional) - Fetch the SmartStyles (form default + text node styles) as CSS. Default true.
+- `include_texts` (boolean, optional) - Fetch include texts (SO10) with a fixed key. Default true.
+- `summary` (boolean, optional) - Answer with an overview (windows, data declarations, &symbols&, graphics, files) instead of the full content tree; the full result is always written to files.content. Default false.
+- `text_language` (string, optional) - Language for include texts whose key has no language: 1-char SAP key (e.g. "3") or 2-letter ISO code (e.g. "KO"). Default: the form language.
+
+---
+
 <a id="getsmartformlayout-read-only-system"></a>
 #### GetSmartFormLayout (Read-Only / System)
-**Description:** [read-only] Read the page and window layout of a SmartForm: per page the format, orientation, next page, CPI / LPI and style, and per window its type (MAIN / SECONDARY / ...), position and size as stored (value + unit) and converted to millimetres. Layout only: no texts, code or form interface. Needs the ZMCP_SSF_LAYOUT FM and the SSF_LAYOUT dispatcher action.
+**Description:** [read-only] Read the page and window layout of a SmartForm (active version; a never-activated form is read from its saved version, then `active` is false): per page the format, orientation, next page, CPI / LPI and style, and per window its type (MAIN / SECONDARY / ...), position and size as stored (value + unit) and converted to millimetres. Layout only: no texts, code or form interface. Needs the ZMCP_SSF_LAYOUT FM and the SSF_LAYOUT dispatcher action.
 
 **Source:** `src/handlers/system/readonly/handleGetSmartFormLayout.ts`
 
 **Parameters:**
-- `form_name` (string, required) - SmartForm name (e.g. 
-- `language` (string, optional) - Form language (1-char SAP key, e.g. 
+- `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
+- `language` (string, optional) - Form language: 1-char SAP key (e.g. "E", "3") or 2-letter ISO code (e.g. "EN", "KO"). Default: the master language of the form.
 
 ---
 
@@ -667,7 +684,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleGetSqlQuery.ts`
 
 **Parameters:**
-- `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 
+- `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.
 - `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
 
@@ -675,14 +692,14 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="gettcodeusage-read-only-system"></a>
 #### GetTcodeUsage (Read-Only / System)
-**Description:** [read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means 
+**Description:** [read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. ECC-only (ZMCP_WL_TCODE_USAGE bridge FM).
 
 **Source:** `src/handlers/system/readonly/handleGetTcodeUsage.ts`
 
 **Parameters:**
-- `destination` (string, optional) - SM59 RFC destination (on the connected system) of the system to measure, e.g. the QA or PRD system. Omitted → SAP_USAGE_RFCDEST from the profile sap.env, else the connected system. 
+- `destination` (string, optional) - SM59 RFC destination (on the connected system) of the system to measure, e.g. the QA or PRD system. Omitted → SAP_USAGE_RFCDEST from the profile sap.env, else the connected system. "" or "LOCAL" → the connected system.
 - `months` (number, optional (default: 12)) - Months back including the current one (1-36). Default: 12.
-- `tcodes` (array, required) - Transaction codes to check (e.g. [
+- `tcodes` (array, required) - Transaction codes to check (e.g. ["VA01","ZMY_TCODE"]).
 
 ---
 
@@ -694,7 +711,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `transaction_name` (string, optional) - Name of the ABAP transaction
-- `transaction_names` (array, optional) - Several transactions in one call (e.g. [
+- `transaction_names` (array, optional) - Several transactions in one call (e.g. ["VA01","ZMY_TCODE"]).
 
 ---
 
@@ -712,17 +729,17 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getusagesnippets-read-only-system"></a>
 #### GetUsageSnippets (Read-Only / System)
-**Description:** [read-only] Line-level where-used hits: for each referencing object, the source lines that use the searched object, with uri 
+**Description:** [read-only] Line-level where-used hits: for each referencing object, the source lines that use the searched object, with uri ".../source/main#start=<line>,<col>", line, column and the source line. Pass object_identifiers from GetWhereUsed references[].object_identifier, or object_name + object_type to run the where-used search first (customer_only / package filters apply to that search). Works on ECC 7.40 and S/4HANA.
 
 **Source:** `src/handlers/system/readonly/handleGetUsageSnippets.ts`
 
 **Parameters:**
 - `customer_only` (boolean, optional (default: false)) - With object_name: only customer referencing objects (Z / Y name, or package Z* / Y* / $*). Default: false.
 - `include_context` (boolean, optional (default: false)) - Include the multi-line context SAP returns per hit (description). Default: false.
-- `max_objects` (number, optional) - 
+- `max_objects` (number, optional) - Cap on referencing objects whose snippets are fetched. Default: ${DEFAULT_MAX_OBJECTS}. truncated=true when more were available.
 - `object_identifiers` (array, optional) - object_identifier values from GetWhereUsed references[]. Takes precedence over object_name / object_type.
 - `object_name` (string, optional) - Object to search (used when object_identifiers is not given).
-- `object_type` (string, optional) - 
+- `object_type` (string, optional) - Object type for object_name: ${SUPPORTED_WHERE_USED_TYPES}
 - `package` (string, optional) - With object_name: package filter on the referencing objects (exact, or prefix with trailing *).
 - `timeout_ms` (number, optional) - Optional request timeout in ms per SAP request (the where-used search and each snippet batch).
 
@@ -735,11 +752,11 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleGetWhereUsed.ts`
 
 **Parameters:**
-- `customer_only` (boolean, optional (default: false)) - Optional. Keep only customer objects: name starting with Z / Y, or package Z* / Y* / $*. Objects in /namespace/ (SAP industry solutions, partners, generated /1.../) are dropped; for a registered customer namespace use package: 
-- `enable_all_types` (boolean, optional (default: false)) - If true, searches in all available object types (Eclipse 
+- `customer_only` (boolean, optional (default: false)) - Optional. Keep only customer objects: name starting with Z / Y, or package Z* / Y* / $*. Objects in /namespace/ (SAP industry solutions, partners, generated /1.../) are dropped; for a registered customer namespace use package: "/ACME/*" instead. Default: false.
+- `enable_all_types` (boolean, optional (default: false)) - If true, searches in all available object types (Eclipse 'select all' behavior). Default: false (uses SAP default scope). Ignored on ECC (no scope resource).
 - `max_results` (number, optional) - Optional cap on references[] after filtering. Omit or 0 = no cap. truncated=true when more were found.
 - `object_name` (string, required) - Name of the ABAP object
-- `object_type` (string, required) - 
+- `object_type` (string, required) - Type of the ABAP object: ${SUPPORTED_WHERE_USED_TYPES}
 - `package` (string, optional) - Optional package filter on references[].package_name: exact name, or prefix with a trailing * (e.g. ZSD*).
 - `timeout_ms` (number, optional) - Optional request timeout in ms for the SAP search. Default: SAP_TIMEOUT_LONG (120 s) on ECC, SAP_TIMEOUT_DEFAULT (45 s) otherwise.
 
@@ -758,12 +775,12 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimeanalyzedump-read-only-system"></a>
 #### RuntimeAnalyzeDump (Read-Only / System)
-**Description:** [runtime] Read runtime dump by ID and return key facts (runtime error, exception, program, termination object/line, user, date, chapter index). Set include_payload=false for facts only. Pass chapters=[
+**Description:** [runtime] Read runtime dump by ID and return key facts (runtime error, exception, program, termination object/line, user, date, chapter index). Set include_payload=false for facts only. Pass chapters=["developer"] to get the ST22 long text reduced to the developer chapters (~10 KB instead of ~50 KB).
 
 **Source:** `src/handlers/system/readonly/handleRuntimeAnalyzeDump.ts`
 
 **Parameters:**
-- `chapters` (array, optional) - Formatted long text only (implies view=
+- `chapters` (array, optional) - Formatted long text only (implies view="formatted"): keep just these chapters, without box borders or padding. "developer" = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. Other entries match chapter titles by prefix.
 - `dump_id` (string, required) - Runtime dump ID.
 - `include_payload` (boolean, optional (default: true)) - Include full parsed payload in response.
 - `view` (string, optional (default: default)) - Dump view mode to analyze: default payload, summary section, or formatted long text.
@@ -810,14 +827,14 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimegetdumpbyid-read-only-system"></a>
 #### RuntimeGetDumpById (Read-Only / System)
-**Description:** [runtime] Read a specific ABAP runtime dump by dump ID. Default view (~7 KB): dump metadata, termination link (object + line) and chapter index. Use response_mode=
+**Description:** [runtime] Read a specific ABAP runtime dump by dump ID. Default view (~7 KB): dump metadata, termination link (object + line) and chapter index. Use response_mode="summary" for key facts only (runtime error, exception, program, termination object/line, user, date). For the ST22 long text pass chapters=["developer"] (or chapter titles) to get only those chapters, compacted (~10 KB instead of ~50 KB).
 
 **Source:** `src/handlers/system/readonly/handleRuntimeGetDumpById.ts`
 
 **Parameters:**
-- `chapters` (array, optional) - Formatted long text only (implies view=
+- `chapters` (array, optional) - Formatted long text only (implies view="formatted"): keep just these chapters, without box borders or padding. "developer" = Short Text, What happened?, Error analysis, Chain of Exception Objects, Information on where terminated, Source Code Extract, Active Calls/Events, User and Transaction. Other entries match chapter titles by prefix, e.g. "Selected Variables".
 - `dump_id` (string, required) - Runtime dump ID (for example: 694AB694097211F1929806D06D234D38).
-- `response_mode` (string, optional (default: payload)) - Controls what is returned: 
+- `response_mode` (string, optional (default: payload)) - Controls what is returned: "payload" (default, legacy) — full parsed dump data only, "summary" — compact key facts only (title, exception, program, line, user, date...), "both" — summary + full payload.
 - `view` (string, optional (default: default)) - Dump view mode: default payload, summary section, or formatted long text.
 
 ---
@@ -855,12 +872,12 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimelistdumps-read-only-system"></a>
 #### RuntimeListDumps (Read-Only / System)
-**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. Each entry
+**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. Each entry's HTML summary (~13 KB per dump) is omitted unless include_summary=true — use RuntimeGetDumpById / RuntimeAnalyzeDump for one dump's details.
 
 **Source:** `src/handlers/system/readonly/handleRuntimeListDumps.ts`
 
 **Parameters:**
-- `include_summary` (boolean, optional) - Keep each entry
+- `include_summary` (boolean, optional) - Keep each entry's HTML summary (atom:summary). Default false — it is ~96% of the payload and duplicates what RuntimeGetDumpById returns.
 - `inlinecount` (string, optional) - Include total count metadata.
 - `orderby` (string, optional) - ADT order by expression.
 - `skip` (number, optional) - Number of records to skip.
@@ -876,7 +893,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleRuntimeListFeeds.ts`
 
 **Parameters:**
-- `feed_type` (string, optional (default: descriptors)) - Feed to read. 
+- `feed_type` (string, optional (default: descriptors)) - Feed to read. "descriptors" lists available feeds, "variants" lists feed variants, others read that specific feed. Default: descriptors.
 - `from` (string, optional) - Start of time range in YYYYMMDDHHMMSS format.
 - `max_results` (number, optional) - Maximum number of entries to return.
 - `to` (string, optional) - End of time range in YYYYMMDDHHMMSS format.
@@ -981,7 +998,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_TABLE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 
 ---
 
@@ -997,7 +1014,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `include_objects` (boolean, optional (default: true))) - Include list of objects in transport (default: true)
 - `include_tasks` (boolean, optional (default: true))) - Include list of tasks in transport (default: true)
-- `owner` (string, optional) - SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users
+- `owner` (string, optional) - SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users' TRs — pass `owner` to retry via the list endpoint. On S/4 usually unnecessary, but provide it if the path read is rejected by authorization.
 - `transport_number` (string, required) - Transport request number (e.g., E19K905635, DEVK905123)
 
 ---
@@ -1024,7 +1041,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/readonly/handleReadView.ts`
 
 **Parameters:**
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - Version to read: "active" (default) or "inactive".
 - `view_name` (string, required) - View name (e.g., Z_MY_VIEW).
 
 ---

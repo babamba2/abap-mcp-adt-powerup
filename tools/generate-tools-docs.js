@@ -168,6 +168,19 @@ function extractInputSchemaRef(toolBlock) {
   return refMatch ? refMatch[1] : null;
 }
 
+/**
+ * Value of a string property (`key: '...'`, `"..."` or a template literal
+ * without `${}`): ends at the same quote it opened with, so an apostrophe
+ * inside a double-quoted text (or the other way round) no longer cuts it.
+ */
+function stringProp(source, key) {
+  const m = source.match(
+    new RegExp(`${key}\\s*:\\s*(['"\`])((?:\\\\.|(?!\\1)[^\\\\])*)\\1`),
+  );
+  if (!m) return '';
+  return m[2].replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, ' ');
+}
+
 function findMatchingBrace(content, openIndex) {
   let depth = 0;
   let inSingle = false;
@@ -259,8 +272,7 @@ function parseTopLevelProperties(propertiesContent) {
       const body = propertiesContent.slice(open + 1, close);
 
       const type = body.match(/type\s*:\s*['"]([^'"]+)['"]/)?.[1] || 'any';
-      const description =
-        body.match(/description\s*:\s*['"]([^'"]+)['"]/)?.[1] || '';
+      const description = stringProp(body, 'description');
       const defaultRaw = body.match(/default\s*:\s*([^,\n]+)/)?.[1]?.trim();
 
       props[key] = {
@@ -334,7 +346,8 @@ function extractToolDefinition(filePath) {
   const nameMatch = block.match(/name\s*:\s*['"]([^'"]+)['"]/);
   if (!nameMatch) return null;
 
-  const descMatch = block.match(/description\s*:\s*['"]([^'"]+)['"]/);
+  const descText = stringProp(block, 'description');
+  const descMatch = descText ? [null, descText] : null;
   const inputSchemaBlock = extractInputSchemaBlock(block);
   const inputSchemaRef = inputSchemaBlock ? null : extractInputSchemaRef(block);
   let inputSchema = parseInputSchemaBlock(inputSchemaBlock);

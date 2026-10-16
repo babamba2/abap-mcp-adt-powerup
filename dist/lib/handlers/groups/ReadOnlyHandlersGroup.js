@@ -30,6 +30,7 @@ const handleReadServiceBinding_1 = require("../../../handlers/service_binding/re
 const handleReadServiceDefinition_1 = require("../../../handlers/service_definition/readonly/handleReadServiceDefinition");
 const handleReadStructure_1 = require("../../../handlers/structure/readonly/handleReadStructure");
 const handleGetJobUsage_1 = require("../../../handlers/system/readonly/handleGetJobUsage");
+const handleGetSmartFormContent_1 = require("../../../handlers/system/readonly/handleGetSmartFormContent");
 const handleGetSmartFormLayout_1 = require("../../../handlers/system/readonly/handleGetSmartFormLayout");
 const handleGetTcodeUsage_1 = require("../../../handlers/system/readonly/handleGetTcodeUsage");
 const handleGetTableContents_1 = require("../../../handlers/table/readonly/handleGetTableContents");
@@ -93,6 +94,10 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetSmartFormLayout_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetSmartFormLayout_1.handleGetSmartFormLayout)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetSmartFormContent_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetSmartFormContent_1.handleGetSmartFormContent)(this.context, args),
             },
             {
                 toolDefinition: handleGetTransport_1.TOOL_DEFINITION,

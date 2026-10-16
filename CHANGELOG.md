@@ -6,6 +6,10 @@
 
 ### Added
 - **`GetSmartFormLayout`** (read-only, on-premise and legacy systems): page and window layout of a SmartForm. Per page the format, orientation, next page, CPI / LPI and style; per window its type (MAIN, SECONDARY, ...), position and size as stored (value + unit) and converted to millimetres (CM, MM, IN, PT, TW, and LN / CH through the page LPI / CPI). Reads the active version (a form that was never activated is read from its saved version and `active` is false). `language` takes a 1-character SAP key or a 2-letter ISO code. Layout only: no texts, code or form interface. Runs through `ZMCP_ADT_DISPATCH` action `SSF_LAYOUT`, so it works on the OData backend (BASIS 7.40) and over SOAP RFC (BASIS 7.31). Needs the new `ZMCP_SSF_LAYOUT` FM and the `SSF_LAYOUT` dispatcher branch; without them the tool answers with an install hint.
+- **`GetSmartFormContent`** (read-only, on-premise and legacy systems): what a SmartForm prints, for preview rendering. Per page and window (position in mm) the content tree: text nodes with their lines (paragraph format, inline character formats, `&symbols&`), include texts, templates with line heights and cells (width, border widths, shading colour), loops and tables with header / footer events, graphics, addresses, print conditions; code nodes only as markers, never program lines. Also the form interface and global data with their types (`data`), the SmartStyles as CSS, SE78 graphics with a fixed key as BMP with their printed size, and include texts with a fixed key. Everything is written under the MCP output directory (`smartforms/<form>/`, full result in `<form>.content.json`); `summary: true` answers with an overview (windows, data declarations, `&symbols&`, graphics, files) because the full tree easily exceeds a tool answer. Runs through `ZMCP_ADT_DISPATCH` action `SSF_CONTENT` (FM `ZMCP_SSF_CONTENT`).
+
+### Fixed
+- `npm run docs:tools` cut a description at the first quote of the other kind (`'… (e.g. "ZMY_FORM")'`, `"… dump's …"`): string values now end at the quote they opened with, escapes are resolved. The user-guide tool lists are regenerated with the full texts.
 
 ## [4.8.12] - 2026-10-14
 
