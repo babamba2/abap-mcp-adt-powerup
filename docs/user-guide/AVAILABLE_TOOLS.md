@@ -4,10 +4,10 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ## Summary
 
-- Total tools: 287
-- Read-only tools: 52
-- High-level tools: 113
-- Low-level tools: 122
+- Total tools: 331
+- Read-only tools: 65
+- High-level tools: 132
+- Low-level tools: 134
 
 - Compact tools: 22 (included in High-level group)
 
@@ -33,6 +33,7 @@ Generated from code in `src/handlers/**` (not from docs).
   - [Domain](#read-only-domain)
     - [ReadDomain](#readdomain-read-only-domain)
   - [Enhancement](#read-only-enhancement)
+    - [GetBadiImplementations](#getbadiimplementations-read-only-enhancement)
     - [GetEnhancementImpl](#getenhancementimpl-read-only-enhancement)
     - [GetEnhancements](#getenhancements-read-only-enhancement)
     - [GetEnhancementSpot](#getenhancementspot-read-only-enhancement)
@@ -40,6 +41,9 @@ Generated from code in `src/handlers/**` (not from docs).
     - [ReadFunctionGroup](#readfunctiongroup-read-only-function-group)
   - [Function Module](#read-only-function-module)
     - [ReadFunctionModule](#readfunctionmodule-read-only-function-module)
+  - [Gui Status](#read-only-gui-status)
+    - [GetGuiStatusList](#getguistatuslist-read-only-gui-status)
+    - [ReadGuiStatus](#readguistatus-read-only-gui-status)
   - [Include](#read-only-include)
     - [GetInclude](#getinclude-read-only-include)
     - [GetIncludesList](#getincludeslist-read-only-include)
@@ -53,6 +57,9 @@ Generated from code in `src/handlers/**` (not from docs).
   - [Program](#read-only-program)
     - [GetProgFullCode](#getprogfullcode-read-only-program)
     - [ReadProgram](#readprogram-read-only-program)
+  - [Screen](#read-only-screen)
+    - [GetScreensList](#getscreenslist-read-only-screen)
+    - [ReadScreen](#readscreen-read-only-screen)
   - [Search](#read-only-search)
     - [GetObjectsByType](#getobjectsbytype-read-only-search)
     - [GetObjectsList](#getobjectslist-read-only-search)
@@ -70,21 +77,29 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetAbapSystemSymbols](#getabapsystemsymbols-read-only-system)
     - [GetAdtTypes](#getadttypes-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
+    - [GetJobUsage](#getjobusage-read-only-system)
     - [GetObjectInfo](#getobjectinfo-read-only-system)
     - [GetObjectNodeFromCache](#getobjectnodefromcache-read-only-system)
     - [GetObjectStructure](#getobjectstructure-read-only-system)
     - [GetSession](#getsession-read-only-system)
+    - [GetSmartFormLayout](#getsmartformlayout-read-only-system)
     - [GetSqlQuery](#getsqlquery-read-only-system)
+    - [GetTcodeUsage](#gettcodeusage-read-only-system)
     - [GetTransaction](#gettransaction-read-only-system)
     - [GetTypeInfo](#gettypeinfo-read-only-system)
+    - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
+    - [ReloadProfile](#reloadprofile-read-only-system)
     - [RuntimeAnalyzeDump](#runtimeanalyzedump-read-only-system)
     - [RuntimeAnalyzeProfilerTrace](#runtimeanalyzeprofilertrace-read-only-system)
     - [RuntimeCreateProfilerTraceParameters](#runtimecreateprofilertraceparameters-read-only-system)
     - [RuntimeGetDumpById](#runtimegetdumpbyid-read-only-system)
+    - [RuntimeGetGatewayErrorLog](#runtimegetgatewayerrorlog-read-only-system)
     - [RuntimeGetProfilerTraceData](#runtimegetprofilertracedata-read-only-system)
     - [RuntimeListDumps](#runtimelistdumps-read-only-system)
+    - [RuntimeListFeeds](#runtimelistfeeds-read-only-system)
     - [RuntimeListProfilerTraceFiles](#runtimelistprofilertracefiles-read-only-system)
+    - [RuntimeListSystemMessages](#runtimelistsystemmessages-read-only-system)
     - [RuntimeRunClassWithProfiling](#runtimerunclasswithprofiling-read-only-system)
     - [RuntimeRunProgramWithProfiling](#runtimerunprogramwithprofiling-read-only-system)
   - [Table](#read-only-table)
@@ -123,6 +138,8 @@ Generated from code in `src/handlers/**` (not from docs).
     - [UpdateLocalMacros](#updatelocalmacros-high-level-class)
     - [UpdateLocalTestClass](#updatelocaltestclass-high-level-class)
     - [UpdateLocalTypes](#updatelocaltypes-high-level-class)
+  - [Common](#high-level-common)
+    - [ActivateObjects](#activateobjects-high-level-common)
   - [Compact](#high-level-compact)
     - [HandlerActivate](#handleractivate-high-level-compact)
     - [HandlerCdsUnitTestResult](#handlercdsunittestresult-high-level-compact)
@@ -170,6 +187,16 @@ Generated from code in `src/handlers/**` (not from docs).
   - [Function Module](#high-level-function-module)
     - [DeleteFunctionModule](#deletefunctionmodule-high-level-function-module)
     - [GetFunctionModule](#getfunctionmodule-high-level-function-module)
+  - [Gui Status](#high-level-gui-status)
+    - [CreateGuiStatus](#createguistatus-high-level-gui-status)
+    - [DeleteGuiStatus](#deleteguistatus-high-level-gui-status)
+    - [GetGuiStatus](#getguistatus-high-level-gui-status)
+    - [PatchGuiStatus](#patchguistatus-high-level-gui-status)
+    - [UpdateGuiStatus](#updateguistatus-high-level-gui-status)
+  - [Include](#high-level-include)
+    - [CreateInclude](#createinclude-high-level-include)
+    - [DeleteInclude](#deleteinclude-high-level-include)
+    - [UpdateInclude](#updateinclude-high-level-include)
   - [Interface](#high-level-interface)
     - [CreateInterface](#createinterface-high-level-interface)
     - [DeleteInterface](#deleteinterface-high-level-interface)
@@ -186,6 +213,11 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteProgram](#deleteprogram-high-level-program)
     - [GetProgram](#getprogram-high-level-program)
     - [UpdateProgram](#updateprogram-high-level-program)
+  - [Screen](#high-level-screen)
+    - [CreateScreen](#createscreen-high-level-screen)
+    - [DeleteScreen](#deletescreen-high-level-screen)
+    - [GetScreen](#getscreen-high-level-screen)
+    - [UpdateScreen](#updatescreen-high-level-screen)
   - [Service Binding](#high-level-service-binding)
     - [CreateServiceBinding](#createservicebinding-high-level-service-binding)
     - [DeleteServiceBinding](#deleteservicebinding-high-level-service-binding)
@@ -210,6 +242,13 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteTable](#deletetable-high-level-table)
     - [GetTable](#gettable-high-level-table)
     - [UpdateTable](#updatetable-high-level-table)
+  - [Text Element](#high-level-text-element)
+    - [CreateTextElement](#createtextelement-high-level-text-element)
+    - [DeleteTextElement](#deletetextelement-high-level-text-element)
+    - [GetTextElement](#gettextelement-high-level-text-element)
+    - [ReadTextElementsBulk](#readtextelementsbulk-high-level-text-element)
+    - [UpdateTextElement](#updatetextelement-high-level-text-element)
+    - [WriteTextElementsBulk](#writetextelementsbulk-high-level-text-element)
   - [Transport](#high-level-transport)
     - [CreateTransport](#createtransport-high-level-transport)
   - [Unit Test](#high-level-unit-test)
@@ -311,6 +350,13 @@ Generated from code in `src/handlers/**` (not from docs).
     - [UpdateFunctionModuleLow](#updatefunctionmodulelow-low-level-function)
     - [ValidateFunctionGroupLow](#validatefunctiongrouplow-low-level-function)
     - [ValidateFunctionModuleLow](#validatefunctionmodulelow-low-level-function)
+  - [Gui Status](#low-level-gui-status)
+    - [ActivateGuiStatusLow](#activateguistatuslow-low-level-gui-status)
+    - [CreateGuiStatusLow](#createguistatuslow-low-level-gui-status)
+    - [DeleteGuiStatusLow](#deleteguistatuslow-low-level-gui-status)
+    - [LockGuiStatusLow](#lockguistatuslow-low-level-gui-status)
+    - [UnlockGuiStatusLow](#unlockguistatuslow-low-level-gui-status)
+    - [UpdateGuiStatusLow](#updateguistatuslow-low-level-gui-status)
   - [Interface](#low-level-interface)
     - [ActivateInterfaceLow](#activateinterfacelow-low-level-interface)
     - [CheckInterfaceLow](#checkinterfacelow-low-level-interface)
@@ -337,6 +383,13 @@ Generated from code in `src/handlers/**` (not from docs).
     - [UnlockProgramLow](#unlockprogramlow-low-level-program)
     - [UpdateProgramLow](#updateprogramlow-low-level-program)
     - [ValidateProgramLow](#validateprogramlow-low-level-program)
+  - [Screen](#low-level-screen)
+    - [ActivateScreenLow](#activatescreenlow-low-level-screen)
+    - [CreateScreenLow](#createscreenlow-low-level-screen)
+    - [DeleteScreenLow](#deletescreenlow-low-level-screen)
+    - [LockScreenLow](#lockscreenlow-low-level-screen)
+    - [UnlockScreenLow](#unlockscreenlow-low-level-screen)
+    - [UpdateScreenLow](#updatescreenlow-low-level-screen)
   - [Structure](#low-level-structure)
     - [ActivateStructureLow](#activatestructurelow-low-level-structure)
     - [CheckStructureLow](#checkstructurelow-low-level-structure)
@@ -454,6 +507,20 @@ Generated from code in `src/handlers/**` (not from docs).
 <a id="read-only-enhancement"></a>
 ### Read-Only / Enhancement
 
+<a id="getbadiimplementations-read-only-enhancement"></a>
+#### GetBadiImplementations (Read-Only / Enhancement)
+**Description:** [read-only] Find implementations of a (classic) BAdI definition. Use during symptom analysis when a standard SAP BAdI is implicated — answers 
+
+**Source:** `src/handlers/enhancement/readonly/handleGetBadiImplementations.ts`
+
+**Parameters:**
+- `active_only` (boolean, optional (default: true)) - Restrict to active implementations only. Default: true.
+- `badi_definition` (string, required) - BAdI definition name (e.g., ME_PROCESS_PO_CUST). Will be uppercased.
+- `customer_only` (boolean, optional (default: true)) - Restrict to Z*/Y* implementations. Default: true. Set false to include SAP-shipped implementations.
+- `include_methods` (boolean, optional (default: true)) - Include the list of redefined method names per implementation (from SXC_EXIT). Default: true.
+
+---
+
 <a id="getenhancementimpl-read-only-enhancement"></a>
 #### GetEnhancementImpl (Read-Only / Enhancement)
 **Description:** [read-only] Retrieve source code of a specific enhancement implementation by its name and enhancement spot.
@@ -461,7 +528,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/enhancement/readonly/handleGetEnhancementImpl.ts`
 
 **Parameters:**
-- `enhancement_name` (string, required) - [read-only] Name of the enhancement implementation
+- `enhancement_name` (string, required) - Name of the enhancement implementation
 - `enhancement_spot` (string, required) - Name of the enhancement spot
 
 ---
@@ -474,7 +541,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `object_name` (string, required) - Name of the ABAP object
-- `object_type` (string, required) - [read-only] Type of the ABAP object
+- `object_type` (string, required) - Type of the ABAP object
 
 ---
 
@@ -520,6 +587,31 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="read-only-gui-status"></a>
+### Read-Only / Gui Status
+
+<a id="getguistatuslist-read-only-gui-status"></a>
+#### GetGuiStatusList (Read-Only / Gui Status)
+**Description:** [read-only] List all GUI statuses belonging to an ABAP program.
+
+**Source:** `src/handlers/gui_status/readonly/handleGetGuiStatusList.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Program name (e.g., SAPMV45A).
+
+---
+
+<a id="readguistatus-read-only-gui-status"></a>
+#### ReadGuiStatus (Read-Only / Gui Status)
+**Description:** [read-only] Read ABAP GUI Status definition (statuses, function codes, menus, toolbars, titles) for a program.
+
+**Source:** `src/handlers/gui_status/readonly/handleReadGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+
+---
+
 <a id="read-only-include"></a>
 ### Read-Only / Include
 
@@ -541,10 +633,10 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/include/readonly/handleGetIncludesList.ts`
 
 **Parameters:**
-- `detailed` (boolean, optional (default: false)) - [read-only] If true, returns structured JSON with metadata and raw XML.
+- `detailed` (boolean, optional (default: false)) - If true, returns structured JSON with metadata and raw XML.
 - `object_name` (string, required) - Name of the ABAP program or include
-- `object_type` (string, required) - [read-only] ADT object type (e.g. PROG/P, PROG/I, FUGR, CLAS/OC)
-- `timeout` (number, optional) - [read-only] Timeout in ms for each ADT request.
+- `object_type` (string, required) - ADT object type (e.g. PROG/P, PROG/I, FUGR, CLAS/OC)
+- `timeout` (number, optional) - Timeout in ms for each ADT request.
 
 ---
 
@@ -609,13 +701,14 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getprogfullcode-read-only-program"></a>
 #### GetProgFullCode (Read-Only / Program)
-**Description:** [read-only] Returns the full code for a program or function group, including all includes, in tree traversal order.
+**Description:** [read-only] Returns the full code for a program or function group, including all includes, in tree traversal order. Use output=
 
 **Source:** `src/handlers/program/readonly/handleGetProgFullCode.ts`
 
 **Parameters:**
-- `name` (string, required) - [read-only] Technical name of the program or function group (e.g., 
-- `type` (string, required) - [read-only] 
+- `name` (string, required) - Technical name of the program or function group (e.g., 
+- `output` (string, optional (default: inline)) - 
+- `type` (string, required) - 
 
 ---
 
@@ -631,49 +724,76 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="read-only-screen"></a>
+### Read-Only / Screen
+
+<a id="getscreenslist-read-only-screen"></a>
+#### GetScreensList (Read-Only / Screen)
+**Description:** [read-only] List all screens (dynpros) belonging to an ABAP program.
+
+**Source:** `src/handlers/screen/readonly/handleGetScreensList.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Program name (e.g., SAPMV45A).
+
+---
+
+<a id="readscreen-read-only-screen"></a>
+#### ReadScreen (Read-Only / Screen)
+**Description:** [read-only] Read ABAP Screen (Dynpro) flow logic source code, fields, and metadata.
+
+**Source:** `src/handlers/screen/readonly/handleReadScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+
+---
+
 <a id="read-only-search"></a>
 ### Read-Only / Search
 
 <a id="getobjectsbytype-read-only-search"></a>
 #### GetObjectsByType (Read-Only / Search)
-**Description:** [read-only] Retrieves all ABAP objects of a specific type under a given node.
+**Description:** [read-only] Retrieves all ABAP objects of a specific type (classes, tables, programs, interfaces, etc.) under a given parent node. Useful for listing all objects of one type within a package or composite object.
 
 **Source:** `src/handlers/search/readonly/handleGetObjectsByType.ts`
 
 **Parameters:**
-- `format` (string, optional) - [read-only] Output format: 
+- `format` (string, optional) - Output format: 
 - `node_id` (string, required) - [read-only] Node ID
-- `parent_name` (string, required) - [read-only] Parent object name
-- `parent_tech_name` (string, required) - [read-only] Parent technical name
-- `parent_type` (string, required) - [read-only] Parent object type
-- `with_short_descriptions` (boolean, optional) - [read-only] Include short descriptions
+- `parent_name` (string, required) - Parent object name
+- `parent_tech_name` (string, required) - Parent technical name
+- `parent_type` (string, required) - Parent object type
+- `with_short_descriptions` (boolean, optional) - Include short descriptions
 
 ---
 
 <a id="getobjectslist-read-only-search"></a>
 #### GetObjectsList (Read-Only / Search)
-**Description:** [read-only] Recursively retrieves all valid ABAP repository objects for a given parent (program, function group, etc.) including nested includes.
+**Description:** [read-only] Recursively retrieves all child ABAP repository objects for a given parent — programs (PROG), function groups (FUGR), classes (CLAS), packages (DEVC), and other composite objects — including nested includes and subcomponents.
 
 **Source:** `src/handlers/search/readonly/handleGetObjectsList.ts`
 
 **Parameters:**
-- `parent_name` (string, required) - [read-only] Parent object name
-- `parent_tech_name` (string, required) - [read-only] Parent technical name
-- `parent_type` (string, required) - [read-only] Parent object type (e.g. PROG/P, FUGR)
-- `with_short_descriptions` (boolean, optional (default: true))) - [read-only] Include short descriptions (default: true)
+- `parent_name` (string, required) - Parent object name
+- `parent_tech_name` (string, required) - Parent technical name
+- `parent_type` (string, required) - Parent object type (e.g. PROG/P, FUGR)
+- `with_short_descriptions` (boolean, optional (default: true))) - Include short descriptions (default: true)
 
 ---
 
 <a id="searchobject-read-only-search"></a>
 #### SearchObject (Read-Only / Search)
-**Description:** [read-only] Search for ABAP objects by name pattern. Parameters: object_name (with or without mask), object_type (optional), maxResults (optional). If object_type is specified, results are filtered by type.
+**Description:** [read-only] Find, search, locate, or check if an ABAP repository object exists by name or wildcard pattern (e.g. 
 
 **Source:** `src/handlers/search/readonly/handleSearchObject.ts`
 
 **Parameters:**
-- `maxResults` (number, optional (default: 100)) - [read-only] Maximum number of results to return
-- `object_name` (string, required) - [read-only] Object name or mask (e.g. 
-- `object_type` (string, optional) - [read-only] Optional ABAP object type (e.g. 
+- `include_raw_xml` (boolean, optional (default: false)) - Also return the raw ADT XML (the parsed results already carry every field). Default false.
+- `maxResults` (number, optional (default: DEFAULT_MAX_RESULTS)) - 
+- `object_name` (string, required) - Object name or mask (e.g. 
+- `object_type` (string, optional) - Optional ABAP object type (e.g. 
 
 ---
 
@@ -731,7 +851,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleDescribeByList.ts`
 
 **Parameters:**
-- `objects` (array, required) - [read-only] Object name (required, must be valid ABAP object name or mask)
+- `objects` (array, required) - Object name (required, must be valid ABAP object name or mask)
 
 ---
 
@@ -773,7 +893,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getadttypes-read-only-system"></a>
 #### GetAdtTypes (Read-Only / System)
-**Description:** [read-only] Retrieve all valid ADT object types.
+**Description:** [read-only] Retrieve all valid ADT object types (CLAS, TABL, PROG, DEVC, FUGR, INTF, DDLS, DTEL, DOMA, SRVD, SRVB, BDEF, DDLX, etc.) or validate a specific type name.
 
 **Source:** `src/handlers/system/readonly/handleGetAllTypes.ts`
 
@@ -784,7 +904,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="getinactiveobjects-read-only-system"></a>
 #### GetInactiveObjects (Read-Only / System)
-**Description:** [read-only] Get a list of inactive ABAP objects (objects that have been modified but not activated).
+**Description:** [read-only] Get a list of inactive ABAP objects — modified but not yet activated, pending activation. Shows classes, tables, CDS views, and other objects awaiting activation.
 
 **Source:** `src/handlers/system/readonly/handleGetInactiveObjects.ts`
 
@@ -793,17 +913,29 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getjobusage-read-only-system"></a>
+#### GetJobUsage (Read-Only / System)
+**Description:** [read-only] Check whether programs are used as background job steps (SM37 jobs, TBTCO/TBTCP): true when the program is a step of a job that is scheduled now (released/ready/active, incl. periodic) or that finished/was cancelled in the last N months. SE38/SA38 dialog runs do not count. `oldest` = start date of the oldest finished job still kept; job reorganization deletes older ones, so when `complete` is false a false means 
+
+**Source:** `src/handlers/system/readonly/handleGetJobUsage.ts`
+
+**Parameters:**
+- `months` (number, optional (default: 12)) - Months back including the current one (1-36). Default: 12.
+- `programs` (array, required) - ABAP program names to check (e.g. [
+
+---
+
 <a id="getobjectinfo-read-only-system"></a>
 #### GetObjectInfo (Read-Only / System)
-**Description:** [read-only] Return ABAP object tree: root, group nodes, and terminal leaves up to maxDepth. Enrich each node via SearchObject if enrich=true. Group nodes are included for hierarchy. Each node has node_type: root, point, end.
+**Description:** [read-only] Return ABAP object tree structure for packages (DEVC), classes (CLAS), programs (PROG), function groups (FUGR), and other objects. Shows root, group nodes, and terminal leaves up to maxDepth. Enrich each node with description and package via SearchObject if enrich=true.
 
 **Source:** `src/handlers/system/readonly/handleGetObjectInfo.ts`
 
 **Parameters:**
-- `enrich` (boolean, optional (default: true)) - [read-only] Whether to add description and package via SearchObject (default true)
-- `maxDepth` (integer, optional (default: 1)) - [read-only] Maximum tree depth (default depends on type)
-- `parent_name` (string, required) - [read-only] Parent object name
-- `parent_type` (string, required) - [read-only] Parent object type (e.g. DEVC/K, CLAS/OC, PROG/P)
+- `enrich` (boolean, optional (default: true)) - Whether to add description and package via SearchObject (default true)
+- `maxDepth` (integer, optional (default: 1)) - Maximum tree depth (default depends on type)
+- `parent_name` (string, required) - Parent object name
+- `parent_type` (string, required) - Parent object type (e.g. DEVC/K, CLAS/OC, PROG/P)
 
 ---
 
@@ -843,32 +975,59 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getsmartformlayout-read-only-system"></a>
+#### GetSmartFormLayout (Read-Only / System)
+**Description:** [read-only] Read the page and window layout of a SmartForm: per page the format, orientation, next page, CPI / LPI and style, and per window its type (MAIN / SECONDARY / ...), position and size as stored (value + unit) and converted to millimetres. Layout only: no texts, code or form interface. Needs the ZMCP_SSF_LAYOUT FM and the SSF_LAYOUT dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleGetSmartFormLayout.ts`
+
+**Parameters:**
+- `form_name` (string, required) - SmartForm name (e.g. 
+- `language` (string, optional) - Form language (1-char SAP key, e.g. 
+
+---
+
 <a id="getsqlquery-read-only-system"></a>
 #### GetSqlQuery (Read-Only / System)
-**Description:** [read-only] Execute freestyle SQL queries via SAP ADT Data Preview API.
+**Description:** [read-only] Execute ABAP SQL SELECT queries on database tables and CDS views via SAP ADT Data Preview API. Use for ad-hoc data retrieval, row counts, and filtered queries.
 
 **Source:** `src/handlers/system/readonly/handleGetSqlQuery.ts`
 
 **Parameters:**
-- `row_number` (number, optional (default: 100)) - [read-only] Maximum number of rows to return
+- `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 
+- `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
+
+---
+
+<a id="gettcodeusage-read-only-system"></a>
+#### GetTcodeUsage (Read-Only / System)
+**Description:** [read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means 
+
+**Source:** `src/handlers/system/readonly/handleGetTcodeUsage.ts`
+
+**Parameters:**
+- `destination` (string, optional) - SM59 RFC destination (on the connected system) of the system to measure, e.g. the QA or PRD system. Omitted → SAP_USAGE_RFCDEST from the profile sap.env, else the connected system. 
+- `months` (number, optional (default: 12)) - Months back including the current one (1-36). Default: 12.
+- `tcodes` (array, required) - Transaction codes to check (e.g. [
 
 ---
 
 <a id="gettransaction-read-only-system"></a>
 #### GetTransaction (Read-Only / System)
-**Description:** [read-only] Retrieve ABAP transaction details.
+**Description:** [read-only] Retrieve ABAP transaction (t-code) details from TSTC / TSTCP — program, screen, and kind (program, parameter transaction with its target t-code and parameters such as an SM30 view, variant transaction). Pass transaction_names for many t-codes in one call.
 
 **Source:** `src/handlers/system/readonly/handleGetTransaction.ts`
 
 **Parameters:**
-- `transaction_name` (string, required) - Name of the ABAP transaction
+- `transaction_name` (string, optional) - Name of the ABAP transaction
+- `transaction_names` (array, optional) - Several transactions in one call (e.g. [
 
 ---
 
 <a id="gettypeinfo-read-only-system"></a>
 #### GetTypeInfo (Read-Only / System)
-**Description:** [read-only] Retrieve ABAP type information.
+**Description:** [read-only] Retrieve ABAP type information for domains (DOMA), data elements (DTEL), table types, and structures. Returns field definitions, value ranges, fixed values, and DDIC metadata.
 
 **Source:** `src/handlers/system/readonly/handleGetTypeInfo.ts`
 
@@ -878,26 +1037,60 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getusagesnippets-read-only-system"></a>
+#### GetUsageSnippets (Read-Only / System)
+**Description:** [read-only] Line-level where-used hits: for each referencing object, the source lines that use the searched object, with uri 
+
+**Source:** `src/handlers/system/readonly/handleGetUsageSnippets.ts`
+
+**Parameters:**
+- `customer_only` (boolean, optional (default: false)) - With object_name: only customer referencing objects (Z / Y name, or package Z* / Y* / $*). Default: false.
+- `include_context` (boolean, optional (default: false)) - Include the multi-line context SAP returns per hit (description). Default: false.
+- `max_objects` (number, optional) - 
+- `object_identifiers` (array, optional) - object_identifier values from GetWhereUsed references[]. Takes precedence over object_name / object_type.
+- `object_name` (string, optional) - Object to search (used when object_identifiers is not given).
+- `object_type` (string, optional) - 
+- `package` (string, optional) - With object_name: package filter on the referencing objects (exact, or prefix with trailing *).
+- `timeout_ms` (number, optional) - Optional request timeout in ms per SAP request (the where-used search and each snippet batch).
+
+---
+
 <a id="getwhereused-read-only-system"></a>
 #### GetWhereUsed (Read-Only / System)
-**Description:** [read-only] Retrieve where-used references for ABAP objects via ADT usageReferences. Returns parsed list of referencing objects with their types and packages.
+**Description:** [read-only] Find where-used references (cross-references, usages, dependencies) for ABAP objects — classes, interfaces, tables, data elements, programs, function modules, etc. Returns list of all referencing objects with their types and packages. On ECC a function module may be given by plain name (no GROUP|FM needed). Widely used SAP standard tables (e.g. VBAK) can take about 60 s and return thousands of references — use customer_only / package / max_results to shrink the answer (filtering happens after the SAP search, so it does not shorten the search time). Pass references[].object_identifier to GetUsageSnippets for line-level hits.
 
 **Source:** `src/handlers/system/readonly/handleGetWhereUsed.ts`
 
 **Parameters:**
+- `customer_only` (boolean, optional (default: false)) - Optional. Keep only customer objects: name starting with Z / Y, or package Z* / Y* / $*. Objects in /namespace/ (SAP industry solutions, partners, generated /1.../) are dropped; for a registered customer namespace use package: 
 - `enable_all_types` (boolean, optional (default: false)) - If true, searches in all available object types (Eclipse 
+- `max_results` (number, optional) - Optional cap on references[] after filtering. Omit or 0 = no cap. truncated=true when more were found.
 - `object_name` (string, required) - Name of the ABAP object
-- `object_type` (string, required) - Type of the ABAP object (class, interface, program, table, etc.)
+- `object_type` (string, required) - 
+- `package` (string, optional) - Optional package filter on references[].package_name: exact name, or prefix with a trailing * (e.g. ZSD*).
+- `timeout_ms` (number, optional) - Optional request timeout in ms for the SAP search. Default: SAP_TIMEOUT_LONG (120 s) on ECC, SAP_TIMEOUT_DEFAULT (45 s) otherwise.
+
+---
+
+<a id="reloadprofile-read-only-system"></a>
+#### ReloadProfile (Read-Only / System)
+**Description:** [system] Reload the active SAP profile from .sc4sap/active-profile.txt and reset the cached connection. Called by the sc4sap plugin after switching profiles. Returns the newly active alias, host, tier, and readonly status.
+
+**Source:** `src/handlers/system/readonly/handleReloadProfile.ts`
+
+**Parameters:**
+- None
 
 ---
 
 <a id="runtimeanalyzedump-read-only-system"></a>
 #### RuntimeAnalyzeDump (Read-Only / System)
-**Description:** [runtime] Read runtime dump by ID and return compact analysis summary with key fields.
+**Description:** [runtime] Read runtime dump by ID and return key facts (runtime error, exception, program, termination object/line, user, date, chapter index). Set include_payload=false for facts only. Pass chapters=[
 
 **Source:** `src/handlers/system/readonly/handleRuntimeAnalyzeDump.ts`
 
 **Parameters:**
+- `chapters` (array, optional) - Formatted long text only (implies view=
 - `dump_id` (string, required) - Runtime dump ID.
 - `include_payload` (boolean, optional (default: true)) - Include full parsed payload in response.
 - `view` (string, optional (default: default)) - Dump view mode to analyze: default payload, summary section, or formatted long text.
@@ -944,13 +1137,30 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimegetdumpbyid-read-only-system"></a>
 #### RuntimeGetDumpById (Read-Only / System)
-**Description:** [runtime] Read a specific ABAP runtime dump by dump ID. Returns parsed JSON payload.
+**Description:** [runtime] Read a specific ABAP runtime dump by dump ID. Default view (~7 KB): dump metadata, termination link (object + line) and chapter index. Use response_mode=
 
 **Source:** `src/handlers/system/readonly/handleRuntimeGetDumpById.ts`
 
 **Parameters:**
+- `chapters` (array, optional) - Formatted long text only (implies view=
 - `dump_id` (string, required) - Runtime dump ID (for example: 694AB694097211F1929806D06D234D38).
+- `response_mode` (string, optional (default: payload)) - Controls what is returned: 
 - `view` (string, optional (default: default)) - Dump view mode: default payload, summary section, or formatted long text.
+
+---
+
+<a id="runtimegetgatewayerrorlog-read-only-system"></a>
+#### RuntimeGetGatewayErrorLog (Read-Only / System)
+**Description:** [runtime] List SAP Gateway error log (/IWFND/ERROR_LOG) or get error detail. Returns structured entries with type, shortText, transactionId, dateTime, username. With error_url returns full detail including serviceInfo, errorContext, sourceCode, callStack.
+
+**Source:** `src/handlers/system/readonly/handleRuntimeGetGatewayErrorLog.ts`
+
+**Parameters:**
+- `error_url` (string, optional) - Feed URL of a specific error entry (from a previous list response link field). When provided, returns detailed error info instead of listing.
+- `from` (string, optional) - Start of time range in YYYYMMDDHHMMSS format.
+- `max_results` (number, optional) - Maximum number of errors to return.
+- `to` (string, optional) - End of time range in YYYYMMDDHHMMSS format.
+- `user` (string, optional) - Filter errors by SAP username.
 
 ---
 
@@ -972,16 +1182,32 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimelistdumps-read-only-system"></a>
 #### RuntimeListDumps (Read-Only / System)
-**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload.
+**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. Each entry
 
 **Source:** `src/handlers/system/readonly/handleRuntimeListDumps.ts`
 
 **Parameters:**
+- `include_summary` (boolean, optional) - Keep each entry
 - `inlinecount` (string, optional) - Include total count metadata.
 - `orderby` (string, optional) - ADT order by expression.
 - `skip` (number, optional) - Number of records to skip.
 - `top` (number, optional) - Maximum number of records to return.
 - `user` (string, optional) - Optional username filter. If omitted, dumps for all users are returned.
+
+---
+
+<a id="runtimelistfeeds-read-only-system"></a>
+#### RuntimeListFeeds (Read-Only / System)
+**Description:** [runtime] List available ADT runtime feeds or read a specific feed type. Feed types: dumps, system_messages, gateway_errors. Without feed_type returns available feed descriptors.
+
+**Source:** `src/handlers/system/readonly/handleRuntimeListFeeds.ts`
+
+**Parameters:**
+- `feed_type` (string, optional (default: descriptors)) - Feed to read. 
+- `from` (string, optional) - Start of time range in YYYYMMDDHHMMSS format.
+- `max_results` (number, optional) - Maximum number of entries to return.
+- `to` (string, optional) - End of time range in YYYYMMDDHHMMSS format.
+- `user` (string, optional) - Filter feed entries by SAP username.
 
 ---
 
@@ -993,6 +1219,20 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - None
+
+---
+
+<a id="runtimelistsystemmessages-read-only-system"></a>
+#### RuntimeListSystemMessages (Read-Only / System)
+**Description:** [runtime] List SM02 system messages. Returns structured entries with id, title, text, severity, validity period, and author.
+
+**Source:** `src/handlers/system/readonly/handleRuntimeListSystemMessages.ts`
+
+**Parameters:**
+- `from` (string, optional) - Start of time range in YYYYMMDDHHMMSS format.
+- `max_results` (number, optional) - Maximum number of messages to return.
+- `to` (string, optional) - End of time range in YYYYMMDDHHMMSS format.
+- `user` (string, optional) - Filter by author username.
 
 ---
 
@@ -1051,7 +1291,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="gettablecontents-read-only-table"></a>
 #### GetTableContents (Read-Only / Table)
-**Description:** [read-only] Retrieve contents of an ABAP table.
+**Description:** [read-only] Retrieve contents (data preview) of an ABAP database table or CDS view, like SE16. Compact by default: column names only, empty cell values left out of each row, 20 rows. Use fields to keep only some columns and include_metadata for column types/descriptions.
 
 **Source:** `src/handlers/table/readonly/handleGetTableContents.ts`
 
@@ -1084,6 +1324,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `include_objects` (boolean, optional (default: true))) - Include list of objects in transport (default: true)
 - `include_tasks` (boolean, optional (default: true))) - Include list of tasks in transport (default: true)
+- `owner` (string, optional) - SAP user who owns the transport. On ECC the session-user-scoped path endpoint silently filters out other users
 - `transport_number` (string, required) - Transport request number (e.g., E19K905635, DEVK905123)
 
 ---
@@ -1123,7 +1364,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="createbehaviordefinition-high-level-behavior-definition"></a>
 #### CreateBehaviorDefinition (High-Level / Behavior Definition)
-**Description:** Create a new ABAP Behavior Definition (BDEF) in SAP system.
+**Description:** Create a new ABAP Behavior Definition (BDEF) in SAP system. Defines RAP business object behavior: CRUD operations, validations, determinations, actions, and draft handling.
 
 **Source:** `src/handlers/behavior_definition/high/handleCreateBehaviorDefinition.ts`
 
@@ -1146,7 +1387,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_definition_name` (string, required) - BehaviorDefinition name (e.g., Z_MY_BEHAVIORDEFINITION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1158,13 +1399,13 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_definition_name` (string, required) - BehaviorDefinition name (e.g., Z_MY_BEHAVIORDEFINITION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
 <a id="updatebehaviordefinition-high-level-behavior-definition"></a>
 #### UpdateBehaviorDefinition (High-Level / Behavior Definition)
-**Description:** Update source code of an ABAP Behavior Definition.
+**Description:** Update source code of an ABAP Behavior Definition (BDEF). Modifies RAP business object behavior: CRUD operations, validations, determinations, actions, and draft handling.
 
 **Source:** `src/handlers/behavior_definition/high/handleUpdateBehaviorDefinition.ts`
 
@@ -1173,7 +1414,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, optional) - Lock handle from LockObject. If not provided, will attempt to lock internally (not recommended for stateful flows).
 - `name` (string, required) - Behavior Definition name
 - `source_code` (string, required) - New source code
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1191,7 +1432,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Behavior Implementation class name (e.g., ZBP_MY_ENTITY). Must follow SAP naming conventions (typically starts with ZBP_ for behavior implementations).
 - `description` (string, optional) - Class description. If not provided, class_name will be used.
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1203,7 +1444,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_implementation_name` (string, required) - BehaviorImplementation name (e.g., Z_MY_BEHAVIORIMPLEMENTATION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1215,7 +1456,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_implementation_name` (string, required) - BehaviorImplementation name (e.g., Z_MY_BEHAVIORIMPLEMENTATION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1230,7 +1471,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `behavior_definition` (string, required) - Behavior Definition name (e.g., ZI_MY_ENTITY). Must match the behavior definition used when creating the class.
 - `class_name` (string, required) - Behavior Implementation class name (e.g., ZBP_MY_ENTITY). Must exist in the system.
 - `implementation_code` (string, required) - Implementation code for the implementations include. Contains the actual behavior implementation methods.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -1251,7 +1492,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `final` (boolean, optional) - Mark class as final. Default: false
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP).
 - `superclass` (string, optional) - Optional superclass name.
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1263,7 +1504,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1327,7 +1568,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1339,7 +1581,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1351,7 +1593,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1363,7 +1605,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1375,7 +1617,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1389,7 +1631,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate after update. Default: false.
 - `class_name` (string, required) - Class name (e.g., ZCL_TEST_CLASS_001).
 - `source_code` (string, required) - Complete ABAP class source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1446,6 +1688,22 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
 - `local_types_code` (string, required) - Updated source code for local types.
 - `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="high-level-common"></a>
+### High-Level / Common
+
+<a id="activateobjects-high-level-common"></a>
+#### ActivateObjects (High-Level / Common)
+**Description:** [high-level] Activate a set of ABAP objects in a single call. Uses the ADT mass-activation endpoint (/sap/bc/adt/activation/runs) so cyclic references between siblings (e.g. main program + multiple cross-referencing includes) resolve in one compilation scope. Returns per-object status, errors, warnings. Falls back to /sap/bc/adt/activation on legacy systems.
+
+**Source:** `src/handlers/common/high/handleActivateObjects.ts`
+
+**Parameters:**
+- `objects` (array, required) - Objects to activate in one batch. Supply either explicit uri, or name+type (and parent_name for FUGR/FF, FUGR/I).
+- `preaudit` (boolean, optional) - Request pre-audit before activation. Default true.
+- `run_timeout_ms` (number, optional) - Max time to wait for the activation run to finish (runs endpoint only). Default 120000.
 
 ---
 
@@ -1588,6 +1846,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/compact/high/handleHandlerDumpList.ts`
 
 **Parameters:**
+- `include_summary` (boolean, optional) - Keep each dump's HTML summary (large). Default false; use HandlerDumpView for one dump.
 - `inlinecount` (string, optional) - Include total count in response.
 - `orderby` (string, optional) - Sort expression.
 - `skip` (number, optional) - Offset for pagination.
@@ -1872,7 +2131,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `search_help_parameter` (string, optional) - Search help parameter. Applied during update step after creation.
 - `set_get_parameter` (string, optional) - Set/Get parameter ID. Applied during update step after creation.
 - `short_label` (string, optional) - Short field label (max 10 chars). Applied during update step after creation.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `type_kind` (string, optional (default: domain)) - Type kind: 
 - `type_name` (string, optional) - Type name: domain name (when type_kind is 
 
@@ -1886,7 +2145,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - Data element name (e.g., Z_MY_DATA_ELEMENT).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1898,7 +2157,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - Data element name (e.g., Z_MY_DATA_ELEMENT).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1923,7 +2182,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `search_help` (string, optional) - Search help name
 - `search_help_parameter` (string, optional) - Search help parameter
 - `set_get_parameter` (string, optional) - Set/Get parameter ID
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `type_kind` (string, optional (default: domain)) - Type kind: domain, predefinedAbapType, refToPredefinedAbapType, refToDictionaryType, refToClifType
 - `type_name` (string, optional) - Type name: domain name, data element name, or class name (depending on type_kind)
 
@@ -1934,7 +2193,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="createmetadataextension-high-level-ddlx"></a>
 #### CreateMetadataExtension (High-Level / Ddlx)
-**Description:** Create a new ABAP Metadata Extension (DDLX) in SAP system.
+**Description:** Create a new ABAP Metadata Extension (DDLX) in SAP system. Defines Fiori UI annotations, field labels, search help, and list/object page layout for CDS views.
 
 **Source:** `src/handlers/ddlx/high/handleCreateMetadataExtension.ts`
 
@@ -1949,7 +2208,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="updatemetadataextension-high-level-ddlx"></a>
 #### UpdateMetadataExtension (High-Level / Ddlx)
-**Description:** Update source code of an ABAP Metadata Extension.
+**Description:** Update source code of an ABAP Metadata Extension (DDLX). Modifies Fiori UI annotations, field labels, search help, and list/object page layout for CDS views.
 
 **Source:** `src/handlers/ddlx/high/handleUpdateMetadataExtension.ts`
 
@@ -1958,7 +2217,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, optional) - Lock handle from LockObject. If not provided, will attempt to lock internally.
 - `name` (string, required) - Metadata Extension name
 - `source_code` (string, required) - New source code
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1983,7 +2242,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lowercase` (boolean, optional (default: false)) - (optional) Allow lowercase input
 - `package_name` (string, optional) - (optional) Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `sign_exists` (boolean, optional (default: false)) - (optional) Field has sign (+/-)
-- `transport_request` (string, optional) - (optional) Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - (optional) Transport request. Required for transportable packages.
 - `value_table` (string, optional) - (optional) Value table name for foreign key relationship
 
 ---
@@ -1996,7 +2255,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_DOMAIN).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2008,7 +2267,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_DOMAIN).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2030,7 +2289,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lowercase` (boolean, optional) - Allow lowercase input
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `sign_exists` (boolean, optional) - Field has sign (+/-)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `value_table` (string, optional) - Value table name for foreign key relationship
 
 ---
@@ -2049,7 +2308,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Function group description. If not provided, function_group_name will be used.
 - `function_group_name` (string, required) - Function group name (e.g., ZTEST_FG_001). Must follow SAP naming conventions (start with Z or Y, max 26 chars).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2063,7 +2322,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Optional description for the function module
 - `function_group_name` (string, required) - Parent function group name (e.g., ZTEST_FG_001)
 - `function_module_name` (string, required) - Function module name (e.g., Z_TEST_FUNCTION_001). Must follow SAP naming conventions (start with Z or Y, max 30 chars).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2076,7 +2335,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `description` (string, required) - New description for the function group.
 - `function_group_name` (string, required) - Function group name (e.g., ZTEST_FG_001). Must exist in the system.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -2091,7 +2350,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `function_group_name` (string, required) - Function group name containing the function module (e.g., ZOK_FG_MCP01).
 - `function_module_name` (string, required) - Function module name (e.g., Z_TEST_FM_MCP01). Function module must already exist.
 - `source_code` (string, required) - Complete ABAP function module source code. Must include FUNCTION statement with parameters and ENDFUNCTION. Example:\n\nFUNCTION Z_TEST_FM\n  IMPORTING\n    VALUE(iv_input) TYPE string\n  EXPORTING\n    VALUE(ev_output) TYPE string.\n  \n  ev_output = iv_input.\nENDFUNCTION.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable function modules.
+- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable function modules. For local objects ($TMP package) this can be omitted — the handler defaults to 
 
 ---
 
@@ -2106,7 +2365,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name (e.g., Z_MY_FUNCTIONGROUP).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2118,7 +2377,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name (e.g., Z_MY_FUNCTIONGROUP).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2134,7 +2393,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name containing the function module (e.g., Z_MY_FUNCTIONGROUP).
 - `function_module_name` (string, required) - FunctionModule name (e.g., Z_MY_FUNCTIONMODULE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2147,7 +2406,133 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name containing the function module (e.g., Z_MY_FUNCTIONGROUP).
 - `function_module_name` (string, required) - FunctionModule name (e.g., Z_MY_FUNCTIONMODULE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
+
+---
+
+<a id="high-level-gui-status"></a>
+### High-Level / Gui Status
+
+<a id="createguistatus-high-level-gui-status"></a>
+#### CreateGuiStatus (High-Level / Gui Status)
+**Description:** Create a new ABAP GUI Status on an existing program. Optionally activates after creation.
+
+**Source:** `src/handlers/gui_status/high/handleCreateGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after creation. Default: false.
+- `description` (string, optional) - GUI Status description.
+- `program_name` (string, required) - Parent program name (e.g., Z_MY_PROGRAM).
+- `status_name` (string, required) - GUI Status name to create (e.g., MAIN_STATUS).
+- `status_type` (string, optional) - Status type: 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deleteguistatus-high-level-gui-status"></a>
+#### DeleteGuiStatus (High-Level / Gui Status)
+**Description:** Delete an ABAP GUI Status from a program. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/gui_status/high/handleDeleteGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `status_name` (string, required) - GUI Status name to delete.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="getguistatus-high-level-gui-status"></a>
+#### GetGuiStatus (High-Level / Gui Status)
+**Description:** Get ABAP GUI Status definition including statuses, function codes, menus, toolbars, and titles.
+
+**Source:** `src/handlers/gui_status/high/handleGetGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `status_name` (string, optional) - Optional: filter to a specific GUI Status name. If omitted, returns all statuses.
+
+---
+
+<a id="patchguistatus-high-level-gui-status"></a>
+#### PatchGuiStatus (High-Level / Gui Status)
+**Description:** Row-level merge into an existing ABAP GUI Status definition. Fetches current CUA → merges the caller-supplied changes (by natural key) → writes merged result back. Rows / fields you omit are preserved. Safer default for targeted edits; use UpdateGuiStatus only when you truly want to replace the whole CUA.\n\nMerge keys per table:\n  STA=CODE, FUN=CODE, PFK=CODE+PFNO, BUT=PFK_CODE+CODE+NO, TIT=CODE,\n  MEN=CODE+NO, MTX=CODE, ACT=CODE+NO, SET=STATUS+FUNCTION,\n  DOC=OBJ_TYPE+OBJ_CODE, BIV=CODE+POS.
+
+**Source:** `src/handlers/gui_status/high/handlePatchGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after patch. Default: false.
+- `changes` (string, required) - Partial CUA data to merge into the current definition. Same shape as cua_data (ADM / STA / FUN / MEN / MTX / ACT / BUT / PFK / SET / DOC / TIT / BIV). Accepts JSON string or object. Rows matched by natural key are field-merged (changes win). New rows are appended. Omitted tables are left untouched.
+- `program_name` (string, required) - Parent program name.
+- `skip_validation` (boolean, optional) - Skip client-side validation of the merged result. Default: false.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="updateguistatus-high-level-gui-status"></a>
+#### UpdateGuiStatus (High-Level / Gui Status)
+**Description:** ⚠️ FULL REPLACE — overwrites the entire GUI Status definition (all 12 CUA tables) for the program. Any row or field you omit is DROPPED. Always Read (ReadGuiStatus) → modify → Update, or use PatchGuiStatus for row-level merges. cua_data must include complete STA / FUN / PFK / BUT / TIT rows with all required fields (CODE, PFNO, FUNCODE, ...). Handles lock/unlock automatically.
+
+**Source:** `src/handlers/gui_status/high/handleUpdateGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after update. Default: false.
+- `cua_data` (string, required) - Complete CUA data — accepts either a JSON string or a structured object with ADM / STA / FUN / MEN / MTX / ACT / BUT / PFK / SET / DOC / TIT / BIV. Required row fields: STA.CODE, FUN.CODE, PFK.{CODE,PFNO,FUNCODE}, BUT.{PFK_CODE,CODE,NO,PFNO}, TIT.CODE. Missing rows are dropped — this is full-replace semantics.
+- `program_name` (string, required) - Parent program name.
+- `skip_validation` (boolean, optional) - Skip client-side schema validation. Default: false. Only set true if you know the CUA payload is intentionally partial and SAP will accept it.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="high-level-include"></a>
+### High-Level / Include
+
+<a id="createinclude-high-level-include"></a>
+#### CreateInclude (High-Level / Include)
+**Description:** Create a new ABAP Include program (Type I, PROG/I) in SAP system. Creates the include object and registers it under the main program in D010INC. By default also auto-inserts an `INCLUDE <name>.` statement into the main program source so the include is actually used. Use UpdateInclude to set source code afterwards. Unlike CreateProgram with program_type=include (which creates PROG/P), this creates a proper PROG/I include. For mass-activation scenarios (many cross-referencing includes) pass source_code inline, set activate_main_program=false and skip_program_tree_check=true, then call ActivateObjects once with the full set.
+
+**Source:** `src/handlers/include/high/handleCreateInclude.ts`
+
+**Parameters:**
+- `activate_main_program` (boolean, optional) - When inserting INCLUDE statement into the main program, also activate the main program afterwards. Default: true (existing behavior). Set false when batching many includes so that activation is deferred to a single ActivateObjects call.
+- `description` (string, optional) - Include description (max 60 chars). If not provided, include_name will be used.
+- `include_name` (string, required) - Include program name (e.g., ZPAEK_TEST_INC01). Must follow SAP naming conventions (start with Z or Y).
+- `insert_into_main` (boolean, optional) - Auto-insert `INCLUDE <name>.` statement into the main program source. Default: true. Set false to skip main-program modification.
+- `main_program` (string, required) - Name of the main/master program that will contain this include (e.g., ZPAEK_TEST003). Required for proper include registration and activation.
+- `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects).
+- `skip_program_tree_check` (boolean, optional) - Skip the post-create program-tree syntax check. Default: false (existing behavior). Set true when batching many cross-referencing includes — an intermediate include in a cycle will necessarily fail the tree check while its siblings are still missing.
+- `source_code` (string, optional) - Optional include body. When provided, the handler also locks, writes the source, and unlocks the new include in a single call. Never activates — caller must run a separate activation (ActivateObjects for batch scenarios).
+- `transport_request` (string, optional) - Transport request number (e.g., S4HK904224). Required for transportable packages. Optional for local ($TMP) objects.
+
+---
+
+<a id="deleteinclude-high-level-include"></a>
+#### DeleteInclude (High-Level / Include)
+**Description:** Delete an existing ABAP Include program (Type I) from the SAP system via ADT API. If the include is referenced by a main program, provide main_program so the handler can first remove the `INCLUDE <name>.` line from the main program source before deleting.
+
+**Source:** `src/handlers/include/high/handleDeleteInclude.ts`
+
+**Parameters:**
+- `include_name` (string, required) - Include program name to delete.
+- `main_program` (string, optional) - Optional. Name of the main program referencing this include. If provided, the `INCLUDE <name>.` line is removed from the main program source first (so the include is no longer referenced and delete succeeds).
+- `remove_from_main` (boolean, optional) - Auto-remove `INCLUDE <name>.` line from main program source. Default: true when main_program is provided. Set false to skip the main-program modification.
+- `transport_request` (string, optional) - Transport request number. Required for transportable packages. Optional for local ($TMP) objects. Also used for updating the main program if main_program is provided.
+
+---
+
+<a id="updateinclude-high-level-include"></a>
+#### UpdateInclude (High-Level / Include)
+**Description:** Update source code of an existing ABAP Include program (Type I). Locks the include, uploads new source code, and unlocks. Optionally activates after update. Use this instead of UpdateProgram for Type I include programs.
+
+**Source:** `src/handlers/include/high/handleUpdateInclude.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
+- `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
+- `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
+- `transport_request` (string, optional) - Transport request number. Required for transportable packages.
 
 ---
 
@@ -2164,7 +2549,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Interface description. If not provided, interface_name will be used.
 - `interface_name` (string, required) - Interface name (e.g., ZIF_TEST_INTERFACE_001). Must follow SAP naming conventions (start with Z or Y).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2176,7 +2561,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., Z_MY_INTERFACE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2188,7 +2573,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., Z_MY_INTERFACE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2202,7 +2588,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate interface after update. Default: true.
 - `interface_name` (string, required) - Interface name (e.g., ZIF_MY_INTERFACE). Must exist in the system.
 - `source_code` (string, required) - Complete ABAP interface source code with INTERFACE...ENDINTERFACE section.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -2217,7 +2603,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `metadata_extension_name` (string, required) - MetadataExtension name (e.g., Z_MY_METADATAEXTENSION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2229,7 +2615,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `metadata_extension_name` (string, required) - MetadataExtension name (e.g., Z_MY_METADATAEXTENSION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2255,7 +2641,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `package_name` (string, required) - Package name (e.g., Z_MY_PACKAGE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2274,7 +2660,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
 - `program_name` (string, required) - Program name (e.g., Z_TEST_PROGRAM_001). Must follow SAP naming conventions (start with Z or Y).
 - `program_type` (string, optional) - Program type: 
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2286,7 +2672,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2297,8 +2683,9 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/program/high/handleGetProgram.ts`
 
 **Parameters:**
+- `output` (string, optional (default: inline)) - 
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2312,7 +2699,66 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate program after source update. Default: false. Set to true to activate immediately, or use ActivateObject for batch activation.
 - `program_name` (string, required) - Program name (e.g., Z_TEST_PROGRAM_001). Program must already exist.
 - `source_code` (string, required) - Complete ABAP program source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
+
+---
+
+<a id="high-level-screen"></a>
+### High-Level / Screen
+
+<a id="createscreen-high-level-screen"></a>
+#### CreateScreen (High-Level / Screen)
+**Description:** Create a new ABAP Screen (Dynpro) on an existing program. Optionally activates.
+
+**Source:** `src/handlers/screen/high/handleCreateScreen.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after creation. Default: false.
+- `description` (string, optional) - Screen description.
+- `dynpro_data` (string, optional) - Full screen definition as JSON. If omitted, creates minimal screen.
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number to create (e.g., 0100).
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deletescreen-high-level-screen"></a>
+#### DeleteScreen (High-Level / Screen)
+**Description:** Delete an ABAP Screen (Dynpro) from a program. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/screen/high/handleDeleteScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number to delete.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="getscreen-high-level-screen"></a>
+#### GetScreen (High-Level / Screen)
+**Description:** Get ABAP Screen (Dynpro) definition including metadata, fields, and flow logic source code.
+
+**Source:** `src/handlers/screen/high/handleGetScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+
+---
+
+<a id="updatescreen-high-level-screen"></a>
+#### UpdateScreen (High-Level / Screen)
+**Description:** Update an ABAP Screen (Dynpro) definition. Provide full screen data as JSON. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/screen/high/handleUpdateScreen.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after update. Default: false.
+- `dynpro_data` (string, required) - Complete screen definition as JSON (from GetScreen/ReadScreen).
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+- `transport_request` (string, optional) - Transport request number.
 
 ---
 
@@ -2422,7 +2868,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `service_definition_name` (string, required) - Service definition name (e.g., ZSD_MY_SERVICE). Must follow SAP naming conventions (start with Z or Y).
 - `source_code` (string, optional) - Service definition source code (optional). If not provided, a minimal template will be created.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2434,7 +2880,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `service_definition_name` (string, required) - ServiceDefinition name (e.g., Z_MY_SERVICEDEFINITION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2446,7 +2892,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `service_definition_name` (string, required) - ServiceDefinition name (e.g., Z_MY_SERVICEDEFINITION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2460,7 +2906,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate service definition after update. Default: true.
 - `service_definition_name` (string, required) - Service definition name (e.g., ZSD_MY_SERVICE). Must exist in the system.
 - `source_code` (string, required) - Complete service definition source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -2480,7 +2926,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `includes` (array, optional) - Include other structures in this structure
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `structure_name` (string, required) - Structure name (e.g., ZZ_S_TEST_001). Must follow SAP naming conventions.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2492,7 +2938,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_STRUCTURE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2504,7 +2950,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_STRUCTURE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2518,7 +2964,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate structure after source update. Default: true.
 - `ddl_code` (string, required) - Complete DDL source code for structure. Example: 
 - `structure_name` (string, required) - Structure name (e.g., ZZ_S_TEST_001). Structure must already exist.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -2553,7 +2999,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Table description for validation and creation.
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Must follow SAP naming conventions.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2565,7 +3011,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_TABLE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2577,7 +3023,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_TABLE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -2589,9 +3035,104 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate table after source update. Default: true.
-- `ddl_code` (string, required) - Complete DDL source code for table. Example: 
+- `ddl_code` (string, required) - Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key (
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Table must already exist.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-text-element"></a>
+### High-Level / Text Element
+
+<a id="createtextelement-high-level-text-element"></a>
+#### CreateTextElement (High-Level / Text Element)
+**Description:** Add a text element (text symbol, selection text, program title, or list heading) to an ABAP program. Optionally activates after write.
+
+**Source:** `src/handlers/text_element/high/handleCreateTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key. For 
+- `language` (string, optional) - Language key (1-char). Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name (e.g., Z_MY_PROGRAM).
+- `text` (string, required) - 
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deletetextelement-high-level-text-element"></a>
+#### DeleteTextElement (High-Level / Text Element)
+**Description:** Delete a text element from an ABAP program text pool. key=
+
+**Source:** `src/handlers/text_element/high/handleDeleteTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key, or 
+- `language` (string, optional) - Language key. Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name.
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="gettextelement-high-level-text-element"></a>
+#### GetTextElement (High-Level / Text Element)
+**Description:** Read ABAP program text pool (text symbols, selection texts, title, headings). Optionally filter by text_type / key.
+
+**Source:** `src/handlers/text_element/high/handleGetTextElement.ts`
+
+**Parameters:**
+- `key` (string, optional) - Optional: filter by row key (e.g., 
+- `language` (string, optional) - Language key (1-char, e.g., 
+- `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
+- `text_type` (string, optional) - Filter by ID: 
+
+---
+
+<a id="readtextelementsbulk-high-level-text-element"></a>
+#### ReadTextElementsBulk (High-Level / Text Element)
+**Description:** Read every text element (R/I/S/H) of a program in ONE call via the TPOOL RFC. Partitions rows by type and returns structured arrays. Use this instead of calling GetTextElement per row.
+
+**Source:** `src/handlers/text_element/high/handleReadTextElementsBulk.ts`
+
+**Parameters:**
+- `language` (string, optional) - 1-char language. Defaults to SAP logon language.
+- `program_name` (string, required) - Program name.
+
+---
+
+<a id="updatetextelement-high-level-text-element"></a>
+#### UpdateTextElement (High-Level / Text Element)
+**Description:** Update an existing text element in an ABAP program text pool. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/text_element/high/handleUpdateTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key. Required except for 
+- `language` (string, optional) - Language key. Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name.
+- `text` (string, required) - 
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="writetextelementsbulk-high-level-text-element"></a>
+#### WriteTextElementsBulk (High-Level / Text Element)
+**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=false (default) the pool is staged INACTIVE — the parent program\
+
+**Source:** `src/handlers/text_element/high/handleWriteTextElementsBulk.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - false (default) — stage as INACTIVE (program activation promotes). true — write ACTIVE immediately.
+- `language` (string, optional) - 1-char language key (e.g. 
+- `program_name` (string, required) - Parent program name.
+- `replace_existing` (boolean, optional) - If true (default), the TPOOL is replaced with the provided entries only. If false, existing rows are preserved and provided rows merge by (type, key).
+- `text_elements` (array, required) - Array of entries. Each: { type: 
+- `transport_request` (string, optional) - Transport request number (informational).
 
 ---
 
@@ -2626,7 +3167,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
 - `description` (string, optional) - Optional description for the global test class.
 - `package_name` (string, required) - Package name (e.g., ZOK_TEST_PKG_01, $TMP).
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2654,7 +3195,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2743,7 +3284,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="rununittest-high-level-unit-test"></a>
 #### RunUnitTest (High-Level / Unit Test)
-**Description:** Start an ABAP Unit test run for provided class test definitions. Returns run_id for status/result queries.
+**Description:** Start an ABAP Unit test run for provided test definitions. Returns run_id for status/result queries. 
 
 **Source:** `src/handlers/unit_test/high/handleRunUnitTest.ts`
 
@@ -2766,7 +3307,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
 - `test_class_source` (string, required) - Updated local test class ABAP source code.
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2793,7 +3334,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `description` (string, optional) - Optional description (defaults to view_name).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `view_name` (string, required) - View name (e.g., ZOK_R_TEST_0002, Z_I_MY_VIEW).
 
 ---
@@ -2805,7 +3346,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/high/handleDeleteView.ts`
 
 **Parameters:**
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 - `view_name` (string, required) - View name (e.g., Z_MY_VIEW).
 
 ---
@@ -2817,7 +3358,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/high/handleGetView.ts`
 
 **Parameters:**
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 - `view_name` (string, required) - View name (e.g., Z_MY_VIEW).
 
 ---
@@ -2831,7 +3372,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `activate` (boolean, optional) - Activate after update. Default: false.
 - `ddl_source` (string, required) - Complete DDL source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `view_name` (string, required) - View name (e.g., ZOK_R_TEST_0002).
 
 ---
@@ -2894,7 +3435,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `name` (string, required) - BehaviorDefinition name (e.g., ZI_MY_BDEF).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2936,8 +3477,9 @@ Generated from code in `src/handlers/**` (not from docs).
 - `name` (string, required) - Behavior definition name (e.g., ZOK_C_TEST_0001). Behavior definition must already exist.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.
 - `source_code` (string, required) - Complete behavior definition source code.
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -2975,7 +3517,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3068,8 +3610,9 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-create syntax check. Default: false. When false, runs a syntax check on the newly created class shell and surfaces any errors with line numbers.
 - `superclass` (string, optional) - Superclass name (optional).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3081,7 +3624,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3191,6 +3734,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_TEST_CLASS_001). Class must already exist.
 - `lock_handle` (string, required) - Lock handle from LockClass operation. Required for update operation.
+- `skip_check` (boolean, optional) - Skip pre-write syntax check on source_code. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.
 - `source_code` (string, required) - Complete ABAP class source code including CLASS DEFINITION and IMPLEMENTATION sections.
 
 ---
@@ -3206,6 +3750,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, required) - Test classes lock handle from LockClassTestClassesLow.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. When false, runs a syntax check on the parent class after updating the test-classes include and surfaces any errors with line numbers.
 - `test_class_source` (string, required) - Complete ABAP Unit test class source code.
 
 ---
@@ -3363,7 +3908,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `type_kind` (string, optional) - Type kind: 
 - `type_name` (string, optional) - Type name: domain name (when type_kind is 
 
@@ -3377,7 +3922,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - DataElement name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3480,6 +4025,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-create syntax check. Default: false. NOTE: SAP
 - `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional for local objects.
 
 ---
@@ -3492,7 +4038,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `name` (string, required) - MetadataExtension name (e.g., ZI_MY_DDLX).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3534,6 +4080,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `name` (string, required) - Metadata extension name (e.g., ZOK_C_TEST_0001). Metadata extension must already exist.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. NOTE: SAP
 - `source_code` (string, required) - Complete metadata extension source code.
 
 ---
@@ -3594,7 +4141,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3606,7 +4153,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3737,7 +4284,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3754,7 +4301,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3766,7 +4313,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3779,7 +4326,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - Function group name (e.g., ZFG_MY_GROUP).
 - `function_module_name` (string, required) - Function module name (e.g., Z_MY_FUNCTION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3851,6 +4398,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, required) - Lock handle from LockFunctionModule. Required for update operation.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. When false, runs a syntax check on the staged inactive version after update and surfaces any errors with line numbers.
 - `source_code` (string, required) - Complete ABAP function module source code.
 - `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects locked in a request.
 
@@ -3883,6 +4431,99 @@ Generated from code in `src/handlers/**` (not from docs).
 - `function_module_name` (string, required) - Function module name to validate (e.g., Z_TEST_FM)
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+
+---
+
+<a id="low-level-gui-status"></a>
+### Low-Level / Gui Status
+
+<a id="activateguistatuslow-low-level-gui-status"></a>
+#### ActivateGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Activate an ABAP program to make GUI Status changes active.
+
+**Source:** `src/handlers/gui_status/low/handleActivateGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="createguistatuslow-low-level-gui-status"></a>
+#### CreateGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Create a new ABAP GUI Status on an existing program.
+
+**Source:** `src/handlers/gui_status/low/handleCreateGuiStatus.ts`
+
+**Parameters:**
+- `description` (string, optional) - GUI Status description.
+- `program_name` (string, required) - Parent program name (e.g., Z_MY_PROGRAM).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `status_name` (string, required) - GUI Status name to create (e.g., MAIN_STATUS).
+- `status_type` (string, optional) - Status type: 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deleteguistatuslow-low-level-gui-status"></a>
+#### DeleteGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Delete an ABAP GUI Status from a program.
+
+**Source:** `src/handlers/gui_status/low/handleDeleteGuiStatus.ts`
+
+**Parameters:**
+- `lock_handle` (string, required) - Lock handle from LockGuiStatusLow.
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `status_name` (string, required) - GUI Status name to delete. Use 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="lockguistatuslow-low-level-gui-status"></a>
+#### LockGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Lock a program for GUI Status modification. Returns lock handle for subsequent update/unlock operations.
+
+**Source:** `src/handlers/gui_status/low/handleLockGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `status_name` (string, optional) - GUI Status name (for reference only).
+
+---
+
+<a id="unlockguistatuslow-low-level-gui-status"></a>
+#### UnlockGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Unlock a program after GUI Status modification. Requires lock handle from LockGuiStatusLow.
+
+**Source:** `src/handlers/gui_status/low/handleUnlockGuiStatus.ts`
+
+**Parameters:**
+- `lock_handle` (string, required) - Lock handle from LockGuiStatusLow.
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="updateguistatuslow-low-level-gui-status"></a>
+#### UpdateGuiStatusLow (Low-Level / Gui Status)
+**Description:** [low-level] Update an ABAP GUI Status definition. Provide full CUA data (from ReadGuiStatus) with modifications.
+
+**Source:** `src/handlers/gui_status/low/handleUpdateGuiStatus.ts`
+
+**Parameters:**
+- `cua_data` (string, required) - Complete CUA data as JSON string (from ReadGuiStatus/GetGuiStatus). Modify and pass back.
+- `lock_handle` (string, required) - Lock handle from LockGuiStatusLow.
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `transport_request` (string, optional) - Transport request number.
 
 ---
 
@@ -3927,7 +4568,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -3939,7 +4580,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -4034,7 +4675,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `software_component` (string, optional) - Software component (e.g., HOME, ZLOCAL). If not provided, SAP will set a default (typically ZLOCAL for local packages).
 - `super_package` (string, required) - Super package (parent package) name (e.g., ZOK_PACKAGE). Required.
 - `transport_layer` (string, optional) - Transport layer (e.g., ZDEV). Required for transportable packages.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -4048,7 +4689,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `connection_config` (object, optional) - Optional SAP connection config to create a fresh connection for deletion. Useful when the existing connection config is unavailable.
 - `force_new_connection` (boolean, optional) - Force creation of a new connection (bypass cache). Useful when package was locked/unlocked and needs to be deleted in a fresh session. Default: false.
 - `package_name` (string, required) - Package name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -4154,7 +4795,8 @@ Generated from code in `src/handlers/**` (not from docs).
 - `program_type` (string, optional) - Program type: 
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `skip_check` (boolean, optional) - Skip the post-create syntax check on the newly created program shell. Default: false. Set to true when chaining multiple low-level calls where the caller will run CheckProgramLow explicitly later.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -4166,7 +4808,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -4208,6 +4850,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `program_name` (string, required) - Program name (e.g., Z_TEST_PROGRAM). Program must already exist.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip the pre-write syntax check of the new source. Default: false. Set to true when chaining multiple low-level calls where the caller will run CheckProgramLow explicitly before this update.
 - `source_code` (string, required) - Complete ABAP program source code.
 
 ---
@@ -4224,6 +4867,99 @@ Generated from code in `src/handlers/**` (not from docs).
 - `program_name` (string, required) - Program name to validate (e.g., Z_MY_PROGRAM).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+
+---
+
+<a id="low-level-screen"></a>
+### Low-Level / Screen
+
+<a id="activatescreenlow-low-level-screen"></a>
+#### ActivateScreenLow (Low-Level / Screen)
+**Description:** [low-level] Activate an ABAP program to make Screen changes active.
+
+**Source:** `src/handlers/screen/low/handleActivateScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="createscreenlow-low-level-screen"></a>
+#### CreateScreenLow (Low-Level / Screen)
+**Description:** [low-level] Create a new ABAP Screen (Dynpro) on an existing program.
+
+**Source:** `src/handlers/screen/low/handleCreateScreen.ts`
+
+**Parameters:**
+- `description` (string, optional) - Screen description.
+- `dynpro_data` (string, optional) - Full screen definition as JSON (header, containers, fields_to_containers, flow_logic). If omitted, creates a minimal empty screen.
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number to create (e.g., 0100).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.
+
+---
+
+<a id="deletescreenlow-low-level-screen"></a>
+#### DeleteScreenLow (Low-Level / Screen)
+**Description:** [low-level] Delete an ABAP Screen (Dynpro) from a program.
+
+**Source:** `src/handlers/screen/low/handleDeleteScreen.ts`
+
+**Parameters:**
+- `lock_handle` (string, required) - Lock handle from LockScreenLow.
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="lockscreenlow-low-level-screen"></a>
+#### LockScreenLow (Low-Level / Screen)
+**Description:** [low-level] Lock a program for Screen modification. Returns lock handle for subsequent operations.
+
+**Source:** `src/handlers/screen/low/handleLockScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, optional) - Screen number (for reference).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="unlockscreenlow-low-level-screen"></a>
+#### UnlockScreenLow (Low-Level / Screen)
+**Description:** [low-level] Unlock a program after Screen modification.
+
+**Source:** `src/handlers/screen/low/handleUnlockScreen.ts`
+
+**Parameters:**
+- `lock_handle` (string, required) - Lock handle from LockScreenLow.
+- `program_name` (string, required) - Parent program name.
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+
+---
+
+<a id="updatescreenlow-low-level-screen"></a>
+#### UpdateScreenLow (Low-Level / Screen)
+**Description:** [low-level] Update an ABAP Screen (Dynpro) definition. Provide full screen data as JSON.
+
+**Source:** `src/handlers/screen/low/handleUpdateScreen.ts`
+
+**Parameters:**
+- `dynpro_data` (string, required) - Complete screen definition as JSON (header, containers, fields_to_containers, flow_logic).
+- `lock_handle` (string, required) - Lock handle from LockScreenLow.
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+- `session_id` (string, optional) - Session ID from GetSession.
+- `session_state` (object, optional) - Session state from GetSession.
+- `skip_check` (boolean, optional) - Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.
 
 ---
 
@@ -4272,7 +5008,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
 - `structure_name` (string, required) - Structure name (e.g., Z_TEST_PROGRAM). Must follow SAP naming conventions.
 - `structure_type` (string, optional) - Structure type: 
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -4284,7 +5020,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -4436,7 +5172,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
 - `table_name` (string, required) - Table name (e.g., ZT_TEST_001). Must follow SAP naming conventions.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -4448,7 +5184,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -4491,7 +5227,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
 - `table_name` (string, required) - Table name (e.g., ZOK_T_TEST_0001). Table must already exist.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -4568,7 +5304,8 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects).
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `skip_check` (boolean, optional) - Skip post-create syntax check. Default: false. When false, runs a syntax check on the freshly created view shell and surfaces any errors with line numbers.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `view_name` (string, required) - View name (e.g., Z_TEST_PROGRAM). Must follow SAP naming conventions.
 - `view_type` (string, optional) - View type: 
 
@@ -4581,7 +5318,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/low/handleDeleteView.ts`
 
 **Parameters:**
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 - `view_name` (string, required) - View name (e.g., Z_MY_PROGRAM).
 
 ---
@@ -4624,6 +5361,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, required) - Lock handle from LockObject. Required for update operation.
 - `session_id` (string, optional) - Session ID from GetSession. If not provided, a new session will be created.
 - `session_state` (object, optional) - Session state from GetSession (cookies, csrf_token, cookie_store). Required if session_id is provided.
+- `skip_check` (boolean, optional) - Skip pre-write syntax check on ddl_source. Default: false. When false, runs a syntax check on the proposed code BEFORE uploading it and surfaces any errors with line numbers — the broken source never lands on SAP.
 - `view_name` (string, required) - View name (e.g., ZOK_R_TEST_0002). View must already exist.
 
 ---
@@ -4643,4 +5381,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-10-16*

@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: High-Level
-- Total tools: 113
+- Total tools: 132
 
 ## Navigation
 
@@ -35,6 +35,8 @@ Generated from code in `src/handlers/**` (not from docs).
     - [UpdateLocalMacros](#updatelocalmacros-high-level-class)
     - [UpdateLocalTestClass](#updatelocaltestclass-high-level-class)
     - [UpdateLocalTypes](#updatelocaltypes-high-level-class)
+  - [Common](#high-level-common)
+    - [ActivateObjects](#activateobjects-high-level-common)
   - [Compact](#high-level-compact)
     - [HandlerActivate](#handleractivate-high-level-compact)
     - [HandlerCdsUnitTestResult](#handlercdsunittestresult-high-level-compact)
@@ -82,6 +84,16 @@ Generated from code in `src/handlers/**` (not from docs).
   - [Function Module](#high-level-function-module)
     - [DeleteFunctionModule](#deletefunctionmodule-high-level-function-module)
     - [GetFunctionModule](#getfunctionmodule-high-level-function-module)
+  - [Gui Status](#high-level-gui-status)
+    - [CreateGuiStatus](#createguistatus-high-level-gui-status)
+    - [DeleteGuiStatus](#deleteguistatus-high-level-gui-status)
+    - [GetGuiStatus](#getguistatus-high-level-gui-status)
+    - [PatchGuiStatus](#patchguistatus-high-level-gui-status)
+    - [UpdateGuiStatus](#updateguistatus-high-level-gui-status)
+  - [Include](#high-level-include)
+    - [CreateInclude](#createinclude-high-level-include)
+    - [DeleteInclude](#deleteinclude-high-level-include)
+    - [UpdateInclude](#updateinclude-high-level-include)
   - [Interface](#high-level-interface)
     - [CreateInterface](#createinterface-high-level-interface)
     - [DeleteInterface](#deleteinterface-high-level-interface)
@@ -98,6 +110,11 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteProgram](#deleteprogram-high-level-program)
     - [GetProgram](#getprogram-high-level-program)
     - [UpdateProgram](#updateprogram-high-level-program)
+  - [Screen](#high-level-screen)
+    - [CreateScreen](#createscreen-high-level-screen)
+    - [DeleteScreen](#deletescreen-high-level-screen)
+    - [GetScreen](#getscreen-high-level-screen)
+    - [UpdateScreen](#updatescreen-high-level-screen)
   - [Service Binding](#high-level-service-binding)
     - [CreateServiceBinding](#createservicebinding-high-level-service-binding)
     - [DeleteServiceBinding](#deleteservicebinding-high-level-service-binding)
@@ -122,6 +139,13 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteTable](#deletetable-high-level-table)
     - [GetTable](#gettable-high-level-table)
     - [UpdateTable](#updatetable-high-level-table)
+  - [Text Element](#high-level-text-element)
+    - [CreateTextElement](#createtextelement-high-level-text-element)
+    - [DeleteTextElement](#deletetextelement-high-level-text-element)
+    - [GetTextElement](#gettextelement-high-level-text-element)
+    - [ReadTextElementsBulk](#readtextelementsbulk-high-level-text-element)
+    - [UpdateTextElement](#updatetextelement-high-level-text-element)
+    - [WriteTextElementsBulk](#writetextelementsbulk-high-level-text-element)
   - [Transport](#high-level-transport)
     - [CreateTransport](#createtransport-high-level-transport)
   - [Unit Test](#high-level-unit-test)
@@ -154,7 +178,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="createbehaviordefinition-high-level-behavior-definition"></a>
 #### CreateBehaviorDefinition (High-Level / Behavior Definition)
-**Description:** Create a new ABAP Behavior Definition (BDEF) in SAP system.
+**Description:** Create a new ABAP Behavior Definition (BDEF) in SAP system. Defines RAP business object behavior: CRUD operations, validations, determinations, actions, and draft handling.
 
 **Source:** `src/handlers/behavior_definition/high/handleCreateBehaviorDefinition.ts`
 
@@ -177,7 +201,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_definition_name` (string, required) - BehaviorDefinition name (e.g., Z_MY_BEHAVIORDEFINITION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -189,13 +213,13 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_definition_name` (string, required) - BehaviorDefinition name (e.g., Z_MY_BEHAVIORDEFINITION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
 <a id="updatebehaviordefinition-high-level-behavior-definition"></a>
 #### UpdateBehaviorDefinition (High-Level / Behavior Definition)
-**Description:** Update source code of an ABAP Behavior Definition.
+**Description:** Update source code of an ABAP Behavior Definition (BDEF). Modifies RAP business object behavior: CRUD operations, validations, determinations, actions, and draft handling.
 
 **Source:** `src/handlers/behavior_definition/high/handleUpdateBehaviorDefinition.ts`
 
@@ -204,7 +228,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, optional) - Lock handle from LockObject. If not provided, will attempt to lock internally (not recommended for stateful flows).
 - `name` (string, required) - Behavior Definition name
 - `source_code` (string, required) - New source code
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -222,7 +246,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Behavior Implementation class name (e.g., ZBP_MY_ENTITY). Must follow SAP naming conventions (typically starts with ZBP_ for behavior implementations).
 - `description` (string, optional) - Class description. If not provided, class_name will be used.
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -234,7 +258,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_implementation_name` (string, required) - BehaviorImplementation name (e.g., Z_MY_BEHAVIORIMPLEMENTATION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -246,7 +270,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `behavior_implementation_name` (string, required) - BehaviorImplementation name (e.g., Z_MY_BEHAVIORIMPLEMENTATION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -261,7 +285,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `behavior_definition` (string, required) - Behavior Definition name (e.g., ZI_MY_ENTITY). Must match the behavior definition used when creating the class.
 - `class_name` (string, required) - Behavior Implementation class name (e.g., ZBP_MY_ENTITY). Must exist in the system.
 - `implementation_code` (string, required) - Implementation code for the implementations include. Contains the actual behavior implementation methods.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -282,7 +306,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `final` (boolean, optional) - Mark class as final. Default: false
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP).
 - `superclass` (string, optional) - Optional superclass name.
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -294,7 +318,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -358,7 +382,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -370,7 +395,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -382,7 +407,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -394,7 +419,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -406,7 +431,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -420,7 +445,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate after update. Default: false.
 - `class_name` (string, required) - Class name (e.g., ZCL_TEST_CLASS_001).
 - `source_code` (string, required) - Complete ABAP class source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -477,6 +502,22 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Parent class name (e.g., ZCL_MY_CLASS).
 - `local_types_code` (string, required) - Updated source code for local types.
 - `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="high-level-common"></a>
+### High-Level / Common
+
+<a id="activateobjects-high-level-common"></a>
+#### ActivateObjects (High-Level / Common)
+**Description:** [high-level] Activate a set of ABAP objects in a single call. Uses the ADT mass-activation endpoint (/sap/bc/adt/activation/runs) so cyclic references between siblings (e.g. main program + multiple cross-referencing includes) resolve in one compilation scope. Returns per-object status, errors, warnings. Falls back to /sap/bc/adt/activation on legacy systems.
+
+**Source:** `src/handlers/common/high/handleActivateObjects.ts`
+
+**Parameters:**
+- `objects` (array, required) - Objects to activate in one batch. Supply either explicit uri, or name+type (and parent_name for FUGR/FF, FUGR/I).
+- `preaudit` (boolean, optional) - Request pre-audit before activation. Default true.
+- `run_timeout_ms` (number, optional) - Max time to wait for the activation run to finish (runs endpoint only). Default 120000.
 
 ---
 
@@ -619,6 +660,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/compact/high/handleHandlerDumpList.ts`
 
 **Parameters:**
+- `include_summary` (boolean, optional) - Keep each dump's HTML summary (large). Default false; use HandlerDumpView for one dump.
 - `inlinecount` (string, optional) - Include total count in response.
 - `orderby` (string, optional) - Sort expression.
 - `skip` (number, optional) - Offset for pagination.
@@ -903,7 +945,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `search_help_parameter` (string, optional) - Search help parameter. Applied during update step after creation.
 - `set_get_parameter` (string, optional) - Set/Get parameter ID. Applied during update step after creation.
 - `short_label` (string, optional) - Short field label (max 10 chars). Applied during update step after creation.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `type_kind` (string, optional (default: domain)) - Type kind: 
 - `type_name` (string, optional) - Type name: domain name (when type_kind is 
 
@@ -917,7 +959,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - Data element name (e.g., Z_MY_DATA_ELEMENT).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -929,7 +971,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `data_element_name` (string, required) - Data element name (e.g., Z_MY_DATA_ELEMENT).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -954,7 +996,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `search_help` (string, optional) - Search help name
 - `search_help_parameter` (string, optional) - Search help parameter
 - `set_get_parameter` (string, optional) - Set/Get parameter ID
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `type_kind` (string, optional (default: domain)) - Type kind: domain, predefinedAbapType, refToPredefinedAbapType, refToDictionaryType, refToClifType
 - `type_name` (string, optional) - Type name: domain name, data element name, or class name (depending on type_kind)
 
@@ -965,7 +1007,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="createmetadataextension-high-level-ddlx"></a>
 #### CreateMetadataExtension (High-Level / Ddlx)
-**Description:** Create a new ABAP Metadata Extension (DDLX) in SAP system.
+**Description:** Create a new ABAP Metadata Extension (DDLX) in SAP system. Defines Fiori UI annotations, field labels, search help, and list/object page layout for CDS views.
 
 **Source:** `src/handlers/ddlx/high/handleCreateMetadataExtension.ts`
 
@@ -980,7 +1022,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="updatemetadataextension-high-level-ddlx"></a>
 #### UpdateMetadataExtension (High-Level / Ddlx)
-**Description:** Update source code of an ABAP Metadata Extension.
+**Description:** Update source code of an ABAP Metadata Extension (DDLX). Modifies Fiori UI annotations, field labels, search help, and list/object page layout for CDS views.
 
 **Source:** `src/handlers/ddlx/high/handleUpdateMetadataExtension.ts`
 
@@ -989,7 +1031,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lock_handle` (string, optional) - Lock handle from LockObject. If not provided, will attempt to lock internally.
 - `name` (string, required) - Metadata Extension name
 - `source_code` (string, required) - New source code
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1014,7 +1056,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lowercase` (boolean, optional (default: false)) - (optional) Allow lowercase input
 - `package_name` (string, optional) - (optional) Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `sign_exists` (boolean, optional (default: false)) - (optional) Field has sign (+/-)
-- `transport_request` (string, optional) - (optional) Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - (optional) Transport request. Required for transportable packages.
 - `value_table` (string, optional) - (optional) Value table name for foreign key relationship
 
 ---
@@ -1027,7 +1069,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_DOMAIN).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1039,7 +1081,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `domain_name` (string, required) - Domain name (e.g., Z_MY_DOMAIN).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1061,7 +1103,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `lowercase` (boolean, optional) - Allow lowercase input
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `sign_exists` (boolean, optional) - Field has sign (+/-)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `value_table` (string, optional) - Value table name for foreign key relationship
 
 ---
@@ -1080,7 +1122,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Function group description. If not provided, function_group_name will be used.
 - `function_group_name` (string, required) - Function group name (e.g., ZTEST_FG_001). Must follow SAP naming conventions (start with Z or Y, max 26 chars).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1094,7 +1136,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Optional description for the function module
 - `function_group_name` (string, required) - Parent function group name (e.g., ZTEST_FG_001)
 - `function_module_name` (string, required) - Function module name (e.g., Z_TEST_FUNCTION_001). Must follow SAP naming conventions (start with Z or Y, max 30 chars).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1107,7 +1149,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `description` (string, required) - New description for the function group.
 - `function_group_name` (string, required) - Function group name (e.g., ZTEST_FG_001). Must exist in the system.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -1122,7 +1164,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `function_group_name` (string, required) - Function group name containing the function module (e.g., ZOK_FG_MCP01).
 - `function_module_name` (string, required) - Function module name (e.g., Z_TEST_FM_MCP01). Function module must already exist.
 - `source_code` (string, required) - Complete ABAP function module source code. Must include FUNCTION statement with parameters and ENDFUNCTION. Example:\n\nFUNCTION Z_TEST_FM\n  IMPORTING\n    VALUE(iv_input) TYPE string\n  EXPORTING\n    VALUE(ev_output) TYPE string.\n  \n  ev_output = iv_input.\nENDFUNCTION.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable function modules.
+- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable function modules. For local objects ($TMP package) this can be omitted — the handler defaults to 
 
 ---
 
@@ -1137,7 +1179,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name (e.g., Z_MY_FUNCTIONGROUP).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1149,7 +1191,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name (e.g., Z_MY_FUNCTIONGROUP).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1165,7 +1207,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name containing the function module (e.g., Z_MY_FUNCTIONGROUP).
 - `function_module_name` (string, required) - FunctionModule name (e.g., Z_MY_FUNCTIONMODULE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1178,7 +1220,133 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `function_group_name` (string, required) - FunctionGroup name containing the function module (e.g., Z_MY_FUNCTIONGROUP).
 - `function_module_name` (string, required) - FunctionModule name (e.g., Z_MY_FUNCTIONMODULE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
+
+---
+
+<a id="high-level-gui-status"></a>
+### High-Level / Gui Status
+
+<a id="createguistatus-high-level-gui-status"></a>
+#### CreateGuiStatus (High-Level / Gui Status)
+**Description:** Create a new ABAP GUI Status on an existing program. Optionally activates after creation.
+
+**Source:** `src/handlers/gui_status/high/handleCreateGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after creation. Default: false.
+- `description` (string, optional) - GUI Status description.
+- `program_name` (string, required) - Parent program name (e.g., Z_MY_PROGRAM).
+- `status_name` (string, required) - GUI Status name to create (e.g., MAIN_STATUS).
+- `status_type` (string, optional) - Status type: 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deleteguistatus-high-level-gui-status"></a>
+#### DeleteGuiStatus (High-Level / Gui Status)
+**Description:** Delete an ABAP GUI Status from a program. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/gui_status/high/handleDeleteGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `status_name` (string, required) - GUI Status name to delete.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="getguistatus-high-level-gui-status"></a>
+#### GetGuiStatus (High-Level / Gui Status)
+**Description:** Get ABAP GUI Status definition including statuses, function codes, menus, toolbars, and titles.
+
+**Source:** `src/handlers/gui_status/high/handleGetGuiStatus.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `status_name` (string, optional) - Optional: filter to a specific GUI Status name. If omitted, returns all statuses.
+
+---
+
+<a id="patchguistatus-high-level-gui-status"></a>
+#### PatchGuiStatus (High-Level / Gui Status)
+**Description:** Row-level merge into an existing ABAP GUI Status definition. Fetches current CUA → merges the caller-supplied changes (by natural key) → writes merged result back. Rows / fields you omit are preserved. Safer default for targeted edits; use UpdateGuiStatus only when you truly want to replace the whole CUA.\n\nMerge keys per table:\n  STA=CODE, FUN=CODE, PFK=CODE+PFNO, BUT=PFK_CODE+CODE+NO, TIT=CODE,\n  MEN=CODE+NO, MTX=CODE, ACT=CODE+NO, SET=STATUS+FUNCTION,\n  DOC=OBJ_TYPE+OBJ_CODE, BIV=CODE+POS.
+
+**Source:** `src/handlers/gui_status/high/handlePatchGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after patch. Default: false.
+- `changes` (string, required) - Partial CUA data to merge into the current definition. Same shape as cua_data (ADM / STA / FUN / MEN / MTX / ACT / BUT / PFK / SET / DOC / TIT / BIV). Accepts JSON string or object. Rows matched by natural key are field-merged (changes win). New rows are appended. Omitted tables are left untouched.
+- `program_name` (string, required) - Parent program name.
+- `skip_validation` (boolean, optional) - Skip client-side validation of the merged result. Default: false.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="updateguistatus-high-level-gui-status"></a>
+#### UpdateGuiStatus (High-Level / Gui Status)
+**Description:** ⚠️ FULL REPLACE — overwrites the entire GUI Status definition (all 12 CUA tables) for the program. Any row or field you omit is DROPPED. Always Read (ReadGuiStatus) → modify → Update, or use PatchGuiStatus for row-level merges. cua_data must include complete STA / FUN / PFK / BUT / TIT rows with all required fields (CODE, PFNO, FUNCODE, ...). Handles lock/unlock automatically.
+
+**Source:** `src/handlers/gui_status/high/handleUpdateGuiStatus.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after update. Default: false.
+- `cua_data` (string, required) - Complete CUA data — accepts either a JSON string or a structured object with ADM / STA / FUN / MEN / MTX / ACT / BUT / PFK / SET / DOC / TIT / BIV. Required row fields: STA.CODE, FUN.CODE, PFK.{CODE,PFNO,FUNCODE}, BUT.{PFK_CODE,CODE,NO,PFNO}, TIT.CODE. Missing rows are dropped — this is full-replace semantics.
+- `program_name` (string, required) - Parent program name.
+- `skip_validation` (boolean, optional) - Skip client-side schema validation. Default: false. Only set true if you know the CUA payload is intentionally partial and SAP will accept it.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="high-level-include"></a>
+### High-Level / Include
+
+<a id="createinclude-high-level-include"></a>
+#### CreateInclude (High-Level / Include)
+**Description:** Create a new ABAP Include program (Type I, PROG/I) in SAP system. Creates the include object and registers it under the main program in D010INC. By default also auto-inserts an `INCLUDE <name>.` statement into the main program source so the include is actually used. Use UpdateInclude to set source code afterwards. Unlike CreateProgram with program_type=include (which creates PROG/P), this creates a proper PROG/I include. For mass-activation scenarios (many cross-referencing includes) pass source_code inline, set activate_main_program=false and skip_program_tree_check=true, then call ActivateObjects once with the full set.
+
+**Source:** `src/handlers/include/high/handleCreateInclude.ts`
+
+**Parameters:**
+- `activate_main_program` (boolean, optional) - When inserting INCLUDE statement into the main program, also activate the main program afterwards. Default: true (existing behavior). Set false when batching many includes so that activation is deferred to a single ActivateObjects call.
+- `description` (string, optional) - Include description (max 60 chars). If not provided, include_name will be used.
+- `include_name` (string, required) - Include program name (e.g., ZPAEK_TEST_INC01). Must follow SAP naming conventions (start with Z or Y).
+- `insert_into_main` (boolean, optional) - Auto-insert `INCLUDE <name>.` statement into the main program source. Default: true. Set false to skip main-program modification.
+- `main_program` (string, required) - Name of the main/master program that will contain this include (e.g., ZPAEK_TEST003). Required for proper include registration and activation.
+- `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects).
+- `skip_program_tree_check` (boolean, optional) - Skip the post-create program-tree syntax check. Default: false (existing behavior). Set true when batching many cross-referencing includes — an intermediate include in a cycle will necessarily fail the tree check while its siblings are still missing.
+- `source_code` (string, optional) - Optional include body. When provided, the handler also locks, writes the source, and unlocks the new include in a single call. Never activates — caller must run a separate activation (ActivateObjects for batch scenarios).
+- `transport_request` (string, optional) - Transport request number (e.g., S4HK904224). Required for transportable packages. Optional for local ($TMP) objects.
+
+---
+
+<a id="deleteinclude-high-level-include"></a>
+#### DeleteInclude (High-Level / Include)
+**Description:** Delete an existing ABAP Include program (Type I) from the SAP system via ADT API. If the include is referenced by a main program, provide main_program so the handler can first remove the `INCLUDE <name>.` line from the main program source before deleting.
+
+**Source:** `src/handlers/include/high/handleDeleteInclude.ts`
+
+**Parameters:**
+- `include_name` (string, required) - Include program name to delete.
+- `main_program` (string, optional) - Optional. Name of the main program referencing this include. If provided, the `INCLUDE <name>.` line is removed from the main program source first (so the include is no longer referenced and delete succeeds).
+- `remove_from_main` (boolean, optional) - Auto-remove `INCLUDE <name>.` line from main program source. Default: true when main_program is provided. Set false to skip the main-program modification.
+- `transport_request` (string, optional) - Transport request number. Required for transportable packages. Optional for local ($TMP) objects. Also used for updating the main program if main_program is provided.
+
+---
+
+<a id="updateinclude-high-level-include"></a>
+#### UpdateInclude (High-Level / Include)
+**Description:** Update source code of an existing ABAP Include program (Type I). Locks the include, uploads new source code, and unlocks. Optionally activates after update. Use this instead of UpdateProgram for Type I include programs.
+
+**Source:** `src/handlers/include/high/handleUpdateInclude.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
+- `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
+- `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
+- `transport_request` (string, optional) - Transport request number. Required for transportable packages.
 
 ---
 
@@ -1195,7 +1363,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Interface description. If not provided, interface_name will be used.
 - `interface_name` (string, required) - Interface name (e.g., ZIF_TEST_INTERFACE_001). Must follow SAP naming conventions (start with Z or Y).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1207,7 +1375,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., Z_MY_INTERFACE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1219,7 +1387,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `interface_name` (string, required) - Interface name (e.g., Z_MY_INTERFACE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `output` (string, optional (default: inline)) - 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1233,7 +1402,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate interface after update. Default: true.
 - `interface_name` (string, required) - Interface name (e.g., ZIF_MY_INTERFACE). Must exist in the system.
 - `source_code` (string, required) - Complete ABAP interface source code with INTERFACE...ENDINTERFACE section.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -1248,7 +1417,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `metadata_extension_name` (string, required) - MetadataExtension name (e.g., Z_MY_METADATAEXTENSION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1260,7 +1429,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `metadata_extension_name` (string, required) - MetadataExtension name (e.g., Z_MY_METADATAEXTENSION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1286,7 +1455,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `package_name` (string, required) - Package name (e.g., Z_MY_PACKAGE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1305,7 +1474,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
 - `program_name` (string, required) - Program name (e.g., Z_TEST_PROGRAM_001). Must follow SAP naming conventions (start with Z or Y).
 - `program_type` (string, optional) - Program type: 
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1317,7 +1486,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1328,8 +1497,9 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/program/high/handleGetProgram.ts`
 
 **Parameters:**
+- `output` (string, optional (default: inline)) - 
 - `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1343,7 +1513,66 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate program after source update. Default: false. Set to true to activate immediately, or use ActivateObject for batch activation.
 - `program_name` (string, required) - Program name (e.g., Z_TEST_PROGRAM_001). Program must already exist.
 - `source_code` (string, required) - Complete ABAP program source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
+
+---
+
+<a id="high-level-screen"></a>
+### High-Level / Screen
+
+<a id="createscreen-high-level-screen"></a>
+#### CreateScreen (High-Level / Screen)
+**Description:** Create a new ABAP Screen (Dynpro) on an existing program. Optionally activates.
+
+**Source:** `src/handlers/screen/high/handleCreateScreen.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after creation. Default: false.
+- `description` (string, optional) - Screen description.
+- `dynpro_data` (string, optional) - Full screen definition as JSON. If omitted, creates minimal screen.
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number to create (e.g., 0100).
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deletescreen-high-level-screen"></a>
+#### DeleteScreen (High-Level / Screen)
+**Description:** Delete an ABAP Screen (Dynpro) from a program. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/screen/high/handleDeleteScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number to delete.
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="getscreen-high-level-screen"></a>
+#### GetScreen (High-Level / Screen)
+**Description:** Get ABAP Screen (Dynpro) definition including metadata, fields, and flow logic source code.
+
+**Source:** `src/handlers/screen/high/handleGetScreen.ts`
+
+**Parameters:**
+- `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+
+---
+
+<a id="updatescreen-high-level-screen"></a>
+#### UpdateScreen (High-Level / Screen)
+**Description:** Update an ABAP Screen (Dynpro) definition. Provide full screen data as JSON. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/screen/high/handleUpdateScreen.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate after update. Default: false.
+- `dynpro_data` (string, required) - Complete screen definition as JSON (from GetScreen/ReadScreen).
+- `program_name` (string, required) - Parent program name.
+- `screen_number` (string, required) - Screen number (e.g., 0100).
+- `transport_request` (string, optional) - Transport request number.
 
 ---
 
@@ -1453,7 +1682,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `service_definition_name` (string, required) - Service definition name (e.g., ZSD_MY_SERVICE). Must follow SAP naming conventions (start with Z or Y).
 - `source_code` (string, optional) - Service definition source code (optional). If not provided, a minimal template will be created.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1465,7 +1694,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `service_definition_name` (string, required) - ServiceDefinition name (e.g., Z_MY_SERVICEDEFINITION).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1477,7 +1706,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `service_definition_name` (string, required) - ServiceDefinition name (e.g., Z_MY_SERVICEDEFINITION).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1491,7 +1720,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate service definition after update. Default: true.
 - `service_definition_name` (string, required) - Service definition name (e.g., ZSD_MY_SERVICE). Must exist in the system.
 - `source_code` (string, required) - Complete service definition source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -1511,7 +1740,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `includes` (array, optional) - Include other structures in this structure
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `structure_name` (string, required) - Structure name (e.g., ZZ_S_TEST_001). Must follow SAP naming conventions.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1523,7 +1752,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_STRUCTURE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1535,7 +1764,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `structure_name` (string, required) - Structure name (e.g., Z_MY_STRUCTURE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1549,7 +1778,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `activate` (boolean, optional) - Activate structure after source update. Default: true.
 - `ddl_code` (string, required) - Complete DDL source code for structure. Example: 
 - `structure_name` (string, required) - Structure name (e.g., ZZ_S_TEST_001). Structure must already exist.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
 
 ---
 
@@ -1584,7 +1813,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `description` (string, optional) - Table description for validation and creation.
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Must follow SAP naming conventions.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1596,7 +1825,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_TABLE).
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -1608,7 +1837,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `table_name` (string, required) - Table name (e.g., Z_MY_TABLE).
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 
 ---
 
@@ -1620,9 +1849,104 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate table after source update. Default: true.
-- `ddl_code` (string, required) - Complete DDL source code for table. Example: 
+- `ddl_code` (string, required) - Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key (
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Table must already exist.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Optional if object is local or already in transport.
+- `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-text-element"></a>
+### High-Level / Text Element
+
+<a id="createtextelement-high-level-text-element"></a>
+#### CreateTextElement (High-Level / Text Element)
+**Description:** Add a text element (text symbol, selection text, program title, or list heading) to an ABAP program. Optionally activates after write.
+
+**Source:** `src/handlers/text_element/high/handleCreateTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key. For 
+- `language` (string, optional) - Language key (1-char). Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name (e.g., Z_MY_PROGRAM).
+- `text` (string, required) - 
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="deletetextelement-high-level-text-element"></a>
+#### DeleteTextElement (High-Level / Text Element)
+**Description:** Delete a text element from an ABAP program text pool. key=
+
+**Source:** `src/handlers/text_element/high/handleDeleteTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key, or 
+- `language` (string, optional) - Language key. Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name.
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="gettextelement-high-level-text-element"></a>
+#### GetTextElement (High-Level / Text Element)
+**Description:** Read ABAP program text pool (text symbols, selection texts, title, headings). Optionally filter by text_type / key.
+
+**Source:** `src/handlers/text_element/high/handleGetTextElement.ts`
+
+**Parameters:**
+- `key` (string, optional) - Optional: filter by row key (e.g., 
+- `language` (string, optional) - Language key (1-char, e.g., 
+- `program_name` (string, required) - Program name (e.g., Z_MY_PROGRAM).
+- `text_type` (string, optional) - Filter by ID: 
+
+---
+
+<a id="readtextelementsbulk-high-level-text-element"></a>
+#### ReadTextElementsBulk (High-Level / Text Element)
+**Description:** Read every text element (R/I/S/H) of a program in ONE call via the TPOOL RFC. Partitions rows by type and returns structured arrays. Use this instead of calling GetTextElement per row.
+
+**Source:** `src/handlers/text_element/high/handleReadTextElementsBulk.ts`
+
+**Parameters:**
+- `language` (string, optional) - 1-char language. Defaults to SAP logon language.
+- `program_name` (string, required) - Program name.
+
+---
+
+<a id="updatetextelement-high-level-text-element"></a>
+#### UpdateTextElement (High-Level / Text Element)
+**Description:** Update an existing text element in an ABAP program text pool. Handles lock/unlock automatically.
+
+**Source:** `src/handlers/text_element/high/handleUpdateTextElement.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Activate the parent program after write. Default: false.
+- `key` (string, optional) - Row key. Required except for 
+- `language` (string, optional) - Language key. Defaults to SAP logon language.
+- `program_name` (string, required) - Parent program name.
+- `text` (string, required) - 
+- `text_type` (string, required) - 
+- `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="writetextelementsbulk-high-level-text-element"></a>
+#### WriteTextElementsBulk (High-Level / Text Element)
+**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=false (default) the pool is staged INACTIVE — the parent program\
+
+**Source:** `src/handlers/text_element/high/handleWriteTextElementsBulk.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - false (default) — stage as INACTIVE (program activation promotes). true — write ACTIVE immediately.
+- `language` (string, optional) - 1-char language key (e.g. 
+- `program_name` (string, required) - Parent program name.
+- `replace_existing` (boolean, optional) - If true (default), the TPOOL is replaced with the provided entries only. If false, existing rows are preserved and provided rows merge by (type, key).
+- `text_elements` (array, required) - Array of entries. Each: { type: 
+- `transport_request` (string, optional) - Transport request number (informational).
 
 ---
 
@@ -1657,7 +1981,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
 - `description` (string, optional) - Optional description for the global test class.
 - `package_name` (string, required) - Package name (e.g., ZOK_TEST_PKG_01, $TMP).
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1685,7 +2009,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1774,7 +2098,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="rununittest-high-level-unit-test"></a>
 #### RunUnitTest (High-Level / Unit Test)
-**Description:** Start an ABAP Unit test run for provided class test definitions. Returns run_id for status/result queries.
+**Description:** Start an ABAP Unit test run for provided test definitions. Returns run_id for status/result queries. 
 
 **Source:** `src/handlers/unit_test/high/handleRunUnitTest.ts`
 
@@ -1797,7 +2121,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `class_name` (string, required) - Global test class name (e.g., ZCL_CDS_TEST).
 - `test_class_source` (string, required) - Updated local test class ABAP source code.
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
 ---
 
@@ -1824,7 +2148,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `description` (string, optional) - Optional description (defaults to view_name).
 - `package_name` (string, required) - Package name (e.g., ZOK_LAB, $TMP for local objects)
-- `transport_request` (string, optional) - Transport request number (required for transportable packages).
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `view_name` (string, required) - View name (e.g., ZOK_R_TEST_0002, Z_I_MY_VIEW).
 
 ---
@@ -1836,7 +2160,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/high/handleDeleteView.ts`
 
 **Parameters:**
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable objects. Optional for local objects ($TMP).
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 - `view_name` (string, required) - View name (e.g., Z_MY_VIEW).
 
 ---
@@ -1848,7 +2172,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/view/high/handleGetView.ts`
 
 **Parameters:**
-- `version` (string, optional (default: active)) - Version to read: 
+- `version` (string, optional (default: active)) - 
 - `view_name` (string, required) - View name (e.g., Z_MY_VIEW).
 
 ---
@@ -1862,9 +2186,9 @@ Generated from code in `src/handlers/**` (not from docs).
 **Parameters:**
 - `activate` (boolean, optional) - Activate after update. Default: false.
 - `ddl_source` (string, required) - Complete DDL source code.
-- `transport_request` (string, optional) - Transport request number (e.g., E19K905635). Required for transportable packages.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
 - `view_name` (string, required) - View name (e.g., ZOK_R_TEST_0002).
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-10-16*

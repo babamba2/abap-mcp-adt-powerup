@@ -290,6 +290,7 @@ Preferred dedicated compact tools and minimal payloads:
 **Source:** `src/handlers/compact/high/handleHandlerDumpList.ts`
 
 **Parameters:**
+- `include_summary` (boolean, optional) - Keep each dump's HTML summary (large). Default false; use HandlerDumpView for one dump.
 - `inlinecount` (string, optional) - Include total count in response.
 - `orderby` (string, optional) - Sort expression.
 - `skip` (number, optional) - Offset for pagination.
@@ -551,4 +552,4 @@ Preferred dedicated compact tools and minimal payloads:
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-10-16*
