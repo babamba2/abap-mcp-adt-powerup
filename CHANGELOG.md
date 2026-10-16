@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Added
+- **`GetSmartFormLayout`** (read-only, on-premise and legacy systems): page and window layout of a SmartForm. Per page the format, orientation, next page, CPI / LPI and style; per window its type (MAIN, SECONDARY, ...), position and size as stored (value + unit) and converted to millimetres (CM, MM, IN, PT, TW, and LN / CH through the page LPI / CPI). Reads the active version (a form that was never activated is read from its saved version and `active` is false). `language` takes a 1-character SAP key or a 2-letter ISO code. Layout only: no texts, code or form interface. Runs through `ZMCP_ADT_DISPATCH` action `SSF_LAYOUT`, so it works on the OData backend (BASIS 7.40) and over SOAP RFC (BASIS 7.31). Needs the new `ZMCP_SSF_LAYOUT` FM and the `SSF_LAYOUT` dispatcher branch; without them the tool answers with an install hint.
+
 ## [4.8.12] - 2026-10-14
 
 ### Changed

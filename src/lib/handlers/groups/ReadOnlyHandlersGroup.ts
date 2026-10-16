@@ -109,6 +109,10 @@ import {
   handleGetJobUsage,
 } from '../../../handlers/system/readonly/handleGetJobUsage';
 import {
+  TOOL_DEFINITION as GetSmartFormLayout_Tool,
+  handleGetSmartFormLayout,
+} from '../../../handlers/system/readonly/handleGetSmartFormLayout';
+import {
   TOOL_DEFINITION as GetTcodeUsage_Tool,
   handleGetTcodeUsage,
 } from '../../../handlers/system/readonly/handleGetTcodeUsage';
@@ -188,6 +192,10 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetJobUsage_Tool,
         handler: (args: any) => handleGetJobUsage(this.context, args),
+      },
+      {
+        toolDefinition: GetSmartFormLayout_Tool,
+        handler: (args: any) => handleGetSmartFormLayout(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,
