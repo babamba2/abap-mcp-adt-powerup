@@ -4,9 +4,9 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ## Summary
 
-- Total tools: 333
+- Total tools: 335
 - Read-only tools: 67
-- High-level tools: 132
+- High-level tools: 134
 - Low-level tools: 134
 
 - Compact tools: 22 (included in High-level group)
@@ -232,6 +232,9 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteServiceDefinition](#deleteservicedefinition-high-level-service-definition)
     - [GetServiceDefinition](#getservicedefinition-high-level-service-definition)
     - [UpdateServiceDefinition](#updateservicedefinition-high-level-service-definition)
+  - [Smartform](#high-level-smartform)
+    - [CreateSmartForm](#createsmartform-high-level-smartform)
+    - [DeleteSmartForm](#deletesmartform-high-level-smartform)
   - [Structure](#high-level-structure)
     - [CreateStructure](#createstructure-high-level-structure)
     - [DeleteStructure](#deletestructure-high-level-structure)
@@ -2970,6 +2973,37 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 - `service_definition_name` (string, required) - Service definition name (e.g., ZSD_MY_SERVICE). Must exist in the system.
 - `source_code` (string, required) - Complete service definition source code.
 - `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-smartform"></a>
+### High-Level / Smartform
+
+<a id="createsmartform-high-level-smartform"></a>
+#### CreateSmartForm (High-Level / Smartform)
+**Description:** [writes] Create (or, with overwrite, replace) a Z/Y SmartForm from Form Builder XML — the format of SMARTFORMS > Utilities > Download. The form is checked and stored active (function module generated) when the check finds no error; otherwise it is stored inactive and the check errors are returned. SmartStyles and SE78 graphics the XML names must already exist. Needs the ZMCP_SSF_UPLOAD FM and the SSF_UPLOAD_XML dispatcher action.
+
+**Source:** `src/handlers/smartform/high/handleCreateSmartForm.ts`
+
+**Parameters:**
+- `activate` (boolean, optional) - Check and store active. Default true; false stores the form inactive without a check.
+- `form_name` (string, required) - Target SmartForm name, Z* or Y* (e.g. "ZMY_FORM").
+- `overwrite` (boolean, optional) - Replace the form when it exists. Default false (an existing form is refused).
+- `package_name` (string, optional) - Package. Default $TMP; any other package needs transport_request.
+- `transport_request` (string, optional) - Transport request the form is recorded in.
+- `xml_file` (string, required) - Path of the Form Builder XML file (UTF-8).
+
+---
+
+<a id="deletesmartform-high-level-smartform"></a>
+#### DeleteSmartForm (High-Level / Smartform)
+**Description:** [writes, destructive] Delete a Z/Y SmartForm of a local package ($TMP, $…) with its generated function module. Without confirm: true only reports what would be deleted (dry run). Transportable forms are refused. Needs the ZMCP_SSF_DELETE FM and the SSF_DELETE_FORM dispatcher action.
+
+**Source:** `src/handlers/smartform/high/handleDeleteSmartForm.ts`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `form_name` (string, required) - SmartForm name, Z* or Y*.
 
 ---
 

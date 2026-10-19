@@ -16,6 +16,8 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     'UpdateFunctionModule',
     'DeleteTable',
     'DeleteStructure',
+    'CreateSmartForm',
+    'DeleteSmartForm',
     // These three mutate SAP but match none of Create/Update/Delete. They were
     // reachable on QA and PRD until the prefix list grew to cover them.
     'ActivateObjects',

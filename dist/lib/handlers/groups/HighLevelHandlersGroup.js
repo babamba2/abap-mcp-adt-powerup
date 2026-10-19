@@ -82,6 +82,8 @@ const handleCreateServiceDefinition_1 = require("../../../handlers/service_defin
 const handleDeleteServiceDefinition_1 = require("../../../handlers/service_definition/high/handleDeleteServiceDefinition");
 const handleGetServiceDefinition_1 = require("../../../handlers/service_definition/high/handleGetServiceDefinition");
 const handleUpdateServiceDefinition_1 = require("../../../handlers/service_definition/high/handleUpdateServiceDefinition");
+const handleCreateSmartForm_1 = require("../../../handlers/smartform/high/handleCreateSmartForm");
+const handleDeleteSmartForm_1 = require("../../../handlers/smartform/high/handleDeleteSmartForm");
 const handleCreateStructure_1 = require("../../../handlers/structure/high/handleCreateStructure");
 const handleDeleteStructure_1 = require("../../../handlers/structure/high/handleDeleteStructure");
 const handleGetStructure_1 = require("../../../handlers/structure/high/handleGetStructure");
@@ -543,6 +545,15 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleDeleteGuiStatus_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteGuiStatus_1.handleDeleteGuiStatus),
+            },
+            // SmartForm high-level handlers
+            {
+                toolDefinition: handleCreateSmartForm_1.TOOL_DEFINITION,
+                handler: withContext(handleCreateSmartForm_1.handleCreateSmartForm),
+            },
+            {
+                toolDefinition: handleDeleteSmartForm_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteSmartForm_1.handleDeleteSmartForm),
             },
             // Text Element (TEXTPOOL) high-level handlers
             {

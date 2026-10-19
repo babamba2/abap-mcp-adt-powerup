@@ -311,6 +311,14 @@ import {
   TOOL_DEFINITION as UpdateServiceDefinition_Tool,
 } from '../../../handlers/service_definition/high/handleUpdateServiceDefinition';
 import {
+  TOOL_DEFINITION as CreateSmartForm_Tool,
+  handleCreateSmartForm,
+} from '../../../handlers/smartform/high/handleCreateSmartForm';
+import {
+  TOOL_DEFINITION as DeleteSmartForm_Tool,
+  handleDeleteSmartForm,
+} from '../../../handlers/smartform/high/handleDeleteSmartForm';
+import {
   TOOL_DEFINITION as CreateStructure_Tool,
   handleCreateStructure,
 } from '../../../handlers/structure/high/handleCreateStructure';
@@ -873,6 +881,15 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: DeleteGuiStatus_Tool,
         handler: withContext(handleDeleteGuiStatus),
+      },
+      // SmartForm high-level handlers
+      {
+        toolDefinition: CreateSmartForm_Tool,
+        handler: withContext(handleCreateSmartForm),
+      },
+      {
+        toolDefinition: DeleteSmartForm_Tool,
+        handler: withContext(handleDeleteSmartForm),
       },
       // Text Element (TEXTPOOL) high-level handlers
       {

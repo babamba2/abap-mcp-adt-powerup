@@ -5,9 +5,9 @@ Generated from code in `src/handlers/**` (not from docs).
 Tools available on legacy SAP systems (BASIS < 7.50) connected via RFC.
 Legacy systems support a subset of tools — primarily Class, Interface, View, Program, Function Group/Module, Package (read/update/delete), Include, Unit Test, and common utilities.
 
-- Total tools: 166
+- Total tools: 168
 - Read-Only: 25
-- High-Level: 69
+- High-Level: 71
 - Low-Level: 72
 
 ## Navigation
@@ -108,6 +108,9 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
     - [DeleteScreen](#deletescreen-high-level-screen)
     - [GetScreen](#getscreen-high-level-screen)
     - [UpdateScreen](#updatescreen-high-level-screen)
+  - [Smartform](#high-level-smartform)
+    - [CreateSmartForm](#createsmartform-high-level-smartform)
+    - [DeleteSmartForm](#deletesmartform-high-level-smartform)
   - [Text Element](#high-level-text-element)
     - [CreateTextElement](#createtextelement-high-level-text-element)
     - [DeleteTextElement](#deletetextelement-high-level-text-element)
@@ -1383,6 +1386,41 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 - `program_name` (string, required) - Parent program name.
 - `screen_number` (string, required) - Screen number (e.g., 0100).
 - `transport_request` (string, optional) - Transport request number.
+
+---
+
+<a id="high-level-smartform"></a>
+### High-Level / Smartform
+
+<a id="createsmartform-high-level-smartform"></a>
+#### CreateSmartForm (High-Level / Smartform)
+**Description:** [writes] Create (or, with overwrite, replace) a Z/Y SmartForm from Form Builder XML — the format of SMARTFORMS > Utilities > Download. The form is checked and stored active (function module generated) when the check finds no error; otherwise it is stored inactive and the check errors are returned. SmartStyles and SE78 graphics the XML names must already exist. Needs the ZMCP_SSF_UPLOAD FM and the SSF_UPLOAD_XML dispatcher action.
+
+**Source:** `src/handlers/smartform/high/handleCreateSmartForm.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `activate` (boolean, optional) - Check and store active. Default true; false stores the form inactive without a check.
+- `form_name` (string, required) - Target SmartForm name, Z* or Y* (e.g. "ZMY_FORM").
+- `overwrite` (boolean, optional) - Replace the form when it exists. Default false (an existing form is refused).
+- `package_name` (string, optional) - Package. Default $TMP; any other package needs transport_request.
+- `transport_request` (string, optional) - Transport request the form is recorded in.
+- `xml_file` (string, required) - Path of the Form Builder XML file (UTF-8).
+
+---
+
+<a id="deletesmartform-high-level-smartform"></a>
+#### DeleteSmartForm (High-Level / Smartform)
+**Description:** [writes, destructive] Delete a Z/Y SmartForm of a local package ($TMP, $…) with its generated function module. Without confirm: true only reports what would be deleted (dry run). Transportable forms are refused. Needs the ZMCP_SSF_DELETE FM and the SSF_DELETE_FORM dispatcher action.
+
+**Source:** `src/handlers/smartform/high/handleDeleteSmartForm.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `form_name` (string, required) - SmartForm name, Z* or Y*.
 
 ---
 
