@@ -47,6 +47,14 @@ exports.TOOL_DEFINITION = {
                 type: 'boolean',
                 description: 'Answer with an overview (windows, data declarations, &symbols&, graphics, files) instead of the full content tree; the full result is always written to files.content. Default false.',
             },
+            values: {
+                type: 'object',
+                description: 'Sample values for &symbols& in graphic keys (e.g. {"IM_SIGN": "ZSIGN"}): graphics named by a variable are then fetched too.',
+            },
+            device: {
+                type: 'string',
+                description: 'Output device whose printer fonts the preview should assume. Default: a device whose type has fonts for most of the families of the form.',
+            },
             text_language: {
                 type: 'string',
                 description: 'Language for include texts whose key has no language: 1-char SAP key (e.g. "3") or 2-letter ISO code (e.g. "KO"). Default: the form language.',
@@ -71,6 +79,10 @@ async function handleGetSmartFormContent(context, args) {
             includeTexts: args?.include_texts,
             textLanguage: args?.text_language
                 ? String(args.text_language).trim()
+                : undefined,
+            device: args?.device ? String(args.device).trim() : undefined,
+            values: args?.values && typeof args.values === 'object'
+                ? args.values
                 : undefined,
         });
         return (0, utils_1.return_response)({

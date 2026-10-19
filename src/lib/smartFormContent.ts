@@ -114,6 +114,12 @@ export interface ContentNode {
   caption: string;
   /** Print condition (COND of the node), raw. */
   condition?: any;
+  /** Box and shading of the output options (per side mm, distance, colour; fill). */
+  box?: any;
+  /** alternative (condition node): the COND lines that pick the TRUE / FALSE event */
+  test?: any;
+  /** loop / table WHERE: [{COP, OP1, OP2, LOP}] */
+  where?: any;
   /** text */
   textType?: string;
   style?: string;
@@ -143,6 +149,8 @@ export interface ContentNode {
   /** Line types of a table (DYNLINES) / lines of a template (STATLINES), raw. */
   lineTypes?: any;
   templateLines?: any;
+  /** Template / table pattern and frame: outer = frame drawn around it. */
+  frame?: { pattern: string; lineMm: number; outer: boolean; border?: boolean };
   cells?: any;
   /** Output attributes of the node (position inside the window etc.), raw. */
   output?: Record<string, string>;
@@ -161,6 +169,11 @@ export interface ContentWindow {
   widthMm: number | null;
   heightMm: number | null;
   condition?: any;
+  box?: any;
+  /** alternative (condition node): the COND lines that pick the TRUE / FALSE event */
+  test?: any;
+  /** loop / table WHERE: [{COP, OP1, OP2, LOP}] */
+  where?: any;
   content: ContentNode[];
 }
 
@@ -197,8 +210,26 @@ export interface SmartFormContent {
   language: string;
   stdStyles: string[];
   pages: ContentPage[];
-  styles: Array<{ name: string; file?: string; css?: string; error?: string }>;
+  styles: Array<{
+    name: string;
+    file?: string;
+    css?: string;
+    error?: string;
+    /** standard paragraph ('*' lines) and default font from the style header */
+    firstParagraph?: string;
+    font?: { family: string; pt: number; bold: boolean };
+    lpi?: number;
+    cpi?: number;
+    /** default tab distance, value + unit (e.g. "1.00 CM") */
+    tabDistance?: string;
+    /** paragraphs as stored: value + unit per attribute (SSFPARAS) */
+    paragraphs?: any[];
+    /** character formats as stored (SSFSTRINGS) */
+    strings?: any[];
+  }>;
   graphics: SmartFormGraphic[];
+  /** printer assumed for the fonts: device, device type, its fonts [family, size 1/10 pt, bold, italic], family substitutes */
+  printer?: any;
   includeTexts: Array<{
     object: string;
     name: string;
@@ -311,13 +342,16 @@ function templateLinesOf(v: unknown) {
     to: num(it?.LINETO),
     heightMm: mmOf(it?.LHEIGHT, it?.U_LHEIGHT),
     shading: num(it?.SHADING) ?? 0,
+    // a line type that refers to another one takes its height when it has none
+    ...(trimmed(it?.REFERENCE) ? { reference: trimmed(it?.REFERENCE) } : {}),
   }));
 }
 
 /** Cells (CELLS): line name, column, width, fill and border widths (mm, 0 = none). */
 function cellsOf(v: unknown) {
-  return asArray((v as Raw)?.item).map((it: Raw) => {
-    const b = (asArray((it?.BORDERS as Raw)?.item)[0] ?? {}) as Raw;
+  // A line type that covers a row range (LINEFROM..LINETO) has one BORDERS item
+  // per row (IDX 001 = first row of the range): each row may draw other lines.
+  const look = (b: Raw) => {
     const side = (w: string, c: string) => {
       const mm = mmOf(b[w], b[`${w}_U`]) ?? 0;
       return mm > 0 && trimmed(b[c]?.USED) === 'X' ? mm : 0;
@@ -329,9 +363,6 @@ function cellsOf(v: unknown) {
         ? colorOf(b.FILLCOLOR, intensity)
         : undefined;
     return {
-      line: trimmed(it?.NAME),
-      column: num(it?.COLUMNNR),
-      widthMm: mmOf(it?.CWIDTH, it?.U_CWIDTH),
       ...(fill ? { fill } : {}),
       borders: {
         left: side('LLEFT', 'CLEFT'),
@@ -339,6 +370,21 @@ function cellsOf(v: unknown) {
         right: side('LRIGHT', 'CRIGHT'),
         bottom: side('LBOTTOM', 'CBOTTOM'),
       },
+    };
+  };
+  return asArray((v as Raw)?.item).map((it: Raw) => {
+    const items = asArray((it?.BORDERS as Raw)?.item) as Raw[];
+    const first = look((items[0] ?? {}) as Raw);
+    const rows = items.map(look);
+    const varies = rows.some(
+      (r) => JSON.stringify(r) !== JSON.stringify(first),
+    );
+    return {
+      line: trimmed(it?.NAME),
+      column: num(it?.COLUMNNR),
+      widthMm: mmOf(it?.CWIDTH, it?.U_CWIDTH),
+      ...first,
+      ...(varies ? { rows } : {}),
     };
   });
 }
@@ -373,11 +419,76 @@ function outputAttrs(node: Raw): Record<string, string> | undefined {
   return Object.keys(s).length ? s : undefined;
 }
 
+/**
+ * Box of a window / node (output options → Box and shading): per side the
+ * line thickness and the distance of the text from it, in mm; shading as a
+ * colour blended toward white by its intensity. Undefined when nothing is drawn.
+ */
+function boxOf(node: Raw): any {
+  const oa = node?.OUTATTR;
+  if (!oa || typeof oa !== 'object') return undefined;
+  const inner = (oa.OUTATTR ??
+    oa[Object.keys(oa).find((k) => !k.startsWith('@_')) ?? '']) as Raw;
+  const b = (inner?.BORDER ?? {}) as Raw;
+  // a side is drawn only with its <LEFT|TOP|RIGHT|BOTTOM>LINE flag; the
+  // thickness is there (default 15 TW) whether the line is on or not.
+  // Thickness 0 with the flag on is the printer's thinnest line, not "off"
+  // (ZSDRA0390_CI_T %WINDOW3 / %WINDOW7 hairline frames).
+  const side = (k: string) => {
+    const a = (b[k] ?? {}) as Raw;
+    const on = trimmed(b[k.replace('ATTR', 'LINE')]) === 'X';
+    const c = (a.COLOR ?? {}) as Raw;
+    return {
+      mm: on ? (toMm(trimmed(a.THICKNESS), trimmed(a.THICKNESSU)) ?? 0) : 0,
+      ...(on ? { on: true } : {}),
+      distanceMm: toMm(trimmed(a.DISTANCE), trimmed(a.DISTANCEU)) ?? 0,
+      color: rgbHex(c),
+    };
+  };
+  const box = {
+    left: side('LEFTATTR'),
+    top: side('TOPATTR'),
+    right: side('RIGHTATTR'),
+    bottom: side('BOTTOMATTR'),
+  };
+  const sh = (inner?.SHADING ?? b.SHADING) as Raw | undefined;
+  const fill =
+    sh && typeof sh === 'object' && trimmed(sh.USED) === 'X'
+      ? blend(rgbHex((sh.COLOR ?? sh) as Raw), num(sh.INTENSITY) ?? 100)
+      : undefined;
+  const any = Object.values(box).some(
+    (s) => s.mm > 0 || (s as { on?: boolean }).on,
+  );
+  if (!any && !fill) return undefined;
+  return { ...box, ...(fill ? { fill } : {}) };
+}
+
+function rgbHex(c: Raw): string {
+  const h = (v: unknown) =>
+    Math.max(0, Math.min(255, Number(v) || 0))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${h(c?.RED)}${h(c?.GREEN)}${h(c?.BLUE)}`;
+}
+
+function blend(hex: string, intensity: number): string {
+  const p = Math.max(0, Math.min(100, intensity)) / 100;
+  const ch = (i: number) =>
+    Math.round(255 - (255 - parseInt(hex.slice(i, i + 2), 16)) * p)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${ch(1)}${ch(3)}${ch(5)}`;
+}
+
+// The four checkboxes of a node's Conditions tab: only on first page / only on
+// subsequent pages / only after / only before the end of the main window.
+// (L = end of the main window, not the last page: an NLPAGE node of the main
+// window prints on a one-page document.)
 const OCOND_NAMES: Record<string, string> = {
   FPAGE: 'firstPage',
-  LPAGE: 'lastPage',
   NFPAGE: 'notFirstPage',
-  NLPAGE: 'notLastPage',
+  LPAGE: 'afterMainEnd',
+  NLPAGE: 'beforeMainEnd',
 };
 
 /**
@@ -422,6 +533,8 @@ const KNOWN_TEXT_FIELDS = new Set([
 class Walker {
   private readonly ids = new Map<string, Raw>();
   readonly graphicKeys = new Map<string, ContentNode['graphic']>();
+  /** graphics whose key holds a &symbol& (resolved later from sample values) */
+  readonly dynamicGraphics: NonNullable<ContentNode['graphic']>[] = [];
   readonly textKeys = new Map<string, NonNullable<ContentNode['include']>>();
   readonly styles = new Set<string>();
   readonly dynamic: string[] = [];
@@ -515,6 +628,13 @@ class Walker {
     };
     const cond = conditionOf(node);
     if (cond !== undefined) out.condition = cond;
+    const nbox = boxOf(node);
+    if (nbox) out.box = nbox;
+    // alternative: its test (COND lines) decides between the TRUE (+) and FALSE (-) events
+    if (kind === 'CONDITION' && obj.COND) {
+      const t = plain(obj.COND);
+      if (Array.isArray(t) && t.length) out.test = t;
+    }
     const oa = outputAttrs(node);
     if (oa) {
       // inside a table / template the output attributes carry the cell
@@ -528,6 +648,10 @@ class Walker {
       // unit fields alone say nothing
       const meaningful = Object.keys(oa).filter((k) => !k.startsWith('U_'));
       if (meaningful.length) out.output = oa;
+      // a style named only in the output options (template / window STDSTYLE) is read too:
+      // texts whose own style is missing print in it (ZSDM43020_SHIPPING ZSDM43020_CMR_STYLE)
+      const std = trimmed(oa.STDSTYLE);
+      if (std) this.styles.add(std);
     }
 
     switch (kind) {
@@ -586,6 +710,9 @@ class Walker {
         out.sectionType = st;
         const tab = trimmed(obj.TABNAME);
         if (tab) out.dataTable = tab;
+        // loop / table WHERE (WCOND lines: OP1 a field of the row, OP2 a value or another field)
+        const wc = plain(obj.WCOND);
+        if (Array.isArray(wc) && wc.length) out.where = wc;
         const w = trimmed(obj.WIDTH);
         if (w) {
           const u = trimmed(obj.U_WIDTH).toUpperCase();
@@ -602,6 +729,18 @@ class Walker {
         if (stat.length) out.templateLines = stat;
         const cells = cellsOf(obj.CELLS);
         if (cells.length) out.cells = cells;
+        // Pattern + frame of the whole template / table. PATTERN-BORDER = 'X' draws the outer
+        // frame for any pattern but 0000 (the pattern gives the inner lines); USEBORDER is the
+        // "use cell borders" switch, not the frame.
+        const pat = obj.PATTERN as Raw | undefined;
+        if (pat && typeof pat === 'object') {
+          out.frame = {
+            pattern: trimmed(pat.PATTNUM),
+            lineMm: toMm(trimmed(pat.FRAME), trimmed(pat.U_FRAME)) ?? 0,
+            outer: trimmed(obj.USEBORDER) === 'X',
+            border: trimmed(pat.BORDER) === 'X',
+          };
+        }
         const s = scalars(obj);
         for (const k of ['INAME', 'SECTTYPE', 'TABNAME', 'WIDTH', 'U_WIDTH'])
           delete s[k];
@@ -623,6 +762,7 @@ class Walker {
         if (g.name && !g.dynamic) {
           this.graphicKeys.set(`${g.object}|${g.name}|${g.id}|${g.btype}`, g);
         } else if (g.name) {
+          this.dynamicGraphics.push(g);
           this.dynamic.push(
             `graphic ${out.name}: ${g.object} ${g.name} ${g.id} ${g.btype}`,
           );
@@ -678,6 +818,7 @@ export interface ParsedSmartForm {
   stdStyles: string[];
   pages: ContentPage[];
   graphicKeys: NonNullable<ContentNode['graphic']>[];
+  dynamicGraphics: NonNullable<ContentNode['graphic']>[];
   textKeys: NonNullable<ContentNode['include']>[];
   styles: string[];
   dynamic: string[];
@@ -785,6 +926,8 @@ export function parseSmartFormXml(xml: string): ParsedSmartForm {
           };
           const cond = conditionOf(child);
           if (cond !== undefined) win.condition = cond;
+          const wbox = boxOf(child);
+          if (wbox) win.box = wbox;
           if (isWindow) {
             // window content hangs under WINDOW/PROC_CTRL
             win.content = walker.contents(
@@ -813,6 +956,7 @@ export function parseSmartFormXml(xml: string): ParsedSmartForm {
     graphicKeys: [...walker.graphicKeys.values()] as NonNullable<
       ContentNode['graphic']
     >[],
+    dynamicGraphics: walker.dynamicGraphics,
     textKeys: [...walker.textKeys.values()],
     styles: [...walker.styles],
     dynamic: walker.dynamic,
@@ -930,6 +1074,10 @@ export interface SmartFormContentOptions {
   includeTexts?: boolean;
   /** Language for include texts with no language in their key (default: form language). */
   textLanguage?: string;
+  /** Output device to assume for printer fonts (default: chosen from the form's fonts). */
+  device?: string;
+  /** Sample values for &symbols& in graphic keys (e.g. { IM_SIGN: 'ZSIGN' }): those graphics are fetched too. */
+  values?: Record<string, string>;
 }
 
 export async function getSmartFormContent(
@@ -949,6 +1097,49 @@ export async function getSmartFormContent(
 
   const parsed = parseSmartFormXml(xml);
   const language = trimmed(formRes.language);
+  // A text with no translation in the logon language prints in the form's master language
+  // (ZEARC_F001: master T, logon E — SAP printed the Turkish texts). The XML carries the
+  // logon language only, so the texts that came back empty are taken from the master's XML.
+  const master = (
+    /<MASTERLANG>([^<]*)<\/MASTERLANG>/.exec(xml)?.[1] ?? ''
+  ).trim();
+  if (master && language && master !== language) {
+    const empty: ContentNode[] = [];
+    const walk = (n: ContentNode) => {
+      if (n.kind === 'text' && n.textType === 'inline' && !n.lines?.length)
+        empty.push(n);
+      for (const c of n.children ?? []) walk(c);
+    };
+    for (const p of parsed.pages)
+      for (const w of p.windows) for (const n of w.content) walk(n);
+    if (empty.length) {
+      try {
+        const mRes = await part(connection, {
+          part: 'FORM',
+          form_name: form,
+          language: master,
+        });
+        const mXml = Buffer.from(String(mRes.xml ?? ''), 'base64').toString(
+          'utf8',
+        );
+        if (mXml.trim() && trimmed(mRes.language) === master) {
+          const byName = new Map<string, ContentNode>();
+          const index = (n: ContentNode) => {
+            if (n.kind === 'text' && n.lines?.length) byName.set(n.name, n);
+            for (const c of n.children ?? []) index(c);
+          };
+          for (const p of parseSmartFormXml(mXml).pages)
+            for (const w of p.windows) for (const n of w.content) index(n);
+          for (const n of empty) {
+            const m = byName.get(n.name);
+            if (m?.lines) n.lines = m.lines;
+          }
+        }
+      } catch {
+        // an older ZMCP_SSF_CONTENT without IV_LANGUAGE for FORM: keep the logon-language texts
+      }
+    }
+  }
 
   const out: SmartFormContent = {
     form,
@@ -972,7 +1163,28 @@ export async function getSmartFormContent(
         const r = await part(connection, { part: 'STYLE', name });
         const css = Buffer.from(String(r.css ?? ''), 'base64').toString('utf8');
         const file = writeOut(`${dir}/style_${fileSafe(name)}.css`, css);
-        out.styles.push({ name, file, css });
+        out.styles.push({
+          name,
+          file,
+          css,
+          ...(r.firstParagraph !== undefined
+            ? {
+                firstParagraph: String(r.firstParagraph).trim(),
+                font: {
+                  family: String(r.fontFamily ?? '').trim(),
+                  pt: Number(r.fontSize ?? 0) / 10,
+                  bold: String(r.bold ?? '').trim() === 'X',
+                },
+                lpi: Number(r.lpi) || undefined,
+                cpi: Number(r.cpi) || undefined,
+                tabDistance: String(r.tabDistance ?? '').trim() || undefined,
+                ...(Array.isArray(r.paragraphs)
+                  ? { paragraphs: r.paragraphs }
+                  : {}),
+                ...(Array.isArray(r.strings) ? { strings: r.strings } : {}),
+              }
+            : {}),
+        });
       } catch (e) {
         out.styles.push({
           name,
@@ -980,10 +1192,57 @@ export async function getSmartFormContent(
         });
       }
     }
+    // The printer the form would go to and its fonts for the form's families:
+    // a family / size the device type lacks prints in a substitute font.
+    const families = new Set<string>();
+    for (const s of out.styles) {
+      if (s.font?.family) families.add(s.font.family.toUpperCase());
+      for (const p of s.paragraphs ?? [])
+        if (p.family) families.add(String(p.family).trim().toUpperCase());
+      for (const c of s.strings ?? [])
+        if (String(c.family ?? '').trim())
+          families.add(String(c.family).trim().toUpperCase());
+    }
+    if (families.size) {
+      try {
+        const r = await part(connection, {
+          part: 'FONTS',
+          name: [...families].join(','),
+          object: options.device ?? '',
+        });
+        out.printer = {
+          device: String(r.device ?? '').trim(),
+          deviceType: String(r.deviceType ?? '').trim(),
+          families: Array.isArray(r.families) ? r.families : [],
+          fonts: Array.isArray(r.fonts) ? r.fonts : [],
+        };
+      } catch (e) {
+        out.printer = { error: e instanceof Error ? e.message : String(e) };
+      }
+    }
   }
 
   if (options.includeGraphics !== false) {
-    for (const g of parsed.graphicKeys) {
+    // graphics named by a variable: fetched under the name the sample value gives
+    const sub = (v: string) =>
+      String(v).replace(/&([^&]+)&/g, (m, k) => {
+        const key = String(k).trim().toUpperCase();
+        const hit = Object.entries(options.values ?? {}).find(
+          ([n]) => n.toUpperCase() === key,
+        );
+        return hit ? String(hit[1]) : m;
+      });
+    const resolved = parsed.dynamicGraphics
+      .map((g) => ({
+        ...g,
+        object: sub(g.object),
+        name: sub(g.name),
+        id: sub(g.id),
+        btype: sub(g.btype),
+        dynamic: false,
+      }))
+      .filter((g) => ![g.object, g.name, g.id, g.btype].some(hasSymbol));
+    for (const g of [...parsed.graphicKeys, ...resolved]) {
       const entry: SmartFormGraphic = {
         object: g.object,
         name: g.name,

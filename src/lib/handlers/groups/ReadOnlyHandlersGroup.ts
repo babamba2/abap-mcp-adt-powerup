@@ -121,6 +121,10 @@ import {
   handleGetTcodeUsage,
 } from '../../../handlers/system/readonly/handleGetTcodeUsage';
 import {
+  handleRenderSmartForm,
+  TOOL_DEFINITION as RenderSmartForm_Tool,
+} from '../../../handlers/system/readonly/handleRenderSmartForm';
+import {
   TOOL_DEFINITION as GetTableContents_Tool,
   handleGetTableContents,
 } from '../../../handlers/table/readonly/handleGetTableContents';
@@ -204,6 +208,10 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetSmartFormContent_Tool,
         handler: (args: any) => handleGetSmartFormContent(this.context, args),
+      },
+      {
+        toolDefinition: RenderSmartForm_Tool,
+        handler: (args: any) => handleRenderSmartForm(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,

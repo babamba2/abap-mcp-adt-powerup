@@ -176,7 +176,7 @@ describe('parseSmartFormXml', () => {
   });
 
   it('names page conditions', () => {
-    expect(byName('%WINDOW4').condition).toEqual({ lastPage: true });
+    expect(byName('%WINDOW4').condition).toEqual({ afterMainEnd: true });
     expect(byName('MAIN').content[0].condition).toEqual({ firstPage: true });
   });
 

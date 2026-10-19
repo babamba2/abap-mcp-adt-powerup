@@ -58,6 +58,16 @@ export const TOOL_DEFINITION = {
         description:
           'Answer with an overview (windows, data declarations, &symbols&, graphics, files) instead of the full content tree; the full result is always written to files.content. Default false.',
       },
+      values: {
+        type: 'object',
+        description:
+          'Sample values for &symbols& in graphic keys (e.g. {"IM_SIGN": "ZSIGN"}): graphics named by a variable are then fetched too.',
+      },
+      device: {
+        type: 'string',
+        description:
+          'Output device whose printer fonts the preview should assume. Default: a device whose type has fonts for most of the families of the form.',
+      },
       text_language: {
         type: 'string',
         description:
@@ -77,6 +87,8 @@ export async function handleGetSmartFormContent(
     include_texts?: boolean;
     summary?: boolean;
     text_language?: string;
+    device?: string;
+    values?: Record<string, string>;
   },
 ) {
   const { connection, logger } = context;
@@ -96,6 +108,11 @@ export async function handleGetSmartFormContent(
       textLanguage: args?.text_language
         ? String(args.text_language).trim()
         : undefined,
+      device: args?.device ? String(args.device).trim() : undefined,
+      values:
+        args?.values && typeof args.values === 'object'
+          ? args.values
+          : undefined,
     });
 
     return return_response({

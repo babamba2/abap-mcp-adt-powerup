@@ -4,8 +4,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ## Summary
 
-- Total tools: 332
-- Read-only tools: 66
+- Total tools: 333
+- Read-only tools: 67
 - High-level tools: 132
 - Low-level tools: 134
 
@@ -91,6 +91,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
+    - [RenderSmartForm](#rendersmartform-read-only-system)
     - [RuntimeAnalyzeDump](#runtimeanalyzedump-read-only-system)
     - [RuntimeAnalyzeProfilerTrace](#runtimeanalyzeprofilertrace-read-only-system)
     - [RuntimeCreateProfilerTraceParameters](#runtimecreateprofilertraceparameters-read-only-system)
@@ -983,12 +984,14 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleGetSmartFormContent.ts`
 
 **Parameters:**
+- `device` (string, optional) - Output device whose printer fonts the preview should assume. Default: a device whose type has fonts for most of the families of the form.
 - `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
 - `include_graphics` (boolean, optional) - Fetch SE78 graphics with a fixed key as BMP files. Default true.
 - `include_styles` (boolean, optional) - Fetch the SmartStyles (form default + text node styles) as CSS. Default true.
 - `include_texts` (boolean, optional) - Fetch include texts (SO10) with a fixed key. Default true.
 - `summary` (boolean, optional) - Answer with an overview (windows, data declarations, &symbols&, graphics, files) instead of the full content tree; the full result is always written to files.content. Default false.
 - `text_language` (string, optional) - Language for include texts whose key has no language: 1-char SAP key (e.g. "3") or 2-letter ISO code (e.g. "KO"). Default: the form language.
+- `values` (object, optional) - Sample values for &symbols& in graphic keys (e.g. {"IM_SIGN": "ZSIGN"}): graphics named by a variable are then fetched too.
 
 ---
 
@@ -1097,6 +1100,22 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - None
+
+---
+
+<a id="rendersmartform-read-only-system"></a>
+#### RenderSmartForm (Read-Only / System)
+**Description:** [runs the form, no output] The output of a SmartForm as SAP prints it, for given interface values: calls the generated function module with GETOTF (no dialog, no print, no spool) and writes the OTF (text: positions, fonts, strings) and the PDF under the MCP output directory (smartforms/<form>/<form>.sap.otf.txt / .sap.pdf). The form's own program lines run as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_SSF_RENDER FM and the SSF_RENDER dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleRenderSmartForm.ts`
+
+**Parameters:**
+- `device` (string, optional) - Output device whose device type sets fonts and character widths (e.g. the printer the form goes to). Default: the user default device, else a SAPWIN / PDF device.
+- `families` (array, optional) - Font families the form uses (from GetSmartFormContent styles). Without `device`, a device whose type has printer fonts for most of them is used, so the output shows the fonts the form was made for.
+- `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
+- `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+- `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, TABLES parameters / table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
+- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.
 
 ---
 
@@ -5425,4 +5444,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-10-16*
+*Last updated: 2026-10-19*
