@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [4.8.16] - 2026-10-29
+
+### Fixed
+- **`MCP_ALLOW_TABLE` from the launching process survives the profile apply.** A script that starts its own server for one audited read (e.g. the PFCG role tables) sets `MCP_ALLOW_TABLE`; applying the active profile wiped it, so the read was blocked again. The launcher value is now kept and merged with the profile's own value on every apply; a previous profile's value is still dropped on a switch.
+- The `TABLE_READ` "not allowed" hint on BASIS < 7.50 now lists delivery class W (readable since the 2026-10-28 dispatcher).
+
 ## [4.8.15] - 2026-10-28
 
 ### Added
