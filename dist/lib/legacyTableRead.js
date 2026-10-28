@@ -86,7 +86,7 @@ async function legacyTableRead(connection, req) {
     const table = req.table.toUpperCase();
     // The dispatcher decides which tables are readable: older installs accept
     // LEGACY_READABLE_TABLES only, newer ones any customizing / system table
-    // (delivery class C, G, E, S) except credential tables.
+    // (delivery class C, G, E, S, W) except credential tables.
     // Ask for one row more than requested, so a full page is only reported as
     // truncated when more rows really exist. The ABAP side caps at
     // DISPATCH_MAX_ROWS; at that cap a full page still counts as truncated.
@@ -103,7 +103,7 @@ async function legacyTableRead(connection, req) {
     catch (e) {
         const msg = String(e?.message ?? e);
         if (/is not allowed/i.test(msg)) {
-            throw new Error(`${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables only (delivery class C, G, E, S; dispatchers installed before 2026-10 accept only ${exports.LEGACY_READABLE_TABLES.join(', ')}).`);
+            throw new Error(`${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables only (delivery class C, G, E, S, W — W since the 2026-10-28 dispatcher; dispatchers installed before 2026-10 accept only ${exports.LEGACY_READABLE_TABLES.join(', ')}).`);
         }
         throw e;
     }

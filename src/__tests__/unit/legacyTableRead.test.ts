@@ -108,7 +108,7 @@ describe('legacy table read (BASIS < 7.50 fallback)', () => {
     );
     await expect(
       legacyTableRead({} as any, { table: 'EKKO', maxRows: 10 }),
-    ).rejects.toThrow(/EKKO is not allowed — .*delivery class C, G, E, S/);
+    ).rejects.toThrow(/EKKO is not allowed — .*delivery class C, G, E, S, W/);
     dispatch.mockClear();
   });
 

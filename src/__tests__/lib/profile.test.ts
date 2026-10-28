@@ -313,6 +313,32 @@ describe('profile — load and apply', () => {
     }
   });
 
+  it('applyProfile keeps the launcher MCP_ALLOW_TABLE and drops a previous profile one', () => {
+    const cwd = makeTempCwd();
+    try {
+      process.env.MCP_ALLOW_TABLE = 'AGR_1251';
+      writeProfile(
+        home,
+        'X',
+        'SAP_URL=http://x\nSAP_TIER=DEV\nMCP_ALLOW_TABLE=T000\n',
+      );
+      writeProfile(home, 'Y', 'SAP_URL=http://y\nSAP_TIER=DEV\n');
+      writeActivePointer(cwd, 'X');
+      const {
+        activateProfile,
+        __resetProfileState,
+      } = require('../../lib/profile');
+      __resetProfileState();
+      activateProfile(cwd);
+      expect(process.env.MCP_ALLOW_TABLE).toBe('AGR_1251,T000');
+      writeActivePointer(cwd, 'Y');
+      activateProfile(cwd);
+      expect(process.env.MCP_ALLOW_TABLE).toBe('AGR_1251');
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('activateProfile moves the bridge-default MCP_OUTPUT_DIR to the new alias', () => {
     const cwd = makeTempCwd();
     try {

@@ -95,6 +95,11 @@ const SAP_ENV_KEYS_TO_CLEAR = [
 ];
 /** Every key with this prefix is wiped on apply (see applyProfile). */
 const SAP_RFC_KEY_PREFIX = 'SAP_RFC_';
+// MCP_ALLOW_TABLE set by the process that launched this server (a script that
+// spawns its own server for one audited read). It is captured before the first
+// apply wipes it, and merged back after every apply, so a profile switch keeps
+// the launcher's bypass but never inherits a previous profile's.
+const LAUNCHER_ALLOW_TABLE = process.env.MCP_ALLOW_TABLE;
 function sc4sapHomeDir() {
     // Optional override for tests and custom installs. Value is the .sc4sap
     // directory itself (not the parent home), so `~/.sc4sap` becomes
@@ -194,6 +199,14 @@ function applyProfile(loaded) {
     }
     for (const [k, v] of Object.entries(loaded.envVars)) {
         process.env[k] = v;
+    }
+    if (LAUNCHER_ALLOW_TABLE) {
+        process.env.MCP_ALLOW_TABLE = [
+            LAUNCHER_ALLOW_TABLE,
+            loaded.envVars.MCP_ALLOW_TABLE,
+        ]
+            .filter(Boolean)
+            .join(',');
     }
     activeTier = loaded.tier;
     activeAlias = loaded.alias;
