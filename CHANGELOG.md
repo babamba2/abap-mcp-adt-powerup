@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [4.8.15] - 2026-10-28
+
+### Added
+- **ECC dumps older than 24 hours.** On ECC (BASIS 7.40 / 7.31) the ADT dump feed only returns the last 24 hours, whatever `from` is sent. `RuntimeListDumps` takes `date_from` / `date_to`, and when the range is older than 24 hours (or the feed is empty) both it and `RuntimeListFeeds(dumps)` add an `st22` block: the ST22 list for that range (date, time, host, user, client, runtime error, program, include, line, `dump_id`), from `ZMCP_ADT_DISPATCH` action `DUMP_LIST` (SNAP headers, decoded like `RS_ST22_GET_DUMPS`; needs ST22 display authorization). Without the action the answer carries an install hint.
+
+### Changed
+- `RuntimeGetDumpById` / `RuntimeAnalyzeDump` on ECC: the 404 for one dump (ECC has no ADT resource for it) now says how to get the facts — `include_summary` for the last 24 hours, the `st22` list plus the source for older dumps.
+
+### Fixed
+- SOAP RFC backend (BASIS 7.31): SAP writes `"` in `EV_RESULT` as `&#34;`, which was not decoded, so JSON results failed to parse and came back as 0 rows (e.g. an empty dump list). Numeric character references are now decoded.
+
 ## [4.8.14] - 2026-10-28
 
 ### Changed

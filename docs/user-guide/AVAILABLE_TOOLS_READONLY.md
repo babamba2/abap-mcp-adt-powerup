@@ -891,11 +891,13 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="runtimelistdumps-read-only-system"></a>
 #### RuntimeListDumps (Read-Only / System)
-**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. Each entry's HTML summary (~13 KB per dump) is omitted unless include_summary=true — use RuntimeGetDumpById / RuntimeAnalyzeDump for one dump's details.
+**Description:** [runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. On ECC the ADT feed only covers the last 24 hours: pass date_from / date_to for older dumps — they come back under `st22` (SNAP headers via ZMCP_ADT_DISPATCH DUMP_LIST) with a dump_id for RuntimeGetDumpById. Each entry's HTML summary (~13 KB per dump) is omitted unless include_summary=true — use RuntimeGetDumpById / RuntimeAnalyzeDump for one dump's details.
 
 **Source:** `src/handlers/system/readonly/handleRuntimeListDumps.ts`
 
 **Parameters:**
+- `date_from` (string, optional) - Start date (YYYYMMDD or YYYY-MM-DD). On ECC a date older than 24 hours (or an empty feed) adds the ST22 list for date_from..date_to under `st22`.
+- `date_to` (string, optional) - End date (YYYYMMDD or YYYY-MM-DD). Default: today.
 - `include_summary` (boolean, optional) - Keep each entry's HTML summary (atom:summary). Default false — it is ~96% of the payload and duplicates what RuntimeGetDumpById returns.
 - `inlinecount` (string, optional) - Include total count metadata.
 - `orderby` (string, optional) - ADT order by expression.
