@@ -135,6 +135,18 @@ describe('DDIC readers over SOAP RFC', () => {
     );
   });
 
+  it('decodes numeric character references in EV_RESULT', async () => {
+    process.env.SAP_RFC_BACKEND = 'soap';
+    const { callDdicTablRead } = jest.requireActual('../../lib/rfcBackend');
+    const connection = {
+      makeAdtRequest: jest.fn().mockResolvedValue({
+        data: `<?xml version="1.0" encoding="UTF-8"?><SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"><SOAP-ENV:Body><urn:ZMCP_ADT_DDIC_TABL_READ.Response xmlns:urn="urn:sap-com:document:sap:rfc:functions"><EV_MESSAGE>ok</EV_MESSAGE><EV_RESULT>{&#34;name&#34;:&#34;ZDEMO_TAB&#34;,&#34;text&#34;:&#34;A &amp; B&#34;}</EV_RESULT><EV_SUBRC>0</EV_SUBRC></urn:ZMCP_ADT_DDIC_TABL_READ.Response></SOAP-ENV:Body></SOAP-ENV:Envelope>`,
+      }),
+    } as any;
+    const out = await callDdicTablRead(connection, { name: 'ZDEMO_TAB' });
+    expect(out.result).toEqual({ name: 'ZDEMO_TAB', text: 'A & B' });
+  });
+
   it('keeps writers OData-only', () => {
     process.env.SAP_RFC_BACKEND = 'soap';
     const { callDdicTabl } = jest.requireActual('../../lib/rfcBackend');

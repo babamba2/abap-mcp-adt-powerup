@@ -61,6 +61,9 @@ function parseSoapResponse(
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
     removeNSPrefix: true,
+    // SAP's SOAP handler writes quotes in EV_RESULT as &#34; — without this
+    // the JSON string keeps the numeric references and JSON.parse fails.
+    htmlEntities: true,
   });
   const parsed = parser.parse(responseXml);
 

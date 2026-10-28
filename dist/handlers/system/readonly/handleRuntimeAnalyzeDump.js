@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeAnalyzeDump = handleRuntimeAnalyzeDump;
 const mcp_abap_adt_clients_1 = require("@babamba2/mcp-abap-adt-clients");
+const legacyDumps_1 = require("../../../lib/legacyDumps");
 const utils_1 = require("../../../lib/utils");
 const runtimeDumpFormat_1 = require("./runtimeDumpFormat");
 const runtimePayloadParser_1 = require("./runtimePayloadParser");
@@ -92,9 +93,7 @@ async function handleRuntimeAnalyzeDump(context, args) {
             : [];
         const view = chapters.length ? 'formatted' : (args.view ?? 'default');
         const runtimeClient = new mcp_abap_adt_clients_1.AdtRuntimeClient(connection, logger);
-        const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
-            view,
-        });
+        const response = await (0, legacyDumps_1.getDumpWithFallback)(connection, () => runtimeClient.getRuntimeDumpById(args.dump_id, { view }), args.dump_id, view);
         let parsedPayload = (0, runtimePayloadParser_1.parseRuntimePayloadToJson)(response.data);
         let summary = {
             ...(0, runtimeDumpFormat_1.extractDumpFacts)(parsedPayload),

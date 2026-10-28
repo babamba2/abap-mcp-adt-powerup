@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRuntimeListFeeds = handleRuntimeListFeeds;
+const legacyDumps_1 = require("../../../lib/legacyDumps");
 const utils_1 = require("../../../lib/utils");
 const runtimeFeedsHelper_1 = require("./runtimeFeedsHelper");
 const ATOM_FEED_HEADERS = { Accept: 'application/atom+xml;type=feed' };
@@ -55,6 +56,7 @@ async function handleRuntimeListFeeds(context, args) {
             to: args?.to,
         };
         let data;
+        let st22;
         let response;
         switch (feedType) {
             case 'descriptors': {
@@ -70,6 +72,13 @@ async function handleRuntimeListFeeds(context, args) {
             case 'dumps': {
                 response = await (0, runtimeFeedsHelper_1.fetchFeed)(connection, runtimeFeedsHelper_1.FEED_URLS.dumps, queryOptions, 'user');
                 data = (0, runtimeFeedsHelper_1.parseRuntimeDumpFeed)(response.data);
+                st22 = await (0, legacyDumps_1.legacyDumpSupplement)(connection, {
+                    from: args?.from,
+                    to: args?.to,
+                    user: args?.user,
+                    maxRows: args?.max_results,
+                    feedCount: Array.isArray(data) ? data.length : 0,
+                });
                 break;
             }
             case 'system_messages': {
@@ -89,6 +98,7 @@ async function handleRuntimeListFeeds(context, args) {
                 feed_type: feedType,
                 count: Array.isArray(data) ? data.length : undefined,
                 entries: data,
+                ...(st22 ? { st22 } : {}),
             }, null, 2),
             status: response?.status ?? 200,
             statusText: response?.statusText ?? 'OK',

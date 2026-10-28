@@ -1,5 +1,6 @@
 import { AdtRuntimeClient } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { legacyDumpSupplement } from '../../../lib/legacyDumps';
 import { return_error, return_response } from '../../../lib/utils';
 import { parseRuntimePayloadToJson } from './runtimePayloadParser';
 
@@ -7,7 +8,7 @@ export const TOOL_DEFINITION = {
   name: 'RuntimeListDumps',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    "[runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. Each entry's HTML summary (~13 KB per dump) is omitted unless include_summary=true — use RuntimeGetDumpById / RuntimeAnalyzeDump for one dump's details.",
+    "[runtime] List ABAP runtime dumps with optional user filter and paging. Returns parsed JSON payload. On ECC the ADT feed only covers the last 24 hours: pass date_from / date_to for older dumps — they come back under `st22` (SNAP headers via ZMCP_ADT_DISPATCH DUMP_LIST) with a dump_id for RuntimeGetDumpById. Each entry's HTML summary (~13 KB per dump) is omitted unless include_summary=true — use RuntimeGetDumpById / RuntimeAnalyzeDump for one dump's details.",
   inputSchema: {
     type: 'object',
     properties: {
@@ -33,6 +34,15 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'ADT order by expression.',
       },
+      date_from: {
+        type: 'string',
+        description:
+          'Start date (YYYYMMDD or YYYY-MM-DD). On ECC a date older than 24 hours (or an empty feed) adds the ST22 list for date_from..date_to under `st22`.',
+      },
+      date_to: {
+        type: 'string',
+        description: 'End date (YYYYMMDD or YYYY-MM-DD). Default: today.',
+      },
       include_summary: {
         type: 'boolean',
         description:
@@ -50,6 +60,8 @@ interface RuntimeListDumpsArgs {
   skip?: number;
   orderby?: string;
   include_summary?: boolean;
+  date_from?: string;
+  date_to?: string;
 }
 
 /**
@@ -111,6 +123,19 @@ export async function handleRuntimeListDumps(
         });
 
     const parsed = parseRuntimePayloadToJson(response.data);
+    const feedEntries = (parsed as any)?.['atom:feed']?.['atom:entry'];
+    const feedCount = Array.isArray(feedEntries)
+      ? feedEntries.length
+      : feedEntries
+        ? 1
+        : 0;
+    const st22 = await legacyDumpSupplement(connection, {
+      from: args?.date_from,
+      to: args?.date_to,
+      user,
+      maxRows: top,
+      feedCount,
+    });
     return return_response({
       data: JSON.stringify(
         {
@@ -118,6 +143,7 @@ export async function handleRuntimeListDumps(
           user_filter: user || null,
           status: response.status,
           payload: include_summary ? parsed : stripDumpSummaries(parsed),
+          ...(st22 ? { st22 } : {}),
         },
         null,
         2,

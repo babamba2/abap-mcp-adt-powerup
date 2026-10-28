@@ -1,5 +1,6 @@
 import { AdtRuntimeClient } from '@babamba2/mcp-abap-adt-clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { getDumpWithFallback } from '../../../lib/legacyDumps';
 import { return_error, return_response } from '../../../lib/utils';
 import {
   compactFormattedDump,
@@ -129,9 +130,12 @@ export async function handleRuntimeGetDumpById(
     const view = chapters.length ? 'formatted' : (args.view ?? 'default');
     const responseMode = args.response_mode ?? 'payload';
     const runtimeClient = new AdtRuntimeClient(connection, logger);
-    const response = await runtimeClient.getRuntimeDumpById(args.dump_id, {
+    const response = await getDumpWithFallback(
+      connection,
+      () => runtimeClient.getRuntimeDumpById(args.dump_id, { view }),
+      args.dump_id,
       view,
-    });
+    );
     let parsedPayload: unknown = parseRuntimePayloadToJson(response.data);
 
     let summary: Record<string, unknown> | undefined;

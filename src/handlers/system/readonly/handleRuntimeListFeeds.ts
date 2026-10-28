@@ -1,4 +1,5 @@
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { legacyDumpSupplement } from '../../../lib/legacyDumps';
 import {
   makeAdtRequestWithTimeout,
   return_error,
@@ -88,6 +89,7 @@ export async function handleRuntimeListFeeds(
     };
 
     let data: unknown;
+    let st22: Awaited<ReturnType<typeof legacyDumpSupplement>>;
     let response: any;
 
     switch (feedType) {
@@ -125,6 +127,13 @@ export async function handleRuntimeListFeeds(
           'user',
         );
         data = parseRuntimeDumpFeed(response.data);
+        st22 = await legacyDumpSupplement(connection, {
+          from: args?.from,
+          to: args?.to,
+          user: args?.user,
+          maxRows: args?.max_results,
+          feedCount: Array.isArray(data) ? data.length : 0,
+        });
         break;
       }
       case 'system_messages': {
@@ -156,6 +165,7 @@ export async function handleRuntimeListFeeds(
           feed_type: feedType,
           count: Array.isArray(data) ? data.length : undefined,
           entries: data,
+          ...(st22 ? { st22 } : {}),
         },
         null,
         2,
