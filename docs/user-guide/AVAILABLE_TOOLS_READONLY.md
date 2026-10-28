@@ -1065,4 +1065,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-10-19*
+*Last updated: 2026-10-28*

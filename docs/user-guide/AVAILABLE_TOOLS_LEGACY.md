@@ -1072,15 +1072,17 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 <a id="getguistatus-high-level-gui-status"></a>
 #### GetGuiStatus (High-Level / Gui Status)
-**Description:** Get ABAP GUI Status definition including statuses, function codes, menus, toolbars, and titles.
+**Description:** Get ABAP GUI Status definition including statuses, function codes, menus, toolbars, and titles. A large program interface is big: pass status_name and/or function_codes to narrow every table, and format="compact" for one line per function (code, text, icon, function key, toolbar).
 
 **Source:** `src/handlers/gui_status/high/handleGetGuiStatus.ts`
 
 **Available in:** `onprem`, `legacy`
 
 **Parameters:**
+- `format` (string, optional) - full (default) = CUA tables; compact = { statuses: [{ code, type, functions: [{ code, text, icon?, fkey?, toolbar? }] }] }.
+- `function_codes` (array, optional) - Optional: function codes to keep (e.g. ["SAVE", "CRPO"]). Narrows FUN / SET / PFK / BUT to them.
 - `program_name` (string, required) - Parent program name (e.g., SAPMV45A).
-- `status_name` (string, optional) - Optional: filter to a specific GUI Status name. If omitted, returns all statuses.
+- `status_name` (string, optional) - Optional: one GUI Status name. Narrows every table to that status (its SET functions, FUN texts, PFK keys, BUT toolbar, ACT / MEN / MTX menus); TIT / DOC / BIV are left out. If omitted, returns all statuses.
 
 ---
 
@@ -3006,4 +3008,4 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
-*Last updated: 2026-10-19*
+*Last updated: 2026-10-28*

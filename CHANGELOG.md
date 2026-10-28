@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [4.8.14] - 2026-10-28
+
+### Changed
+- **`GetGuiStatus`** answers with only what was asked for. `status_name` used to narrow the status list alone, so a large program interface still came back whole (15K+ tokens). It now narrows every table to that status: its SET functions, FUN texts, PFK keys, BUT toolbar and ACT / MEN / MTX menus; TIT / DOC / BIV are left out.
+  - New `function_codes`: keep only these function codes (narrows FUN / SET / PFK / BUT).
+  - New `format: "compact"`: `{ statuses: [{ code, type, functions: [{ code, text, icon?, fkey?, toolbar? }] }] }` — one line per function. `full` (default) keeps the CUA tables.
+  - A status still lists the empty-text ALV standard functions it copies; pass `function_codes` when you need a few captions.
+
 ## [4.8.13] - 2026-10-20
 
 ### Added
