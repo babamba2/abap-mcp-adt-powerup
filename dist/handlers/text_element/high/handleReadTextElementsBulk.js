@@ -14,9 +14,24 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
+exports.splitSelectionEntry = splitSelectionEntry;
 exports.handleReadTextElementsBulk = handleReadTextElementsBulk;
 const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
+/**
+ * Splits a selection-text ENTRY into its visible text and DDIC flag.
+ * ENTRY(8) is reserved (pos 1 = 'D' for a DDIC reference) and the text starts
+ * at position 9. Some RFC paths (S/4HANA) drop the leading blanks of a
+ * non-DDIC row, so the prefix is removed only when it is really there.
+ * @param entry raw TPOOL ENTRY of an S row
+ * @returns visible text and whether the label comes from the DDIC
+ */
+function splitSelectionEntry(entry) {
+    if (/^[D ] {7}/.test(entry)) {
+        return { text: entry.slice(8), ddic_reference: entry.charAt(0) === 'D' };
+    }
+    return { text: entry, ddic_reference: false };
+}
 exports.TOOL_DEFINITION = {
     name: 'ReadTextElementsBulk',
     available_in: ['onprem', 'legacy'],
@@ -85,7 +100,7 @@ async function handleReadTextElementsBulk(context, params) {
                 symbols: bucket.I.map((e) => ({ key: e.key, text: e.text })),
                 selections: bucket.S.map((e) => ({
                     key: e.key.trim(),
-                    text: e.text,
+                    ...splitSelectionEntry(e.text),
                 })),
                 headings: bucket.H.map((e) => ({ key: e.key, text: e.text })),
             }, null, 2),

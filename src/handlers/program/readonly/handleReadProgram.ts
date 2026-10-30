@@ -2,6 +2,8 @@ import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
   type AxiosResponse,
+  encodeSapObjectName,
+  makeAdtRequestWithTimeout,
   return_error,
   return_response,
 } from '../../../lib/utils';
@@ -10,7 +12,7 @@ export const TOOL_DEFINITION = {
   name: 'ReadProgram',
   available_in: ['onprem', 'legacy'] as const,
   description:
-    '[read-only] Read ABAP program source code and metadata (package, responsible, description, etc.).',
+    '[read-only] Read ABAP program or include source code and metadata (package, responsible, description, etc.). The result carries object_type PROG/P or PROG/I; an unknown name returns an error.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -72,11 +74,61 @@ export async function handleReadProgram(
       logger?.warn(`Could not read metadata for ${programName}: ${e?.message}`);
     }
 
+    // Includes (PROG/I) live under /programs/includes/, so the program reads above
+    // both fail for them. Retry there instead of reporting success with null fields.
+    let object_type = 'PROG/P';
+    if (source_code === null && metadata === null) {
+      const base = `/sap/bc/adt/programs/includes/${encodeSapObjectName(programName)}`;
+      try {
+        const src = await makeAdtRequestWithTimeout(
+          connection,
+          `${base}/source/main`,
+          'GET',
+          'default',
+          undefined,
+          { version },
+        );
+        source_code =
+          typeof src.data === 'string' ? src.data : safeStringify(src.data);
+        object_type = 'PROG/I';
+      } catch (e: any) {
+        logger?.warn(
+          `Could not read include source for ${programName}: ${e?.message}`,
+        );
+      }
+      if (object_type === 'PROG/I') {
+        try {
+          const meta = await makeAdtRequestWithTimeout(
+            connection,
+            base,
+            'GET',
+            'default',
+          );
+          metadata =
+            typeof meta.data === 'string'
+              ? meta.data
+              : safeStringify(meta.data);
+        } catch (e: any) {
+          logger?.warn(
+            `Could not read include metadata for ${programName}: ${e?.message}`,
+          );
+        }
+      }
+    }
+    if (source_code === null && metadata === null) {
+      return return_error(
+        new Error(
+          `Program or include ${programName} not found (version ${version}).`,
+        ),
+      );
+    }
+
     return return_response({
       data: JSON.stringify(
         {
           success: true,
           program_name: programName,
+          object_type,
           version,
           source_code,
           metadata,

@@ -7,7 +7,7 @@ const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'ReadProgram',
     available_in: ['onprem', 'legacy'],
-    description: '[read-only] Read ABAP program source code and metadata (package, responsible, description, etc.).',
+    description: '[read-only] Read ABAP program or include source code and metadata (package, responsible, description, etc.). The result carries object_type PROG/P or PROG/I; an unknown name returns an error.',
     inputSchema: {
         type: 'object',
         properties: {
@@ -60,10 +60,41 @@ async function handleReadProgram(context, args) {
         catch (e) {
             logger?.warn(`Could not read metadata for ${programName}: ${e?.message}`);
         }
+        // Includes (PROG/I) live under /programs/includes/, so the program reads above
+        // both fail for them. Retry there instead of reporting success with null fields.
+        let object_type = 'PROG/P';
+        if (source_code === null && metadata === null) {
+            const base = `/sap/bc/adt/programs/includes/${(0, utils_1.encodeSapObjectName)(programName)}`;
+            try {
+                const src = await (0, utils_1.makeAdtRequestWithTimeout)(connection, `${base}/source/main`, 'GET', 'default', undefined, { version });
+                source_code =
+                    typeof src.data === 'string' ? src.data : safeStringify(src.data);
+                object_type = 'PROG/I';
+            }
+            catch (e) {
+                logger?.warn(`Could not read include source for ${programName}: ${e?.message}`);
+            }
+            if (object_type === 'PROG/I') {
+                try {
+                    const meta = await (0, utils_1.makeAdtRequestWithTimeout)(connection, base, 'GET', 'default');
+                    metadata =
+                        typeof meta.data === 'string'
+                            ? meta.data
+                            : safeStringify(meta.data);
+                }
+                catch (e) {
+                    logger?.warn(`Could not read include metadata for ${programName}: ${e?.message}`);
+                }
+            }
+        }
+        if (source_code === null && metadata === null) {
+            return (0, utils_1.return_error)(new Error(`Program or include ${programName} not found (version ${version}).`));
+        }
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: true,
                 program_name: programName,
+                object_type,
                 version,
                 source_code,
                 metadata,

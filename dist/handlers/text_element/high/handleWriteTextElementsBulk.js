@@ -12,12 +12,12 @@
  * → Text Elements does internally). We follow the same pattern:
  *
  *   activate=true  → RFC action 'WRITE'           (INSERT TEXTPOOL STATE 'A')
- *                    Pool is written active immediately.
+ *   (default)        Pool is written active immediately.
  *   activate=false → RFC action 'WRITE_INACTIVE'  (INSERT TEXTPOOL STATE 'I')
- *                    Pool is staged inactive; the next activation of the
- *                    parent program promotes it atomically — every R / I /
- *                    S / H entry goes live together, matching the user's
- *                    "register 40 now, activate program later" flow.
+ *                    Pool is staged inactive only. ZMCP_ADT_TEXTPOOL does not
+ *                    add it to the inactive worklist, so ADT activation of the
+ *                    parent program does NOT promote it (verified on ECC 7.40,
+ *                    2026-10-30). Hence the default is true.
  *
  * replace_existing=false re-reads the current pool first and merges the
  * caller's entries by (ID, KEY) so nothing outside the caller's set is
@@ -27,14 +27,17 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
+exports.restoreSelectionPrefix = restoreSelectionPrefix;
 exports.handleWriteTextElementsBulk = handleWriteTextElementsBulk;
 const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
 const MAX_ENTRY_LEN = 132;
+// TPOOL selection-text rows reserve ENTRY(8) before the visible text.
+const SEL_TEXT_PREFIX = ' '.repeat(8);
 exports.TOOL_DEFINITION = {
     name: 'WriteTextElementsBulk',
     available_in: ['onprem', 'legacy'],
-    description: 'Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=false (default) the pool is staged INACTIVE — the parent program\'s next activation promotes every entry atomically, which is the correct flow for "register 40 now, activate program later". With activate=true the pool is written ACTIVE immediately. Set replace_existing=false to merge into the current pool instead of replacing it.',
+    description: 'Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=true (default) the pool is written ACTIVE immediately. activate=false only stages the pool INACTIVE and does not register it in the inactive worklist, so a later program activation does NOT promote it — avoid it unless you activate the text pool yourself. Set replace_existing=false to merge into the current pool instead of replacing it.',
     inputSchema: {
         type: 'object',
         properties: {
@@ -70,7 +73,7 @@ exports.TOOL_DEFINITION = {
             },
             activate: {
                 type: 'boolean',
-                description: 'false (default) — stage as INACTIVE (program activation promotes). true — write ACTIVE immediately.',
+                description: 'true (default) — write ACTIVE immediately. false — stage as INACTIVE only; the pool is NOT added to the inactive worklist, so ActivateObjects on the program does not promote it.',
             },
         },
         required: ['program_name', 'text_elements'],
@@ -89,12 +92,28 @@ function normalizeEntry(e, programName) {
     else {
         key = (e.key ?? '').trim();
     }
+    // Selection texts: ENTRY(8) is reserved (pos 1 = DDIC-reference flag);
+    // SE38 shows the text from position 9, so prefix 8 blanks.
+    const entry = id === 'S' ? SEL_TEXT_PREFIX + (e.text ?? '') : (e.text ?? '');
     return {
         ID: id,
         KEY: key,
-        ENTRY: e.text ?? '',
-        LENGTH: (e.text ?? '').length,
+        ENTRY: entry,
+        LENGTH: entry.length,
     };
+}
+/**
+ * Puts the reserved ENTRY(8) back on an existing selection-text row. Some RFC
+ * reads (S/4HANA) drop the leading blanks of a non-DDIC row; writing it back
+ * as read would shift the label by 8 characters in SE38.
+ * @param row TPOOL row as read for the merge
+ * @returns the row, with the 8-blank prefix restored on an S row that lost it
+ */
+function restoreSelectionPrefix(row) {
+    if (row.ID !== 'S' || /^[D ] {7}/.test(row.ENTRY))
+        return row;
+    const entry = SEL_TEXT_PREFIX + row.ENTRY;
+    return { ...row, ENTRY: entry, LENGTH: entry.length };
 }
 async function handleWriteTextElementsBulk(context, params) {
     const { connection, logger } = context;
@@ -118,8 +137,10 @@ async function handleWriteTextElementsBulk(context, params) {
         if (typeof e.text !== 'string') {
             return (0, utils_1.return_error)(new Error(`text_elements[${i}] "text" must be a string`));
         }
-        if (e.text.length > MAX_ENTRY_LEN) {
-            return (0, utils_1.return_error)(new Error(`text_elements[${i}] text exceeds ${MAX_ENTRY_LEN} chars (${e.text.length})`));
+        // a selection text shares ENTRY with its 8-character reserved prefix
+        const maxLen = e.type === 'S' ? MAX_ENTRY_LEN - SEL_TEXT_PREFIX.length : MAX_ENTRY_LEN;
+        if (e.text.length > maxLen) {
+            return (0, utils_1.return_error)(new Error(`text_elements[${i}] text exceeds ${maxLen} chars (${e.text.length})`));
         }
         if (e.type === 'I' || e.type === 'S' || e.type === 'H') {
             if (!e.key) {
@@ -139,7 +160,9 @@ async function handleWriteTextElementsBulk(context, params) {
     const programName = args.program_name.toUpperCase();
     const language = (args.language || '').toUpperCase();
     const replaceExisting = args.replace_existing !== false;
-    const shouldActivate = args.activate === true;
+    // Default true: WRITE_INACTIVE does not register the pool in the inactive
+    // worklist, so a later program activation never promotes it.
+    const shouldActivate = args.activate !== false;
     const action = shouldActivate
         ? 'WRITE'
         : 'WRITE_INACTIVE';
@@ -158,7 +181,7 @@ async function handleWriteTextElementsBulk(context, params) {
                 program: programName,
                 language,
             });
-            const existing = (Array.isArray(fetched) ? fetched : []).map((r) => ({
+            const existing = (Array.isArray(fetched) ? fetched : []).map((r) => restoreSelectionPrefix({
                 ID: String(r?.ID ?? r?.id ?? '').toUpperCase(),
                 KEY: String(r?.KEY ?? r?.key ?? ''),
                 ENTRY: String(r?.ENTRY ?? r?.entry ?? ''),
@@ -193,7 +216,7 @@ async function handleWriteTextElementsBulk(context, params) {
                 steps_completed: steps,
                 message: shouldActivate
                     ? `Wrote ${finalRows.length} active text element row(s) for ${programName}.`
-                    : `Staged ${finalRows.length} INACTIVE text element row(s) for ${programName}. Activate the parent program to promote.`,
+                    : `Staged ${finalRows.length} INACTIVE text element row(s) for ${programName}. Program activation does NOT promote them; re-run with activate=true to make them active.`,
             }, null, 2),
             status: 200,
             statusText: 'OK',

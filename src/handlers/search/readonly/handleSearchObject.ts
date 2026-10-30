@@ -3,10 +3,114 @@ import type { IAdtResponse } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import { objectsListCache } from '../../../lib/getObjectsListCache';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import {
+  isLegacyUnsupported,
+  legacyTableRead,
+} from '../../../lib/legacyTableRead';
+import { sapLanguageKey } from '../../../lib/sapLanguage';
 import { ErrorCode, McpError, return_response } from '../../../lib/utils';
 import { decodeXmlEntities } from '../../../lib/xmlEntities';
+import { parseSqlQueryXml } from '../../system/readonly/handleGetSqlQuery';
 
 const DEFAULT_MAX_RESULTS = 50;
+// Names per TRDIRT read; keeps the dynamic WHERE short on the BASIS < 7.50 dispatcher path.
+const TRDIRT_CHUNK = 20;
+
+/**
+ * TRDIRT languages to read: the logon language, then English. Standard
+ * programs carry 30–40 languages, so reading all of them under a row cap cut
+ * off whole names (key order fills the cap with the first name's languages).
+ * @param logonLanguage SAP_LANGUAGE (1-character key or ISO code)
+ * @returns distinct 1-character SAP keys, logon language first
+ */
+export function titleLanguages(logonLanguage: string | undefined): string[] {
+  const logon = sapLanguageKey(logonLanguage);
+  return logon && logon !== 'E' ? [logon, 'E'] : ['E'];
+}
+
+/**
+ * Picks one program title from its TRDIRT rows: the logon language, then a
+ * text the search response carried, then English, then any row.
+ * @param rows TRDIRT rows of one program (language key + text)
+ * @param langs languages from titleLanguages, logon language first
+ * @param sapTexts every description the search response carried
+ * @returns the title, or undefined when there is no row
+ */
+export function pickProgramTitle(
+  rows: Array<{ sprsl: string; text: string }>,
+  langs: string[],
+  sapTexts: Set<string>,
+): string | undefined {
+  return (
+    rows.find((r) => r.sprsl === langs[0])?.text ??
+    rows.find((r) => sapTexts.has(r.text))?.text ??
+    rows.find((r) => r.sprsl === 'E')?.text ??
+    rows[0]?.text
+  );
+}
+
+/**
+ * Re-reads the titles of program / include hits (PROG/*) from TRDIRT.
+ * ECC 7.40 quick search pairs names and descriptions from differently sorted
+ * lists, so a hit can carry another object's title; S/4HANA sends no
+ * description for programs at all.
+ * @param context handler context (connection + logger)
+ * @param names PROG/* object names from the search result
+ * @param sapTexts every description the search response carried
+ * @returns titles (name → title; names without a TRDIRT row are absent) and
+ *   complete = false when a read hit its row cap, so a missing name may still have a title
+ */
+async function readProgramTitles(
+  context: HandlerContext,
+  names: string[],
+  sapTexts: Set<string>,
+): Promise<{ titles: Map<string, string>; complete: boolean }> {
+  const { connection, logger } = context;
+  const client = createAdtClient(connection, logger);
+  const langs = titleLanguages(process.env.SAP_LANGUAGE);
+  const langIn = langs.map((l) => `'${l.replace(/'/g, "''")}'`).join(', ');
+  const byName = new Map<string, Array<{ sprsl: string; text: string }>>();
+  let complete = true;
+  for (let i = 0; i < names.length; i += TRDIRT_CHUNK) {
+    const chunk = names.slice(i, i + TRDIRT_CHUNK);
+    const where = `name IN (${chunk.map((n) => `'${n.replace(/'/g, "''")}'`).join(', ')}) AND sprsl IN (${langIn})`;
+    const sql = `SELECT name, sprsl, text FROM trdirt WHERE ${where}`;
+    const maxRows = chunk.length * langs.length;
+    let rows: Array<Record<string, unknown>>;
+    try {
+      const res = await client
+        .getUtils()
+        .getSqlQuery({ sql_query: sql, row_number: maxRows });
+      rows = parseSqlQueryXml(res.data, sql, maxRows, logger).rows;
+    } catch (e) {
+      if (!isLegacyUnsupported(e)) throw e;
+      rows = (
+        await legacyTableRead(connection, {
+          table: 'TRDIRT',
+          fields: ['NAME', 'SPRSL', 'TEXT'],
+          where,
+          maxRows,
+          sqlQuery: sql,
+        })
+      ).rows;
+    }
+    if (rows.length >= maxRows) complete = false;
+    for (const r of rows) {
+      const name = String(r.NAME ?? '').trim();
+      const sprsl = String(r.SPRSL ?? '').trim();
+      const text = String(r.TEXT ?? '').trim();
+      if (!name || !text) continue;
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name)!.push({ sprsl, text });
+    }
+  }
+  const titles = new Map<string, string>();
+  for (const [name, rows] of byName) {
+    const title = pickProgramTitle(rows, langs, sapTexts);
+    if (title) titles.set(name, title);
+  }
+  return { titles, complete };
+}
 
 export const TOOL_DEFINITION = {
   name: 'SearchObject',
@@ -149,6 +253,31 @@ export async function handleSearchObject(context: HandlerContext, args: any) {
         ...(description ? { description } : {}),
         ...(pkgName ? { packageName: pkgName } : {}),
       });
+    }
+
+    // Program / include titles come from TRDIRT, because the search response can
+    // pair them with the wrong object (ECC 7.40). On a read error the search
+    // descriptions stay as they are.
+    const progHits = resultsArr.filter((r) => r.type.startsWith('PROG/'));
+    if (progHits.length) {
+      const sapTexts = new Set(
+        resultsArr.map((r) => r.description).filter((d): d is string => !!d),
+      );
+      try {
+        const { titles, complete } = await readProgramTitles(
+          context,
+          progHits.map((r) => r.name),
+          sapTexts,
+        );
+        for (const r of progHits) {
+          const title = titles.get(r.name);
+          if (title) r.description = title;
+          // no row after a complete read: the search description belonged to another object
+          else if (complete) delete r.description;
+        }
+      } catch (e: any) {
+        logger?.warn(`SearchObject: TRDIRT title read failed: ${e?.message}`);
+      }
     }
 
     objectsListCache.setCache(result);
