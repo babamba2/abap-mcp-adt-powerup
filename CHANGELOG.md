@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [4.8.17] - 2026-10-30
+
+### Changed
+- **`WriteTextElementsBulk`: `activate` defaults to `true`.** `activate: false` stages the text pool inactive, but the pool is not added to the inactive worklist, so activating the program afterwards does not promote it (checked on ECC 7.40). The tool description and the staged-rows message now say so.
+
+### Fixed
+- **Selection texts on S/4HANA.** A selection-text row keeps 8 reserved characters (position 1 = `D` for a DDIC reference) before the visible text. The S/4HANA RFC read drops these leading blanks on a non-DDIC row.
+  - `ReadTextElementsBulk` strips the prefix only when it is there, so the first 8 characters of the label are no longer cut off. Each selection carries `ddic_reference`.
+  - `WriteTextElementsBulk` writes the prefix on new selection texts and puts it back on existing rows during a merge (`replace_existing: false`), so labels do not shift in SE38. A selection text may be up to 124 characters.
+- **`SearchObject` program titles.** Titles of program and include hits (`PROG/*`) are read from TRDIRT, in the logon language first, then English. ECC 7.40 quick search could pair a program with another object's title, and S/4HANA sent no title for programs. When the TRDIRT read fails, the search titles stay as they were.
+- **`ReadProgram` reads includes.** A name that is not a program is retried under `/programs/includes/`; the result carries `object_type` (`PROG/P` or `PROG/I`). An unknown name now returns an error instead of success with empty fields.
+
 ## [4.8.16] - 2026-10-29
 
 ### Fixed
