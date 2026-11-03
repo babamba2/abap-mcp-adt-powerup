@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [4.8.18] - 2026-11-03
+
+### Added
+- **`CreateStructure` field args `reference_table` / `reference_field`** for CURR / QUAN fields on ECC. The reference table defaults to the structure itself when only `reference_field` is set.
+
+### Fixed
+- **`CreateStructure` on ECC.** ECC systems without the ADT DDIC structure endpoint now create the structure over RFC (`ZMCP_ADT_DDIC_TABL` CREATE with DD02V `INTTAB` + DD03P rows) and activate it with `DDIC_ACTIVATE`. A helper report is no longer needed. Checked on ECC 7.40.
+
 ## [4.8.17] - 2026-10-30
 
 ### Changed
