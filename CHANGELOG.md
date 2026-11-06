@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [4.8.19] - 2026-11-06
+
 ### Added
 - **`GetSqlQuery` `output: "file"`.** The rows are written to `<MCP output dir>/sql/<table>-<time>.json` (with `sql_query`, `row_number`, `columns`) and the answer carries only `path`, `rows` and `truncated`. Works on the ADT path and on the legacy `TABLE_READ` path (ECC).
 
