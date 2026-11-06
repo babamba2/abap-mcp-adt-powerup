@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { findIncludes } from '../../handlers/program/readonly/handleGetProgFullCode';
 import {
   abapOutline,
+  fitFileListing,
   outputRoot,
   safeOutputPath,
   sourceFileName,
@@ -130,5 +131,59 @@ describe('output directory', () => {
     expect(fs.readFileSync(w.path, 'utf8')).toBe(REPORT);
     expect(w.lines).toBe(28);
     expect(w.outline[0]).toBe('3 REPORT zdemo');
+  });
+
+  it('keeps a file listing under the budget: full → no outlines → short paths; index always written', () => {
+    const folder = safeOutputPath('src/zbig.fugr');
+    const entries = Array.from({ length: 200 }, (_, i) => ({
+      object_type: 'PROG/I',
+      object_name: `LZBIGU${String(i).padStart(3, '0')}`,
+      path: path.join(folder, `lzbigu${String(i).padStart(3, '0')}.incl.abap`),
+      lines: 40,
+      bytes: 900,
+      outline: Array.from(
+        { length: 6 },
+        (_, k) => `${k * 10 + 1}-${k * 10 + 9} FORM form_${i}_${k}`,
+      ),
+    }));
+    const head = {
+      name: 'ZBIG',
+      type: 'FUGR',
+      output: 'file',
+      total_code_objects: 200,
+    };
+
+    const small = fitFileListing(head, entries.slice(0, 3), folder);
+    expect(small.outline_omitted).toBeUndefined();
+    expect((small.code_objects as any[])[0].outline).toHaveLength(6);
+
+    const mid = fitFileListing(head, entries, folder, 60_000);
+    expect(mid.outline_omitted).toBe(true);
+    expect(mid.paths_shortened).toBeUndefined();
+    expect((mid.code_objects as any[])[5].outline).toBeUndefined();
+    expect(JSON.stringify(mid).length).toBeLessThanOrEqual(60_000);
+
+    const tight = fitFileListing(head, entries, folder, 30_000);
+    expect(tight.paths_shortened).toBe(true);
+    const objs = tight.code_objects as any[];
+    expect(path.dirname(objs[0].path)).toBe(folder);
+    expect(objs[1].path).toBeUndefined();
+    expect(objs[1].file).toBe('lzbigu001.incl.abap');
+    expect(JSON.stringify(tight).length).toBeLessThanOrEqual(30_000);
+    expect(tight.code_objects_truncated).toBeUndefined();
+
+    const cut = fitFileListing(head, entries, folder, 8_000);
+    expect(JSON.stringify(cut).length).toBeLessThanOrEqual(8_000);
+    expect(
+      (cut.code_objects as any[]).length +
+        (cut.code_objects_truncated as number),
+    ).toBe(200);
+    expect(path.dirname((cut.code_objects as any[])[0].path)).toBe(folder);
+
+    const index = JSON.parse(
+      fs.readFileSync(tight.index_path as string, 'utf8'),
+    );
+    expect(index.code_objects).toHaveLength(200);
+    expect(index.code_objects[199].outline).toHaveLength(6);
   });
 });

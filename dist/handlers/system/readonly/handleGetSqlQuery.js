@@ -1,11 +1,48 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.parseSqlQueryXml = parseSqlQueryXml;
+exports.sqlResultToFile = sqlResultToFile;
 exports.handleGetSqlQuery = handleGetSqlQuery;
+const fs = __importStar(require("node:fs"));
+const path = __importStar(require("node:path"));
 const clients_1 = require("../../../lib/clients");
 const legacyTableRead_1 = require("../../../lib/legacyTableRead");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
+const sourceOutput_1 = require("../../../lib/sourceOutput");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
 const xmlEntities_1 = require("../../../lib/xmlEntities");
@@ -24,6 +61,12 @@ exports.TOOL_DEFINITION = {
                 type: 'number',
                 description: 'Maximum number of rows to return',
                 default: 100,
+            },
+            output: {
+                type: 'string',
+                enum: ['inline', 'file'],
+                default: 'inline',
+                description: '"inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.',
             },
             acknowledge_risk: {
                 type: 'boolean',
@@ -127,6 +170,33 @@ function parseSqlQueryXml(xmlData, sqlQuery, rowNumber, logger) {
     }
 }
 /**
+ * output: "file" — write the parsed result under <output root>/sql/ and return
+ * a short summary instead of the rows. Same file shape on every path
+ * (ADT data preview and the legacy TABLE_READ fallback).
+ */
+function sqlResultToFile(parsed) {
+    const table = ((0, tableBlocklist_1.extractTablesFromSql)(String(parsed.sql_query ?? ''))[0] ?? 'query')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_');
+    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 17);
+    const rand = Math.random().toString(36).slice(2, 6);
+    const target = (0, sourceOutput_1.safeOutputPath)(path.join('sql', `${table}-${stamp}-${rand}.json`));
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, JSON.stringify(parsed), 'utf8');
+    const rows = Array.isArray(parsed.rows) ? parsed.rows.length : 0;
+    return {
+        output: 'file',
+        path: target,
+        rows,
+        columns: Array.isArray(parsed.columns)
+            ? parsed.columns.map((c) => c?.name ?? c)
+            : [],
+        truncated: parsed.truncated === true,
+        ...(parsed.path ? { source_path: parsed.path } : {}),
+    };
+}
+const sqlText = (args, parsed) => JSON.stringify(args?.output === 'file' ? sqlResultToFile(parsed) : parsed);
+/**
  * Handler to execute freestyle SQL queries via SAP ADT Data Preview API
  *
  * @param args - Tool arguments containing sql_query and optional row_number parameter
@@ -186,7 +256,7 @@ async function handleGetSqlQuery(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify({
+                        text: sqlText(args, {
                             ...parsed,
                             path: 'ecc-dispatch-table-read',
                         }),
@@ -204,7 +274,7 @@ async function handleGetSqlQuery(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify(parsedData),
+                        text: sqlText(args, parsedData),
                     },
                 ],
             };

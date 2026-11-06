@@ -38,10 +38,44 @@
  *
  * Purpose: mass code export, audit, dependency analysis, migration, backup.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.findIncludes = findIncludes;
 exports.handleGetProgFullCode = handleGetProgFullCode;
+const path = __importStar(require("node:path"));
 const clients_1 = require("../../../lib/clients");
 const sourceOutput_1 = require("../../../lib/sourceOutput");
 const utils_1 = require("../../../lib/utils");
@@ -216,18 +250,18 @@ async function handleGetProgFullCode(context, args) {
                     ...(0, sourceOutput_1.writeSourceFile)((0, sourceOutput_1.sourceFileName)(obj.OBJECT_NAME, kind), obj.code, subdir),
                 };
             });
+            const folder = (0, sourceOutput_1.safeOutputPath)(path.join('src', subdir));
             return {
                 isError: false,
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify({
+                        text: JSON.stringify((0, sourceOutput_1.fitFileListing)({
                             name,
                             type,
                             output: 'file',
                             total_code_objects: files.length,
-                            code_objects: files,
-                        }),
+                        }, files, folder)),
                     },
                 ],
             };

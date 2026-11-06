@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Added
+- **`GetSqlQuery` `output: "file"`.** The rows are written to `<MCP output dir>/sql/<table>-<time>.json` (with `sql_query`, `row_number`, `columns`) and the answer carries only `path`, `rows` and `truncated`. Works on the ADT path and on the legacy `TABLE_READ` path (ECC).
+
+### Fixed
+- **`GetProgFullCode` `output: "file"` on large function groups.** The answer listed every include with its absolute path and outline; a function group with 170–270 includes reached 54–94k characters, over the client's tool-result limit, so the client dropped the answer although every file had been written. The full listing now always goes to `<folder>/_index.json`, and the answer keeps under 40,000 characters: outlines are left out first (`outline_omitted`), then entries after the first carry only `file` instead of `path` (`paths_shortened`), and as a last resort the list is cut (`code_objects_truncated`). The answer now also carries `folder` and `index_path`. Measured on ECC function groups: 94,248 → 29,186, 58,324 → 39,903 characters.
+
 ## [4.8.18] - 2026-11-03
 
 ### Added

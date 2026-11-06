@@ -38,11 +38,14 @@
  * Purpose: mass code export, audit, dependency analysis, migration, backup.
  */
 
+import * as path from 'node:path';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  fitFileListing,
   isFileOutput,
   OUTPUT_PARAM_DESCRIPTION,
+  safeOutputPath,
   sourceFileName,
   writeSourceFile,
 } from '../../../lib/sourceOutput';
@@ -255,18 +258,24 @@ export async function handleGetProgFullCode(
           ),
         };
       });
+      const folder = safeOutputPath(path.join('src', subdir));
       return {
         isError: false,
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              name,
-              type,
-              output: 'file',
-              total_code_objects: files.length,
-              code_objects: files,
-            }),
+            text: JSON.stringify(
+              fitFileListing(
+                {
+                  name,
+                  type,
+                  output: 'file',
+                  total_code_objects: files.length,
+                },
+                files,
+                folder,
+              ),
+            ),
           },
         ],
       };

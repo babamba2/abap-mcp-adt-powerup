@@ -203,6 +203,94 @@ export function writeSourceFile(
   };
 }
 
+/**
+ * The JSON answer of a file-output read must stay under the client's
+ * tool-result limit (about 50k characters; a function group with ~180
+ * includes produced 54–94k only from paths and outlines, and the client
+ * dropped the whole answer although every file was written).
+ *
+ * The full listing is always written to `<folder>/_index.json`. The answer is
+ * that listing when it fits `budget`; otherwise the outlines are left out
+ * (`outline_omitted`), and if it still does not fit, every entry after the
+ * first carries only its file name (`file`) instead of the absolute `path` —
+ * the first entry keeps `path`, so "the folder of the first path" still works.
+ */
+export const FILE_LISTING_BUDGET = 40_000;
+
+export function fitFileListing<T extends Record<string, unknown>>(
+  head: Record<string, unknown>,
+  entries: T[],
+  folder: string,
+  budget = FILE_LISTING_BUDGET,
+): Record<string, unknown> {
+  const indexPath = safeOutputPath(
+    path.relative(outputRoot(), path.join(folder, '_index.json')),
+  );
+  fs.mkdirSync(path.dirname(indexPath), { recursive: true });
+  fs.writeFileSync(
+    indexPath,
+    JSON.stringify({ ...head, code_objects: entries }, null, 1),
+    'utf8',
+  );
+  const full = {
+    ...head,
+    folder,
+    index_path: indexPath,
+    code_objects: entries,
+  };
+  if (JSON.stringify(full).length <= budget) return full;
+
+  const noOutline = entries.map((e) => {
+    const { outline, outline_truncated, ...rest } = e as Record<
+      string,
+      unknown
+    >;
+    return rest;
+  });
+  const lean = {
+    ...head,
+    folder,
+    index_path: indexPath,
+    outline_omitted: true,
+    note: 'Outlines left out to keep the answer small; the full listing with outlines is in index_path, and every source file is in folder.',
+    code_objects: noOutline,
+  };
+  if (JSON.stringify(lean).length <= budget) return lean;
+
+  const leaner = noOutline.map((e, i) => {
+    if (i === 0 || typeof e.path !== 'string') return e;
+    const { path: p, ...rest } = e;
+    return { ...rest, file: path.basename(p as string) };
+  });
+  const short = {
+    ...lean,
+    paths_shortened: true,
+    note: 'Outlines left out and paths shortened to file names (all files are in folder; the first entry keeps its full path); the full listing is in index_path.',
+    code_objects: leaner,
+  };
+  if (JSON.stringify(short).length <= budget) return short;
+
+  // last resort (hundreds of includes): list as many entries as fit, count the rest
+  let size = JSON.stringify({
+    ...short,
+    code_objects: [],
+    code_objects_truncated: entries.length,
+  }).length;
+  const kept: Record<string, unknown>[] = [];
+  for (const e of leaner) {
+    const add = JSON.stringify(e).length + 1;
+    if (size + add > budget) break;
+    kept.push(e);
+    size += add;
+  }
+  return {
+    ...short,
+    note: 'Outlines left out, paths shortened and the list cut to fit; every file is in folder and the full listing is in index_path.',
+    code_objects_truncated: entries.length - kept.length,
+    code_objects: kept,
+  };
+}
+
 export function isFileOutput(args: { output?: unknown } | undefined): boolean {
   return args?.output === 'file';
 }

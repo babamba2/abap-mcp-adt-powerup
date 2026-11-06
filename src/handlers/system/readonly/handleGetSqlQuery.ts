@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ILogger } from '@babamba2/mcp-abap-adt-interfaces';
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
@@ -13,6 +15,7 @@ import {
   extractTablesFromSql,
   isAggregateOnly,
 } from '../../../lib/policy/tableBlocklist';
+import { safeOutputPath } from '../../../lib/sourceOutput';
 import { ErrorCode, McpError } from '../../../lib/utils';
 import { writeResultToFile } from '../../../lib/writeResultToFile';
 import { decodeXmlEntities } from '../../../lib/xmlEntities';
@@ -32,6 +35,13 @@ export const TOOL_DEFINITION = {
         type: 'number',
         description: 'Maximum number of rows to return',
         default: 100,
+      },
+      output: {
+        type: 'string',
+        enum: ['inline', 'file'],
+        default: 'inline',
+        description:
+          '"inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.',
       },
       acknowledge_risk: {
         type: 'boolean',
@@ -191,6 +201,45 @@ export function parseSqlQueryXml(
 }
 
 /**
+ * output: "file" — write the parsed result under <output root>/sql/ and return
+ * a short summary instead of the rows. Same file shape on every path
+ * (ADT data preview and the legacy TABLE_READ fallback).
+ */
+export function sqlResultToFile(
+  parsed: Record<string, any>,
+): Record<string, any> {
+  const table = (
+    extractTablesFromSql(String(parsed.sql_query ?? ''))[0] ?? 'query'
+  )
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_');
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:.TZ]/g, '')
+    .slice(0, 17);
+  const rand = Math.random().toString(36).slice(2, 6);
+  const target = safeOutputPath(
+    path.join('sql', `${table}-${stamp}-${rand}.json`),
+  );
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify(parsed), 'utf8');
+  const rows = Array.isArray(parsed.rows) ? parsed.rows.length : 0;
+  return {
+    output: 'file',
+    path: target,
+    rows,
+    columns: Array.isArray(parsed.columns)
+      ? parsed.columns.map((c: any) => c?.name ?? c)
+      : [],
+    truncated: parsed.truncated === true,
+    ...(parsed.path ? { source_path: parsed.path } : {}),
+  };
+}
+
+const sqlText = (args: any, parsed: Record<string, any>) =>
+  JSON.stringify(args?.output === 'file' ? sqlResultToFile(parsed) : parsed);
+
+/**
  * Handler to execute freestyle SQL queries via SAP ADT Data Preview API
  *
  * @param args - Tool arguments containing sql_query and optional row_number parameter
@@ -265,7 +314,7 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
+            text: sqlText(args, {
               ...parsed,
               path: 'ecc-dispatch-table-read',
             }),
@@ -294,7 +343,7 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(parsedData),
+            text: sqlText(args, parsedData),
           },
         ],
       };
