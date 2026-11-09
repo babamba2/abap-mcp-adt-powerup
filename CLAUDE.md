@@ -30,6 +30,18 @@ Use `mcp__claude_ai_Notion__notion-create-pages` to create the entry and target 
 
 ## Testing
 
+### Unit Tests (no SAP) — default check after every change
+
+Plain `npm test` also runs `src/__tests__/integration/**` and `admin/shared-deps/**`, which create, update and delete objects on the SAP system in `tests/test-config.yaml`. Do not run it as a routine check. Use:
+
+```bash
+npx jest --testPathIgnorePatterns=integration --testPathIgnorePatterns=admin --testPathIgnorePatterns=/dist/
+npx biome check --diagnostic-level=error src   # same gate as `npm run build`, without writing
+npx tsc -p tsconfig.json --noEmit
+```
+
+Run integration tests only when the user asks for them.
+
 ### Integration Tests
 
 Integration tests run against a real SAP system. Two modes:
