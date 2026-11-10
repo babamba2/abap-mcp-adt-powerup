@@ -101,7 +101,11 @@ async function handleUpdateInterface(context, args) {
                 logger?.info(`[UpdateInterface] Updating interface source code: ${interfaceName}`);
                 await client
                     .getInterface()
-                    .update({ interfaceName, sourceCode: source_code }, { lockHandle });
+                    .update({
+                    interfaceName,
+                    sourceCode: source_code,
+                    transportRequest: transport_request,
+                }, { lockHandle });
                 logger?.info(`[UpdateInterface] Interface source code updated: ${interfaceName}`);
             }
             finally {
