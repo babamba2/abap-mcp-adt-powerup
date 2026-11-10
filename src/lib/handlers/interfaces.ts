@@ -24,6 +24,39 @@ export interface ToolDefinition {
    * If omitted, the tool is available in all environments.
    */
   available_in?: readonly SapEnvironment[];
+  /**
+   * Tool profiles (SAP_TOOL_PROFILE) that expose this tool. Omitted → ['dev'].
+   * 'all' exposes every tool regardless of this field.
+   */
+  tool_profile?: readonly ToolProfile[];
+}
+
+/**
+ * Tool exposure profile (env SAP_TOOL_PROFILE).
+ * - 'dev' (default) — development tools (everything without a tool_profile)
+ * - 'biz' — business-action tools plus the few tools tagged 'biz'
+ * - 'all' — both
+ */
+export type ToolProfile = 'dev' | 'biz';
+export type ToolProfileSetting = ToolProfile | 'all';
+
+/** Reads SAP_TOOL_PROFILE; unknown or empty → 'dev'. */
+export function resolveToolProfile(
+  value: string | undefined = process.env.SAP_TOOL_PROFILE,
+): ToolProfileSetting {
+  const v = (value ?? '').trim().toLowerCase();
+  if (v === 'biz' || v === 'all') return v;
+  return 'dev';
+}
+
+/** True when a tool with the given tool_profile is exposed under `setting`. */
+export function isToolInProfile(
+  toolProfile: readonly ToolProfile[] | undefined,
+  setting: ToolProfileSetting,
+): boolean {
+  if (setting === 'all') return true;
+  const tags = toolProfile && toolProfile.length > 0 ? toolProfile : ['dev'];
+  return tags.includes(setting);
 }
 
 /**

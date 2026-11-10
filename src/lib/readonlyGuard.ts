@@ -19,6 +19,8 @@
  *   RuntimeCreateProfilerTraceParameters        ✓    ✗    ✗
  *   RuntimeAnalyze* / RuntimeGet* / List*       ✓    ✓    ✓
  *   Get* / Read* / Search*                      ✓    ✓    ✓
+ *   PreviewBusinessAction / ExecuteBusinessAction ✓  ✓    ✗   (business writes; SAP
+ *                                                   also refuses a production client)
  *
  * Known unguarded vector (deliberately NOT blocked, tracked separately):
  * `RuntimeCallDispatch` invokes an arbitrary ZMCP_ADT_DISPATCH action. The
@@ -58,6 +60,15 @@ const RUNTIME_EXECUTION_TOOLS: ReadonlySet<string> = new Set([
   'RuntimeCreateProfilerTraceParameters',
 ]);
 
+/**
+ * Business-action tools that change business data in SAP (ZMCP_BIZ_EXECUTE
+ * PREVIEW / EXECUTE). Allowed on DEV and QA (test documents), never on PRD.
+ */
+const BUSINESS_WRITE_TOOLS: ReadonlySet<string> = new Set([
+  'PreviewBusinessAction',
+  'ExecuteBusinessAction',
+]);
+
 /** Tools that are allowed on QA despite being in RUNTIME_EXECUTION_TOOLS. */
 const QA_RUNTIME_ALLOWLIST: ReadonlySet<string> = new Set(['RunUnitTest']);
 
@@ -71,6 +82,12 @@ function isMutation(toolName: string): boolean {
  */
 export function checkToolAllowed(toolName: string, tier: Tier): string | null {
   if (tier === 'DEV') return null;
+
+  if (BUSINESS_WRITE_TOOLS.has(toolName)) {
+    return tier === 'PRD'
+      ? `${toolName} changes business data and is blocked on PRD profiles.`
+      : null;
+  }
 
   if (isMutation(toolName)) {
     return `${toolName} mutates SAP objects; only DEV profiles may mutate.`;

@@ -199,3 +199,21 @@ export async function callTextpool(
     await p.release(client);
   }
 }
+
+/**
+ * Call any RFC-enabled function module via native RFC and return the raw
+ * export parameters. Used by the business-action tools (ZMCP_BIZ_EXECUTE),
+ * whose non-zero EV_SUBRC is a business answer, not a transport error.
+ */
+export async function callRfcFunction(
+  fmName: string,
+  params: Record<string, string>,
+): Promise<Record<string, any>> {
+  const p = getPool();
+  const client = await p.acquire();
+  try {
+    return await client.call(fmName, params);
+  } finally {
+    await p.release(client);
+  }
+}

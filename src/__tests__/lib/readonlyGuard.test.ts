@@ -194,3 +194,21 @@ describe('readonlyGuard — guardTool (uses active profile state)', () => {
     expect(() => guardTool('CreateClass')).toThrow(/\(legacy\)/);
   });
 });
+
+describe('readonlyGuard — business-action tools', () => {
+  const { checkToolAllowed } = require('../../lib/readonlyGuard');
+  it.each(['PreviewBusinessAction', 'ExecuteBusinessAction'])(
+    '%s: allowed on DEV and QA, blocked on PRD',
+    (tool) => {
+      expect(checkToolAllowed(tool, 'DEV')).toBeNull();
+      expect(checkToolAllowed(tool, 'QA')).toBeNull();
+      expect(checkToolAllowed(tool, 'PRD')).toMatch(/blocked on PRD/);
+    },
+  );
+  it.each(['ListBusinessActions', 'RunBusinessQuery'])(
+    '%s: allowed on PRD',
+    (tool) => {
+      expect(checkToolAllowed(tool, 'PRD')).toBeNull();
+    },
+  );
+});

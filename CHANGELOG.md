@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [4.9.0] - 2026-11-10
+
+### Added
+- **Business-action tools** `ListBusinessActions`, `RunBusinessQuery` (QUERY or PRECHECK), `PreviewBusinessAction` (returns a one-time token) and `ExecuteBusinessAction` (token required). They call the RFC function module `ZMCP_BIZ_EXECUTE` (sc4sap `abap/biz/`): directly on the `soap` and `native` backends, through the new dispatcher action `BIZ_EXECUTE` on `odata` / `gateway` / `zrfc`. A refusal from SAP (subrc 4) is returned as content with `ok: false`, not as a tool error.
+- **`SAP_TOOL_PROFILE`** = `dev` (default, development tools) | `biz` (business-action tools) | `all`. Tools declare `tool_profile`; untagged tools are `dev`.
+
+### Security
+- `PreviewBusinessAction` / `ExecuteBusinessAction` are blocked on PRD-tier profiles (readonly guard + handler); allowed on DEV and QA. SAP also refuses a production client and enforces the preview token.
+
 ## [4.8.19] - 2026-11-06
 
 ### Added

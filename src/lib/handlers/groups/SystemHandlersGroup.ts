@@ -1,4 +1,14 @@
 import {
+  ExecuteBusinessAction_Tool,
+  handleExecuteBusinessAction,
+  handleListBusinessActions,
+  handlePreviewBusinessAction,
+  handleRunBusinessQuery,
+  ListBusinessActions_Tool,
+  PreviewBusinessAction_Tool,
+  RunBusinessQuery_Tool,
+} from '../../../handlers/business/handleBusinessActions.js';
+import {
   TOOL_DEFINITION as GetPackageTree_Tool,
   handleGetPackageTree,
 } from '../../../handlers/system/high/handleGetPackageTree';
@@ -244,6 +254,23 @@ export class SystemHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: ReloadProfile_Tool,
         handler: (args: any) => handleReloadProfile(this.context, args),
+      },
+      // Business actions (tool profile "biz") — ZMCP_BIZ_EXECUTE
+      {
+        toolDefinition: ListBusinessActions_Tool,
+        handler: (args: any) => handleListBusinessActions(this.context, args),
+      },
+      {
+        toolDefinition: RunBusinessQuery_Tool,
+        handler: (args: any) => handleRunBusinessQuery(this.context, args),
+      },
+      {
+        toolDefinition: PreviewBusinessAction_Tool,
+        handler: (args: any) => handlePreviewBusinessAction(this.context, args),
+      },
+      {
+        toolDefinition: ExecuteBusinessAction_Tool,
+        handler: (args: any) => handleExecuteBusinessAction(this.context, args),
       },
       {
         toolDefinition: GetInactiveObjects_Tool,

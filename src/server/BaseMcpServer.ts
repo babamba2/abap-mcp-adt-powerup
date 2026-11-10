@@ -11,6 +11,10 @@ import type {
   IHandlersRegistry,
   SapEnvironment,
 } from '../lib/handlers/interfaces.js';
+import {
+  isToolInProfile,
+  resolveToolProfile,
+} from '../lib/handlers/interfaces.js';
 import { CompositeHandlersRegistry } from '../lib/handlers/registry/CompositeHandlersRegistry.js';
 import { jsonSchemaToZod } from '../lib/handlers/utils/schemaUtils.js';
 import { withLegacyLockHint } from '../lib/legacyLockHint.js';
@@ -544,6 +548,19 @@ export abstract class BaseMcpServer extends McpServer {
               );
               continue;
             }
+          }
+
+          // Skip tools outside the active tool profile (SAP_TOOL_PROFILE)
+          if (
+            !isToolInProfile(
+              (entry.toolDefinition as any).tool_profile,
+              resolveToolProfile(),
+            )
+          ) {
+            this.logger.debug(
+              `[BaseMcpServer] Skipping tool ${entry.toolDefinition.name}: not in SAP_TOOL_PROFILE=${resolveToolProfile()}`,
+            );
+            continue;
           }
 
           // Register wrapped handler via SDK registerTool
