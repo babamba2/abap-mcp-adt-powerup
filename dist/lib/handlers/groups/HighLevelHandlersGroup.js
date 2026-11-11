@@ -86,14 +86,14 @@ const handleCreateSmartForm_1 = require("../../../handlers/smartform/high/handle
 const handleDeleteSmartForm_1 = require("../../../handlers/smartform/high/handleDeleteSmartForm");
 const handleCreateStructure_1 = require("../../../handlers/structure/high/handleCreateStructure");
 const handleDeleteStructure_1 = require("../../../handlers/structure/high/handleDeleteStructure");
-const handleCreateTableType_1 = require("../../../handlers/table_type/high/handleCreateTableType");
-const handleDeleteTableType_1 = require("../../../handlers/table_type/high/handleDeleteTableType");
 const handleGetStructure_1 = require("../../../handlers/structure/high/handleGetStructure");
 const handleUpdateStructure_1 = require("../../../handlers/structure/high/handleUpdateStructure");
 const handleCreateTable_1 = require("../../../handlers/table/high/handleCreateTable");
 const handleDeleteTable_1 = require("../../../handlers/table/high/handleDeleteTable");
 const handleGetTable_1 = require("../../../handlers/table/high/handleGetTable");
 const handleUpdateTable_1 = require("../../../handlers/table/high/handleUpdateTable");
+const handleCreateTableType_1 = require("../../../handlers/table_type/high/handleCreateTableType");
+const handleDeleteTableType_1 = require("../../../handlers/table_type/high/handleDeleteTableType");
 // Import high-level handlers - Text Element (TEXTPOOL)
 const handleCreateTextElement_1 = require("../../../handlers/text_element/high/handleCreateTextElement");
 const handleDeleteTextElement_1 = require("../../../handlers/text_element/high/handleDeleteTextElement");

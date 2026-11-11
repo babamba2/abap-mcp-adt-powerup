@@ -1,5 +1,7 @@
 # Transport CRUD Issue Investigation (GitHub #11)
 
+> **Removed in 4.10.0:** the RFC connection (`SAP_CONNECTION_TYPE=rfc`, `--connection-type=rfc`, node-rfc) described below no longer exists. Kept as history.
+
 ## Problem
 
 Editing objects assigned to unreleased transport requests fails on legacy SAP systems (740).

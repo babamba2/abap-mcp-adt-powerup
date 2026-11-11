@@ -183,7 +183,7 @@ export function applyProfile(loaded: LoadedProfile): void {
     delete process.env[key];
   }
   // RFC backend settings come in backend-specific families
-  // (SAP_RFC_ODATA_*, SAP_RFC_ZRFC_*, SAP_RFC_GATEWAY_*, SAP_RFC_ASHOST, ...).
+  // (SAP_RFC_ODATA_*, ...).
   // A profile that does not set one must not inherit the previous profile's.
   for (const key of Object.keys(process.env)) {
     if (key.startsWith(SAP_RFC_KEY_PREFIX)) delete process.env[key];

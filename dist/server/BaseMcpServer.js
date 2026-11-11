@@ -80,10 +80,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
             const reason = tokenError instanceof Error ? tokenError.message : String(tokenError);
             throw new Error(`JWT token is missing for destination "${destination}". ${reason ? `Token provider error: ${reason}. ` : ''}Provide a valid session token (or refresh token) for this destination, or use --env-path with SAP_JWT_TOKEN.`);
         }
-        // Connection type from env (http or rfc) — not stored in broker/session
-        const connectionType = process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-            ? 'rfc'
-            : undefined;
         // Resolve masterSystem/responsible early so handlers get proper context
         // Create a temporary connection to call getSystemInformation
         let masterSystem;
@@ -125,7 +121,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                     username: connectionConfig.username || '',
                     password: connectionConfig.password || '',
                     client: connectionConfig.sapClient || '',
-                    ...(connectionType && { connectionType }),
                 }
                 : {
                     url: connectionConfig.serviceUrl || '',
@@ -210,9 +205,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
         const env = loaded.envVars;
         const url = env.SAP_URL || '';
         const client = env.SAP_CLIENT || '';
-        const connectionType = env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-            ? 'rfc'
-            : undefined;
         const wantsJwt = env.SAP_AUTH_TYPE?.trim().toLowerCase() === 'jwt';
         let connectionParams;
         if (!wantsJwt && url && env.SAP_USERNAME && env.SAP_PASSWORD) {
@@ -222,7 +214,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                 username: env.SAP_USERNAME,
                 password: env.SAP_PASSWORD,
                 client,
-                ...(connectionType && { connectionType }),
             };
         }
         else if (url && env.SAP_JWT_TOKEN) {

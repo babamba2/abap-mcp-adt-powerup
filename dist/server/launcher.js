@@ -41,6 +41,7 @@ const index_js_2 = require("../lib/config/index.js");
 const index_js_3 = require("../lib/handlers/groups/index.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const profile_js_1 = require("../lib/profile.js");
+const removedTransports_js_1 = require("../lib/removedTransports.js");
 const utils_js_1 = require("../lib/utils.js");
 const AuthBrokerConfig_js_1 = require("./AuthBrokerConfig.js");
 const SseServer_js_1 = require("./SseServer.js");
@@ -93,7 +94,7 @@ function hydrateSystemContextFromEnvFile(envFilePath) {
         }
         // Generic passthrough for RFC backend keys.
         // Screen/GuiStatus/TextElement dispatch selects a backend from SAP_RFC_BACKEND
-        // (soap|native|gateway|odata|zrfc). Each backend has its own set of SAP_RFC_* env
+        // (odata|soap). Each backend has its own set of SAP_RFC_* env
         // keys — listing every one here would be lossy. Instead, propagate any SAP_RFC_*
         // key present in the env file so future backends don't need this allowlist edit.
         for (const [key, value] of Object.entries(parsed)) {
@@ -148,7 +149,6 @@ SAP CONNECTION (.env file):
     SAP_URL                        SAP system URL (required)
     SAP_CLIENT                     SAP client number (required for basic auth)
     SAP_AUTH_TYPE                  Authentication type: basic|jwt (default: basic)
-    SAP_CONNECTION_TYPE            Connection type: http|rfc (default: http)
     SAP_SYSTEM_TYPE                SAP system type: cloud (default) | onprem | legacy
                                    Controls tool availability (e.g. Programs need onprem)
                                    Set to 'onprem' for on-premise systems
@@ -162,14 +162,6 @@ SAP CONNECTION (.env file):
     SAP_UAA_URL                    UAA URL for OAuth2 (or UAA_URL)
     SAP_UAA_CLIENT_ID              UAA Client ID (or UAA_CLIENT_ID)
     SAP_UAA_CLIENT_SECRET          UAA Client Secret (or UAA_CLIENT_SECRET)
-
-  RFC Connection (legacy systems, BASIS < 7.50):
-    SAP_CONNECTION_TYPE=rfc        Enables RFC transport via SADT_REST_RFC_ENDPOINT
-    SAP_URL                        SAP system URL (host:port used to derive RFC params)
-    SAP_USERNAME                   SAP username
-    SAP_PASSWORD                   SAP password
-    SAP_CLIENT                     SAP client number
-    Requires: SAP NW RFC SDK + node-rfc package installed
 
   System Context (on-premise):
     SAP_MASTER_SYSTEM              SAP system ID (e.g., DEV, QAS). Required for on-prem
@@ -214,9 +206,13 @@ async function main() {
     const configManager = new index_js_2.ServerConfigManager();
     const config = await configManager.getConfig();
     hydrateSystemContextFromEnvFile(config.envFile);
-    // CLI --connection-type overrides env var
-    if (config.connectionType && !process.env.SAP_CONNECTION_TYPE) {
-        process.env.SAP_CONNECTION_TYPE = config.connectionType;
+    // Removed transports (4.10.0): native / gateway / zrfc backends and
+    // SAP_CONNECTION_TYPE=rfc. Fail at boot with the fix instead of running
+    // over another path.
+    const removedTransport = (0, removedTransports_js_1.findRemovedTransport)(process.env);
+    if (removedTransport) {
+        console.error(`[MCP] ${removedTransport}`);
+        process.exit(1);
     }
     const baseContext = {
         connection: undefined,

@@ -4,8 +4,7 @@
  *
  * Path per SAP_RFC_BACKEND:
  *   soap   — direct SOAP RFC call of ZMCP_BIZ_EXECUTE (no dispatcher needed)
- *   native — direct node-rfc call of ZMCP_BIZ_EXECUTE
- *   odata / gateway / zrfc — ZMCP_ADT_DISPATCH action BIZ_EXECUTE, which
+ *   odata  — ZMCP_ADT_DISPATCH action BIZ_EXECUTE, which
  *            forwards to ZMCP_BIZ_EXECUTE and wraps its exports as JSON
  *            {subrc, message, token, result}. Needs the dispatcher release
  *            that contains the BIZ_EXECUTE branch.
@@ -51,7 +50,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildImports = buildImports;
 exports.fromDispatch = fromDispatch;
 exports.callBizExecute = callBizExecute;
-const native = __importStar(require("./nativeRfc"));
 const rfcBackend_1 = require("./rfcBackend");
 const soap = __importStar(require("./soapRfc"));
 const BIZ_FM = 'ZMCP_BIZ_EXECUTE';
@@ -104,9 +102,6 @@ async function callBizExecute(connection, req) {
     if (backend === 'soap') {
         const { raw } = await soap.callSoapRfc(connection, BIZ_FM, imports);
         return fromExports(raw);
-    }
-    if (backend === 'native') {
-        return fromExports(await native.callRfcFunction(BIZ_FM, imports));
     }
     const { result } = await (0, rfcBackend_1.callDispatch)(connection, 'BIZ_EXECUTE', {
         action: imports.IV_ACTION,

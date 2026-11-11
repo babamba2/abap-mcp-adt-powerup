@@ -3,8 +3,7 @@
  *
  * Path per SAP_RFC_BACKEND:
  *   soap   — direct SOAP RFC call of ZMCP_BIZ_EXECUTE (no dispatcher needed)
- *   native — direct node-rfc call of ZMCP_BIZ_EXECUTE
- *   odata / gateway / zrfc — ZMCP_ADT_DISPATCH action BIZ_EXECUTE, which
+ *   odata  — ZMCP_ADT_DISPATCH action BIZ_EXECUTE, which
  *            forwards to ZMCP_BIZ_EXECUTE and wraps its exports as JSON
  *            {subrc, message, token, result}. Needs the dispatcher release
  *            that contains the BIZ_EXECUTE branch.
@@ -15,7 +14,6 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
-import * as native from './nativeRfc';
 import { callDispatch, getBackend } from './rfcBackend';
 import * as soap from './soapRfc';
 
@@ -91,9 +89,6 @@ export async function callBizExecute(
   if (backend === 'soap') {
     const { raw } = await soap.callSoapRfc(connection, BIZ_FM, imports);
     return fromExports(raw);
-  }
-  if (backend === 'native') {
-    return fromExports(await native.callRfcFunction(BIZ_FM, imports));
   }
   const { result } = await callDispatch(connection, 'BIZ_EXECUTE', {
     action: imports.IV_ACTION,

@@ -293,7 +293,8 @@ function buildEccStructurePayload(args, structureName) {
     const pad6 = (n) => String(n).padStart(6, '0');
     // Enhancement category: a structure with includes or nested structure /
     // table-type components does not activate as 1 (cannot be enhanced).
-    const hasDeep = includes.length > 0 || args.fields.some((f) => f.structure_ref || f.table_ref);
+    const hasDeep = includes.length > 0 ||
+        args.fields.some((f) => f.structure_ref || f.table_ref);
     const exclass = args.enhancement_category || (hasDeep ? '4' : '1');
     if (!/^[1-4]$/.test(exclass)) {
         throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `enhancement_category must be 1, 2, 3 or 4 (got "${exclass}").`);

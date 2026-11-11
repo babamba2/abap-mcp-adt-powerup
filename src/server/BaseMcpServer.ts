@@ -121,12 +121,6 @@ export abstract class BaseMcpServer extends McpServer {
       );
     }
 
-    // Connection type from env (http or rfc) — not stored in broker/session
-    const connectionType =
-      process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-        ? ('rfc' as const)
-        : undefined;
-
     // Resolve masterSystem/responsible early so handlers get proper context
     // Create a temporary connection to call getSystemInformation
     let masterSystem: string | undefined;
@@ -174,7 +168,6 @@ export abstract class BaseMcpServer extends McpServer {
               username: connectionConfig.username || '',
               password: connectionConfig.password || '',
               client: connectionConfig.sapClient || '',
-              ...(connectionType && { connectionType }),
             }
           : {
               url: connectionConfig.serviceUrl || '',
@@ -264,10 +257,6 @@ export abstract class BaseMcpServer extends McpServer {
     const env = loaded.envVars;
     const url = env.SAP_URL || '';
     const client = env.SAP_CLIENT || '';
-    const connectionType =
-      env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-        ? ('rfc' as const)
-        : undefined;
     const wantsJwt = env.SAP_AUTH_TYPE?.trim().toLowerCase() === 'jwt';
 
     let connectionParams: ConnectionContext['connectionParams'];
@@ -278,7 +267,6 @@ export abstract class BaseMcpServer extends McpServer {
         username: env.SAP_USERNAME,
         password: env.SAP_PASSWORD,
         client,
-        ...(connectionType && { connectionType }),
       };
     } else if (url && env.SAP_JWT_TOKEN) {
       connectionParams = {

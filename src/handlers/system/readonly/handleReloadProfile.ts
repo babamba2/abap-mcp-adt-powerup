@@ -15,6 +15,7 @@
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { activateProfile } from '../../../lib/profile';
 import { notifyProfileChanged } from '../../../lib/profileEvents';
+import { findRemovedTransport } from '../../../lib/removedTransports';
 import {
   type AxiosResponse,
   invalidateConnectionCache,
@@ -41,6 +42,9 @@ export async function handleReloadProfile(context: HandlerContext, _args: any) {
     invalidateConnectionCache();
     // Rebind what was captured at boot (stdio connection params, RFC sessions).
     const rebindErrors = notifyProfileChanged(loaded);
+    // A profile that selects a removed transport (4.10.0) cannot run.
+    const removedTransport = findRemovedTransport(process.env);
+    if (removedTransport) rebindErrors.push(new Error(removedTransport));
 
     const host = loaded.envVars.SAP_URL ?? '';
     const client = loaded.envVars.SAP_CLIENT ?? '';

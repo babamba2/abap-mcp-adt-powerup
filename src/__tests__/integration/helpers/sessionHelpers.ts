@@ -393,12 +393,9 @@ export async function createTestConnectionAndSession(): Promise<{
     const csrfToken = connectionAny.getCsrfToken?.() || '';
 
     if (!cookies && !csrfToken) {
-      const isRfc = process.env.SAP_CONNECTION_TYPE?.toLowerCase() === 'rfc';
-      if (!isRfc) {
-        throw new Error(
-          'Failed to get session state. Connection may not be properly initialized.',
-        );
-      }
+      throw new Error(
+        'Failed to get session state. Connection may not be properly initialized.',
+      );
     }
 
     // Get cookie store from connection if available

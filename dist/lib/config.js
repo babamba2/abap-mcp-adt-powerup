@@ -61,10 +61,6 @@ function getConfig() {
             authType = rawAuthType;
         }
     }
-    // Connection type: http (default) or rfc (legacy systems)
-    const connectionType = process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-        ? 'rfc'
-        : undefined;
     if (!url) {
         throw new Error(`Missing SAP_URL in environment variables. Please check your .env file.`);
     }
@@ -89,7 +85,6 @@ function getConfig() {
     const config = {
         url, // Already cleaned and validated above
         authType,
-        ...(connectionType && { connectionType }),
     };
     if (client) {
         config.client = client;

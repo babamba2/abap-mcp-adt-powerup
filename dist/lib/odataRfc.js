@@ -8,7 +8,7 @@
  * ICF node but keep the modern OData Gateway active — the typical
  * shape of a "hardened" SAP Gateway install.
  *
- * Contract-compatible with soapRfc.ts / nativeRfc.ts / gatewayRfc.ts —
+ * Contract-compatible with soapRfc.ts —
  * same DispatchResult / TextpoolResult shapes. Handlers only import
  * from ./rfcBackend, never directly from here.
  *

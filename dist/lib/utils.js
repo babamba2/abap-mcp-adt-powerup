@@ -1131,7 +1131,6 @@ SAP CONNECTION (.env file):
   SAP_CLIENT                       SAP client number (required for basic auth)
                                    Example: 100
   SAP_AUTH_TYPE                    Authentication type: basic|jwt (default: basic)
-  SAP_CONNECTION_TYPE              Connection type: http|rfc (default: http)
   SAP_USERNAME                     SAP username (required for basic auth)
   SAP_PASSWORD                     SAP password (required for basic auth)
   SAP_JWT_TOKEN                    JWT token (required for jwt auth)
@@ -1591,10 +1590,6 @@ function getConfig() {
             authType = rawAuthType;
         }
     }
-    // Connection type: http (default) or rfc (legacy systems)
-    const connectionType = process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-        ? 'rfc'
-        : undefined;
     if (!url) {
         throw new Error(`Missing SAP_URL in environment variables. Please check your .env file.`);
     }
@@ -1619,7 +1614,6 @@ function getConfig() {
     const config = {
         url, // Already cleaned and validated above
         authType,
-        ...(connectionType && { connectionType }),
     };
     if (client) {
         config.client = client;

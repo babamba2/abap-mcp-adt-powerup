@@ -6,6 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { removedConnectionTypeMessage } from '../removedTransports';
 import { resolveEnvFilePath } from './envResolver';
 
 export interface ParsedArguments {
@@ -22,7 +23,6 @@ export interface ParsedArguments {
   /** Transport type */
   transport?: string;
   /** SAP connection type: http (default) or rfc (legacy systems) */
-  connectionType?: 'http' | 'rfc';
   /** SAP system type override: onprem | cloud | legacy */
   systemType?: 'onprem' | 'cloud' | 'legacy';
   /** Path to YAML config file */
@@ -182,11 +182,11 @@ export class ArgumentsParser {
     result.useAuthBroker =
       hasFlag('--auth-broker') || process.env.MCP_USE_AUTH_BROKER === 'true';
 
-    // Parse --connection-type (http or rfc)
-    const connType =
-      getArgValue('--connection-type') || process.env.SAP_CONNECTION_TYPE;
+    // --connection-type=rfc (node-rfc) was removed in 4.10.0 — refuse it
+    // instead of silently connecting over HTTP.
+    const connType = getArgValue('--connection-type');
     if (connType?.trim().toLowerCase() === 'rfc') {
-      result.connectionType = 'rfc';
+      throw new Error(removedConnectionTypeMessage());
     }
 
     // Parse --system-type (onprem | cloud | legacy)

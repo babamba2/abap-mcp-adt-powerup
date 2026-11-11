@@ -27,8 +27,14 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'Table type name (e.g., ZSD_T_ORDER_ITEMS). Z/Y namespace, max 30 characters.',
             },
-            description: { type: 'string', description: 'Short text (max 60 characters).' },
-            package_name: { type: 'string', description: 'Package ($TMP for local objects).' },
+            description: {
+                type: 'string',
+                description: 'Short text (max 60 characters).',
+            },
+            package_name: {
+                type: 'string',
+                description: 'Package ($TMP for local objects).',
+            },
             transport_request: {
                 type: 'string',
                 description: 'Transport request. Required for transportable packages.',
@@ -62,14 +68,32 @@ exports.TOOL_DEFINITION = {
                 items: { type: 'string' },
                 description: 'Key fields of the row type, in order. Only with key_definition=key_components (ECC).',
             },
-            activate: { type: 'boolean', description: 'Activate after create. Default true.' },
+            activate: {
+                type: 'boolean',
+                description: 'Activate after create. Default true.',
+            },
         },
         required: ['table_type_name', 'package_name', 'row_type'],
     },
 };
-const ROW_KIND = { structure: 'S', data_element: 'E', table_type: 'L' };
-const ACCESS = { standard: 'T', sorted: 'S', hashed: 'H', index: 'I', any: 'A' };
-const KEY_DEF = { standard: 'D', row_type: 'T', key_components: 'K', none: 'G' };
+const ROW_KIND = {
+    structure: 'S',
+    data_element: 'E',
+    table_type: 'L',
+};
+const ACCESS = {
+    standard: 'T',
+    sorted: 'S',
+    hashed: 'H',
+    index: 'I',
+    any: 'A',
+};
+const KEY_DEF = {
+    standard: 'D',
+    row_type: 'T',
+    key_components: 'K',
+    none: 'G',
+};
 const KEY_KIND = { non_unique: 'N', unique: 'U', not_specified: 'G' };
 const NAME_RE = /^[A-Z/][A-Z0-9_/]{0,29}$/;
 const FIELD_RE = /^[A-Z][A-Z0-9_]{0,29}$/;
@@ -191,8 +215,16 @@ async function handleCreateTableType(context, args) {
             rowTypeName: n.rowType,
             rowTypeKind: 'dictionaryType',
             accessType: (n.access === 'any' ? 'notSpecified' : n.access),
-            primaryKeyDefinition: { standard: 'standard', row_type: 'rowType', none: 'notSpecified' }[n.keyDef],
-            primaryKeyKind: { non_unique: 'nonUnique', unique: 'unique', not_specified: 'notSpecified' }[n.keyKind],
+            primaryKeyDefinition: {
+                standard: 'standard',
+                row_type: 'rowType',
+                none: 'notSpecified',
+            }[n.keyDef],
+            primaryKeyKind: {
+                non_unique: 'nonUnique',
+                unique: 'unique',
+                not_specified: 'notSpecified',
+            }[n.keyKind],
         };
         logger?.info(`Creating table type ${n.name} via ADT`);
         await tableType.create(config);

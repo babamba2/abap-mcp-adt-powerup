@@ -104,7 +104,6 @@ class ServerConfigManager {
             unsafe: parsed.unsafe,
             useAuthBroker: parsed.useAuthBroker,
             browserAuthPort: parsed.browserAuthPort,
-            connectionType: parsed.connectionType,
             systemType: parsed.systemType,
         };
     }
@@ -226,9 +225,6 @@ AUTHENTICATION:
   --env-path=<path|file>           Explicit .env file path (or relative file name)
   --mcp=<destination>              Default MCP destination name (for auth-broker mode)
                                    Example: --mcp=TRIAL
-  --connection-type=<type>         SAP connection type: http (default) or rfc
-                                   RFC requires SAP NW RFC SDK + node-rfc installed
-                                   Alternative: SAP_CONNECTION_TYPE env var in .env
   --system-type=<type>             SAP system type: cloud (default) | onprem | legacy
                                    Controls which tools are available
                                    Set to 'onprem' for on-premise systems (enables Programs etc.)
@@ -255,10 +251,6 @@ EXAMPLES:
 
   # Stdio with explicit env file
   mcp-abap-adt --env-path=.env
-
-  # RFC connection to legacy system (BASIS < 7.50)
-  # Set SAP_CONNECTION_TYPE=rfc in .env file, requires SAP NW RFC SDK
-  mcp-abap-adt --env-path=legacy.env
 
   # Explicit system type (bypass auto-detection)
   mcp-abap-adt --env-path=e96.env --system-type=onprem

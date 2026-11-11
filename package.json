@@ -1,7 +1,7 @@
 {
   "name": "@babamba2/abap-mcp-adt-powerup",
   "mcpName": "io.github.babamba2/abap-mcp-adt-powerup",
-  "version": "4.9.1",
+  "version": "4.10.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -152,8 +152,7 @@
     "zod": "^4.6.7"
   },
   "optionalDependencies": {
-    "@napi-rs/keyring": "^1.1.0",
-    "node-rfc": "^3.3.1"
+    "@napi-rs/keyring": "^1.1.0"
   },
   "engines": {
     "node": ">=20.0.0",

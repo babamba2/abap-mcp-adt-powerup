@@ -1,24 +1,20 @@
 /**
  * RFC backend selector.
  *
- * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' /
- * 'native' / 'gateway' / 'zrfc' opt-in) and routes callDispatch / callTextpool
- * to the matching backend module on every call.
+ * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' opt-in)
+ * and routes callDispatch / callTextpool to the matching backend module on
+ * every call.
  *
- * Default changed 2026-04-22 from 'soap' to 'odata': hardened Gateway
- * installs increasingly disable the /sap/bc/soap/rfc ICF node, and the
- * OData path goes through standard Gateway authorization (S_SERVICE)
- * instead of S_RFC. Existing setups that explicitly set
- * SAP_RFC_BACKEND=soap are unaffected.
- *
+ *   odata   — SAP OData v2 service (ZMCP_ADT_SRV) via HTTPS (default)
  *   soap    — classic /sap/bc/soap/rfc HTTPS gateway (SAP built-in)
- *   native  — direct NW RFC SDK on this host (requires SDK + node-rfc)
- *   gateway — remote RFC Gateway middleware via HTTPS/JSON (no SDK here)
- *   odata   — SAP OData v2 service (ZMCP_ADT_SRV) via HTTPS (SEGW-free)
+ *
+ * The 'native', 'gateway' and 'zrfc' backends were removed in 4.10.0; a
+ * profile that still selects one fails with a message naming the fix
+ * (see ./removedTransports).
  *
  * Handlers import from this file, never directly from soapRfc.ts /
- * nativeRfc.ts / gatewayRfc.ts / odataRfc.ts, so switching backends is
- * a single env flip with no code change.
+ * odataRfc.ts, so switching backends is a single env flip with no code
+ * change.
  *
  * Resolution is lazy (per-call) — required because:
  *   1. The sc4sap profile loader (lib/profile.ts activateProfile()) runs
@@ -29,25 +25,26 @@
  *      changes SAP_RFC_BACKEND at runtime; eager caching would defeat it.
  */
 
-import * as gateway from './gatewayRfc';
-import * as native from './nativeRfc';
 import * as odata from './odataRfc';
+import {
+  REMOVED_RFC_BACKENDS,
+  removedBackendMessage,
+} from './removedTransports';
 import * as soap from './soapRfc';
-import * as zrfc from './zrfcProxy';
 
-export type RfcBackend = 'soap' | 'native' | 'gateway' | 'odata' | 'zrfc';
+export type RfcBackend = 'soap' | 'odata';
 
 function resolveBackend(): RfcBackend {
   const v = (process.env.SAP_RFC_BACKEND ?? '').trim().toLowerCase();
   // Empty / unset → default. Default flipped from 'soap' to 'odata' 2026-04-22.
   if (v === '') return 'odata';
-  if (v === 'native') return 'native';
-  if (v === 'gateway') return 'gateway';
   if (v === 'odata') return 'odata';
   if (v === 'soap') return 'soap';
-  if (v === 'zrfc') return 'zrfc';
+  if ((REMOVED_RFC_BACKENDS as readonly string[]).includes(v)) {
+    throw new Error(removedBackendMessage(v));
+  }
   throw new Error(
-    `SAP_RFC_BACKEND must be 'soap' | 'native' | 'gateway' | 'odata' | 'zrfc' (got '${v}'). ` +
+    `SAP_RFC_BACKEND must be 'odata' | 'soap' (got '${v}'). ` +
       `Default is 'odata'. Set in .sc4sap/sap.env.`,
   );
 }
@@ -63,18 +60,7 @@ type BackendModule = {
 };
 
 function pickModule(b: RfcBackend): BackendModule {
-  switch (b) {
-    case 'native':
-      return native;
-    case 'gateway':
-      return gateway;
-    case 'odata':
-      return odata;
-    case 'zrfc':
-      return zrfc;
-    default:
-      return soap;
-  }
+  return b === 'odata' ? odata : soap;
 }
 
 export const callDispatch: typeof odata.callDispatch = (...args) =>
@@ -98,7 +84,7 @@ export declare const backend: RfcBackend;
  *
  * These route to the ZMCP_ADT_DDIC_TABL / DTEL / DOMA / ACTIVATE
  * function modules via the OData FunctionImports DdicTabl / DdicDtel /
- * DdicDoma / DdicActivate. They have no soap / native / gateway
+ * DdicDoma / DdicActivate. They have no soap
  * equivalent — ECC fallback is intentionally only supported when the
  * environment has already chosen the OData path. Attempting to call
  * these with any other SAP_RFC_BACKEND raises a helpful error so the

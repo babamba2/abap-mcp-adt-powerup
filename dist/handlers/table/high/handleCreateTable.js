@@ -41,17 +41,29 @@ exports.TOOL_DEFINITION = {
                 items: {
                     type: 'object',
                     properties: {
-                        name: { type: 'string', description: 'Field name (max 16 characters)' },
+                        name: {
+                            type: 'string',
+                            description: 'Field name (max 16 characters)',
+                        },
                         key: { type: 'boolean', description: 'Key field (keys first)' },
-                        not_null: { type: 'boolean', description: 'Initial values flag (keys always set)' },
-                        data_element: { type: 'string', description: 'Data element (preferred)' },
+                        not_null: {
+                            type: 'boolean',
+                            description: 'Initial values flag (keys always set)',
+                        },
+                        data_element: {
+                            type: 'string',
+                            description: 'Data element (preferred)',
+                        },
                         data_type: {
                             type: 'string',
                             description: 'Built-in type (CHAR, NUMC, DATS, QUAN, …) when no data element fits',
                         },
                         length: { type: 'number' },
                         decimals: { type: 'number' },
-                        description: { type: 'string', description: 'Short text for data_type fields' },
+                        description: {
+                            type: 'string',
+                            description: 'Short text for data_type fields',
+                        },
                         reference_table: {
                             type: 'string',
                             description: 'Reference table for a QUAN / CURR field (defaults to this table)',
@@ -69,11 +81,16 @@ exports.TOOL_DEFINITION = {
                 description: 'ECC only. Structures appended as .INCLUDE rows after the fields (e.g. a create/change info structure).',
                 items: {
                     type: 'object',
-                    properties: { name: { type: 'string', description: 'Include structure name' } },
+                    properties: {
+                        name: { type: 'string', description: 'Include structure name' },
+                    },
                     required: ['name'],
                 },
             },
-            delivery_class: { type: 'string', description: 'ECC only. Delivery class (default A).' },
+            delivery_class: {
+                type: 'string',
+                description: 'ECC only. Delivery class (default A).',
+            },
             enhancement_category: {
                 type: 'string',
                 description: 'ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when "includes" are given, else 1.',
@@ -82,8 +99,14 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'ECC only. Data class TABART (default APPL1). Some systems enforce a customer class (e.g. USER / USER1) — the SAP message says so.',
             },
-            size_category: { type: 'string', description: 'ECC only. Size category TABKAT (default 0).' },
-            activate: { type: 'boolean', description: 'ECC only. Activate after create (default true).' },
+            size_category: {
+                type: 'string',
+                description: 'ECC only. Size category TABKAT (default 0).',
+            },
+            activate: {
+                type: 'boolean',
+                description: 'ECC only. Activate after create (default true).',
+            },
         },
         required: ['table_name', 'package_name'],
     },

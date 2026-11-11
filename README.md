@@ -97,7 +97,7 @@ Verified on ECC 7.40 (SAP_VERSION=ECC, ABAP_RELEASE=740, SAP_SYSTEM_TYPE=onprem)
 | Enhancements | `GetEnhancements`, `GetEnhancementSpot`, `GetEnhancementImpl` | ❌ | `/sap/bc/adt/enhancements` discovery endpoints return 404 on BASIS < 7.50 — use SE18/SE19 or CMOD/SMOD in SAP GUI |
 | Transport | `ListTransports`, `GetTransport`, `CreateTransport` | ✅ | CTS endpoints present |
 | Runtime | `RuntimeListDumps`, `RuntimeAnalyzeDump`, `RuntimeGetDumpById` | ✅ | `/sap/bc/adt/runtime/dumps` present |
-| Screen / GUI Status | `GetScreen`, `GetGuiStatus`, `GetTextElement` (+ Create/Update) | ℹ️ | RFC-dispatched via `SAP_RFC_BACKEND` (`odata` default / `soap` / `native` / `gateway` / `zrfc`); the chosen backend's prerequisites (backend classes, SICF node, SDK) must be in place |
+| Screen / GUI Status | `GetScreen`, `GetGuiStatus`, `GetTextElement` (+ Create/Update) | ℹ️ | RFC-dispatched via `SAP_RFC_BACKEND` (`odata` default / `soap`); the chosen backend's prerequisites (OData service classes or the SOAP RFC SICF node) must be in place |
 | RAP / Behavior | `*BehaviorDefinition`, `*BehaviorImplementation` | ❌ | S/4HANA only — RAP does not exist on ECC |
 | Service binding | `*ServiceDefinition`, `*ServiceBinding` | ❌ | S/4HANA / ABAP Cloud only |
 | Metadata extensions | `*MetadataExtension` | ❌ | S/4HANA / ABAP Cloud only |
@@ -699,7 +699,7 @@ The server respects SAP authorization — whatever your user cannot do in SE80/A
 Use `--env <destination>` with per-destination `.env` files, or the YAML config. For HTTP/SSE deployments, pass `x-sap-*` headers per request.
 
 **Q. Does it support RFC?**
-Yes, for legacy systems where ADT HTTP APIs are unavailable. Set `connection_type: rfc` in the test config (or equivalent env) — requires the SAP NW RFC SDK installed locally.
+No direct RFC connection. The node-rfc connection (`SAP_CONNECTION_TYPE=rfc`) and the `native` / `gateway` / `zrfc` backends were removed in 4.10.0. Function modules are reached over HTTPS through `SAP_RFC_BACKEND=odata` (default) or `soap`.
 
 ---
 

@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [4.10.0] - 2026-11-11
+
+### Removed
+- **RFC backends `native`, `gateway` and `zrfc`** (`SAP_RFC_BACKEND`). Function modules are reached through `odata` (default) or `soap`. Files removed: `lib/nativeRfc.ts`, `lib/gatewayRfc.ts`, `lib/zrfcProxy.ts`, the ZRFC ICF handler `abap/zcl_mcp_rfc_http_handler.abap`, `docs/installation/ZRFC_SETUP.md`, their tests and the native parity suite. Business actions on `native` called `ZMCP_BIZ_EXECUTE` directly; `soap` still does, `odata` goes through the dispatcher.
+- **RFC connection** `SAP_CONNECTION_TYPE=rfc` / `--connection-type=rfc` (ADT over node-rfc + SAP NW RFC SDK) and `docs/installation/RFC_SETUP.md`. The server connects over HTTP/HTTPS. `node-rfc` is no longer an optional dependency of this package.
+
+### Changed
+- A profile that still selects one of these fails at boot (exit 1) and on `ReloadProfile` with a message naming the fix (`SAP_RFC_BACKEND=odata` or `soap`; drop `SAP_CONNECTION_TYPE`), instead of running over another path (`lib/removedTransports.ts`).
+
 ## [4.9.1] - 2026-11-11
 
 ### Added

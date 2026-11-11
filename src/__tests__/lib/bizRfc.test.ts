@@ -1,13 +1,10 @@
 /**
  * Unit tests for src/lib/bizRfc.ts and the business-action handlers.
- * No SAP calls: soap / native / dispatcher are mocked.
+ * No SAP calls: soap / dispatcher are mocked.
  */
 
 jest.mock('../../lib/soapRfc', () => ({
   callSoapRfc: jest.fn(),
-}));
-jest.mock('../../lib/nativeRfc', () => ({
-  callRfcFunction: jest.fn(),
 }));
 jest.mock('../../lib/rfcBackend', () => ({
   getBackend: jest.fn(),
@@ -15,7 +12,6 @@ jest.mock('../../lib/rfcBackend', () => ({
 }));
 
 const soap = require('../../lib/soapRfc');
-const native = require('../../lib/nativeRfc');
 const rfc = require('../../lib/rfcBackend');
 const biz = require('../../lib/bizRfc');
 
@@ -63,56 +59,37 @@ describe('bizRfc — routing per backend', () => {
     expect(rfc.callDispatch).not.toHaveBeenCalled();
   });
 
-  it('native: calls the FM through node-rfc', async () => {
-    rfc.getBackend.mockReturnValue('native');
-    native.callRfcFunction.mockResolvedValue({
-      EV_SUBRC: 0,
-      EV_TOKEN: 'T1',
-      EV_RESULT: '',
+  it.each(['odata'])('%s: goes through dispatcher BIZ_EXECUTE', async (b) => {
+    rfc.getBackend.mockReturnValue(b);
+    rfc.callDispatch.mockResolvedValue({
+      result: { subrc: 0, message: 'ok', token: 'TK', result: { rows: [] } },
+      subrc: 0,
+      message: '',
     });
-    const r = await biz.callBizExecute({}, { action: 'X.Y', mode: 'PREVIEW' });
-    expect(native.callRfcFunction).toHaveBeenCalledWith(
-      'ZMCP_BIZ_EXECUTE',
-      expect.any(Object),
-    );
-    expect(r.token).toBe('T1');
-    expect(r.result).toBeNull();
-  });
-
-  it.each(['odata', 'gateway', 'zrfc'])(
-    '%s: goes through dispatcher BIZ_EXECUTE',
-    async (b) => {
-      rfc.getBackend.mockReturnValue(b);
-      rfc.callDispatch.mockResolvedValue({
-        result: { subrc: 0, message: 'ok', token: 'TK', result: { rows: [] } },
-        subrc: 0,
-        message: '',
-      });
-      const r = await biz.callBizExecute(
-        {},
-        {
-          action: 'mm.po.x',
-          mode: 'EXECUTE',
-          params: { ebeln: '1' },
-          token: 'TK',
-          idemKey: 'K',
-        },
-      );
-      expect(rfc.callDispatch).toHaveBeenCalledWith({}, 'BIZ_EXECUTE', {
-        action: 'MM.PO.X',
+    const r = await biz.callBizExecute(
+      {},
+      {
+        action: 'mm.po.x',
         mode: 'EXECUTE',
-        params: '{"ebeln":"1"}',
+        params: { ebeln: '1' },
         token: 'TK',
-        idem_key: 'K',
-      });
-      expect(r).toEqual({
-        subrc: 0,
-        message: 'ok',
-        token: 'TK',
-        result: { rows: [] },
-      });
-    },
-  );
+        idemKey: 'K',
+      },
+    );
+    expect(rfc.callDispatch).toHaveBeenCalledWith({}, 'BIZ_EXECUTE', {
+      action: 'MM.PO.X',
+      mode: 'EXECUTE',
+      params: '{"ebeln":"1"}',
+      token: 'TK',
+      idem_key: 'K',
+    });
+    expect(r).toEqual({
+      subrc: 0,
+      message: 'ok',
+      token: 'TK',
+      result: { rows: [] },
+    });
+  });
 
   it('fromDispatch tolerates a JSON string and a plain-text result', () => {
     expect(

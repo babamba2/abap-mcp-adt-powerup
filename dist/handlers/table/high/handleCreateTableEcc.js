@@ -120,7 +120,8 @@ function buildEccTablePayload(args, tableName) {
         // Enhancement category: 1 cannot be enhanced, 2 character-like,
         // 3 character-like or numeric, 4 deep. A table with .INCLUDE rows
         // does not activate as 1, so it defaults to 4 there.
-        EXCLASS: args.enhancement_category || ((args.includes ?? []).length > 0 ? '4' : '1'),
+        EXCLASS: args.enhancement_category ||
+            ((args.includes ?? []).length > 0 ? '4' : '1'),
     };
     if (!/^[1-4]$/.test(dd02v.EXCLASS)) {
         throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `enhancement_category must be 1, 2, 3 or 4 (got "${dd02v.EXCLASS}").`);

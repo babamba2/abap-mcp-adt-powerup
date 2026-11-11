@@ -1,5 +1,7 @@
 # Roadmap: Legacy ABAP System Support (BASIS < 7.50)
 
+> **Removed in 4.10.0:** the RFC connection (`SAP_CONNECTION_TYPE=rfc`, `--connection-type=rfc`, node-rfc) described below no longer exists. Kept as history.
+
 ## Motivation
 
 MCP server currently works only with modern SAP systems (S/4 HANA, BTP ABAP Cloud).

@@ -186,9 +186,6 @@ export async function loadTestEnv(): Promise<void> {
   // Apply explicit overrides from test-config.yaml
   try {
     const cfg = loadTestConfig();
-    if (cfg?.environment?.connection_type) {
-      process.env.SAP_CONNECTION_TYPE = cfg.environment.connection_type;
-    }
     if (cfg?.environment?.system_type) {
       process.env.SAP_SYSTEM_TYPE = cfg.environment.system_type;
     }
@@ -419,15 +416,9 @@ export function getSapConfigFromEnv(): SapConfig {
     authType = 'jwt';
   }
 
-  const connectionType: SapConfig['connectionType'] =
-    process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-      ? 'rfc'
-      : undefined;
-
   const config: SapConfig = {
     url,
     authType,
-    ...(connectionType && { connectionType }),
   };
 
   if (authType === 'jwt') {
