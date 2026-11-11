@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SystemHandlersGroup = void 0;
+const handleBusinessActions_js_1 = require("../../../handlers/business/handleBusinessActions.js");
 const handleGetPackageTree_1 = require("../../../handlers/system/high/handleGetPackageTree");
 const handleGetNodeStructure_1 = require("../../../handlers/system/low/handleGetNodeStructure");
 const handleGetObjectStructure_1 = require("../../../handlers/system/low/handleGetObjectStructure");
@@ -146,6 +147,23 @@ class SystemHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleReloadProfile_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleReloadProfile_1.handleReloadProfile)(this.context, args),
+            },
+            // Business actions (tool profile "biz") — ZMCP_BIZ_EXECUTE
+            {
+                toolDefinition: handleBusinessActions_js_1.ListBusinessActions_Tool,
+                handler: (args) => (0, handleBusinessActions_js_1.handleListBusinessActions)(this.context, args),
+            },
+            {
+                toolDefinition: handleBusinessActions_js_1.RunBusinessQuery_Tool,
+                handler: (args) => (0, handleBusinessActions_js_1.handleRunBusinessQuery)(this.context, args),
+            },
+            {
+                toolDefinition: handleBusinessActions_js_1.PreviewBusinessAction_Tool,
+                handler: (args) => (0, handleBusinessActions_js_1.handlePreviewBusinessAction)(this.context, args),
+            },
+            {
+                toolDefinition: handleBusinessActions_js_1.ExecuteBusinessAction_Tool,
+                handler: (args) => (0, handleBusinessActions_js_1.handleExecuteBusinessAction)(this.context, args),
             },
             {
                 toolDefinition: handleGetInactiveObjects_1.TOOL_DEFINITION,

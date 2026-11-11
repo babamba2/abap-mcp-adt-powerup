@@ -52,6 +52,7 @@ exports.callTextpool = callTextpool;
 exports.callDdicTabl = callDdicTabl;
 exports.callDdicDtel = callDdicDtel;
 exports.callDdicDoma = callDdicDoma;
+exports.callDdicTtyp = callDdicTtyp;
 exports.callDdicActivate = callDdicActivate;
 exports.callDdicBadi = callDdicBadi;
 exports.callDdicTablRead = callDdicTablRead;
@@ -317,6 +318,10 @@ async function callDdicDtel(_connection, action, params) {
 }
 async function callDdicDoma(_connection, action, params) {
     return callDdicObject('DdicDoma', action, params);
+}
+/** Table type (TTYP) writes through ZMCP_ADT_DDIC_TTYP (FunctionImport DdicTtyp). */
+async function callDdicTtyp(_connection, action, params) {
+    return callDdicObject('DdicTtyp', action, params);
 }
 async function callDdicActivate(_connection, type, name) {
     const raw = await postFunctionImport('DdicActivate', {

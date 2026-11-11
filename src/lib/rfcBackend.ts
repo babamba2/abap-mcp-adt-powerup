@@ -156,6 +156,10 @@ export const callDdicDoma: typeof odata.callDdicDoma = lazyDdic(
   'callDdicDoma',
   () => odata.callDdicDoma,
 );
+export const callDdicTtyp: typeof odata.callDdicTtyp = lazyDdic(
+  'callDdicTtyp',
+  () => odata.callDdicTtyp,
+);
 export const callDdicActivate: typeof odata.callDdicActivate = lazyDdic(
   'callDdicActivate',
   () => odata.callDdicActivate,

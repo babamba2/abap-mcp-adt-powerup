@@ -4,6 +4,7 @@ exports.BaseMcpServer = void 0;
 const node_module_1 = require("node:module");
 const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
+const interfaces_js_1 = require("../lib/handlers/interfaces.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const schemaUtils_js_1 = require("../lib/handlers/utils/schemaUtils.js");
 const legacyLockHint_js_1 = require("../lib/legacyLockHint.js");
@@ -419,6 +420,11 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                             this.logger.debug(`[BaseMcpServer] Skipping tool ${entry.toolDefinition.name}: available_in=${JSON.stringify(availableIn)}, currentEnv=${currentEnv}, SAP_SYSTEM_TYPE=${envType || '(not set, default: cloud)'}`);
                             continue;
                         }
+                    }
+                    // Skip tools outside the active tool profile (SAP_TOOL_PROFILE)
+                    if (!(0, interfaces_js_1.isToolInProfile)(entry.toolDefinition.tool_profile, (0, interfaces_js_1.resolveToolProfile)())) {
+                        this.logger.debug(`[BaseMcpServer] Skipping tool ${entry.toolDefinition.name}: not in SAP_TOOL_PROFILE=${(0, interfaces_js_1.resolveToolProfile)()}`);
+                        continue;
                     }
                     // Register wrapped handler via SDK registerTool
                     // Note: connection is NOT part of MCP tool signature

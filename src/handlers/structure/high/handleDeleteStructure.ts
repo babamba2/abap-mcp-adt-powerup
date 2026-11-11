@@ -4,6 +4,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
+import { callDdicTabl } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -49,9 +50,42 @@ export async function handleDeleteStructure(
       return return_error(new Error('structure_name is required'));
     }
 
-    const client = createAdtClient(connection, logger);
     const structureName = structure_name.toUpperCase();
 
+    // ECC: no /sap/bc/adt/ddic/structures endpoint. A structure is a TABL
+    // object in the DDIC, so ZMCP_ADT_DDIC_TABL DELETE removes it.
+    if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
+      try {
+        logger?.info(
+          `ECC: deleting structure ${structureName} via ZMCP_ADT_DDIC_TABL`,
+        );
+        await callDdicTabl(connection, 'DELETE', {
+          name: structureName,
+          transport: transport_request,
+        });
+        return return_response({
+          data: JSON.stringify(
+            {
+              success: true,
+              structure_name: structureName,
+              transport_request: transport_request || null,
+              message: `Structure ${structureName} deleted successfully (ECC fallback via OData).`,
+              path: 'ecc-odata-rfc',
+            },
+            null,
+            2,
+          ),
+        } as AxiosResponse);
+      } catch (error: any) {
+        return return_error(
+          new Error(
+            `Failed to delete structure ${structureName} (ECC fallback): ${error?.message || String(error)}`,
+          ),
+        );
+      }
+    }
+
+    const client = createAdtClient(connection, logger);
     logger?.info(`Starting structure deletion: ${structureName}`);
 
     try {

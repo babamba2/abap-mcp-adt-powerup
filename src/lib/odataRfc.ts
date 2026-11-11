@@ -393,7 +393,7 @@ export interface DdicResult {
 }
 
 async function callDdicObject(
-  functionImport: 'DdicTabl' | 'DdicDtel' | 'DdicDoma',
+  functionImport: 'DdicTabl' | 'DdicDtel' | 'DdicDoma' | 'DdicTtyp',
   action: 'CREATE' | 'UPDATE' | 'DELETE',
   params: {
     name: string;
@@ -461,9 +461,23 @@ export async function callDdicDoma(
   return callDdicObject('DdicDoma', action, params);
 }
 
+/** Table type (TTYP) writes through ZMCP_ADT_DDIC_TTYP (FunctionImport DdicTtyp). */
+export async function callDdicTtyp(
+  _connection: IAbapConnection,
+  action: 'CREATE' | 'UPDATE' | 'DELETE',
+  params: {
+    name: string;
+    devclass?: string;
+    transport?: string;
+    payload_json?: string;
+  },
+): Promise<DdicResult> {
+  return callDdicObject('DdicTtyp', action, params);
+}
+
 export async function callDdicActivate(
   _connection: IAbapConnection,
-  type: 'TABL' | 'DTEL' | 'DOMA',
+  type: 'TABL' | 'DTEL' | 'DOMA' | 'TTYP',
   name: string,
 ): Promise<DdicResult> {
   const raw = await postFunctionImport('DdicActivate', {

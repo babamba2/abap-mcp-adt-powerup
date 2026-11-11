@@ -63,7 +63,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.callWlJobUsage = exports.callWlTcodeUsage = exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = void 0;
+exports.callWlJobUsage = exports.callWlTcodeUsage = exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicTtyp = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = void 0;
 exports.getBackend = getBackend;
 const gateway = __importStar(require("./gatewayRfc"));
 const native = __importStar(require("./nativeRfc"));
@@ -162,6 +162,7 @@ function lazyDdicRead(name, odataFn, soapFn) {
 exports.callDdicTabl = lazyDdic('callDdicTabl', () => odata.callDdicTabl);
 exports.callDdicDtel = lazyDdic('callDdicDtel', () => odata.callDdicDtel);
 exports.callDdicDoma = lazyDdic('callDdicDoma', () => odata.callDdicDoma);
+exports.callDdicTtyp = lazyDdic('callDdicTtyp', () => odata.callDdicTtyp);
 exports.callDdicActivate = lazyDdic('callDdicActivate', () => odata.callDdicActivate);
 exports.callDdicBadi = lazyDdic('callDdicBadi', () => odata.callDdicBadi);
 exports.callDdicTablRead = lazyDdicRead('callDdicTablRead', () => odata.callDdicTablRead, () => soap.callDdicTablRead);

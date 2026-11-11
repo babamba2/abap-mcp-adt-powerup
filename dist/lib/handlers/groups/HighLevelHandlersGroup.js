@@ -86,6 +86,8 @@ const handleCreateSmartForm_1 = require("../../../handlers/smartform/high/handle
 const handleDeleteSmartForm_1 = require("../../../handlers/smartform/high/handleDeleteSmartForm");
 const handleCreateStructure_1 = require("../../../handlers/structure/high/handleCreateStructure");
 const handleDeleteStructure_1 = require("../../../handlers/structure/high/handleDeleteStructure");
+const handleCreateTableType_1 = require("../../../handlers/table_type/high/handleCreateTableType");
+const handleDeleteTableType_1 = require("../../../handlers/table_type/high/handleDeleteTableType");
 const handleGetStructure_1 = require("../../../handlers/structure/high/handleGetStructure");
 const handleUpdateStructure_1 = require("../../../handlers/structure/high/handleUpdateStructure");
 const handleCreateTable_1 = require("../../../handlers/table/high/handleCreateTable");
@@ -207,6 +209,14 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleDeleteStructure_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteStructure_1.handleDeleteStructure),
+            },
+            {
+                toolDefinition: handleCreateTableType_1.TOOL_DEFINITION,
+                handler: withContext(handleCreateTableType_1.handleCreateTableType),
+            },
+            {
+                toolDefinition: handleDeleteTableType_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteTableType_1.handleDeleteTableType),
             },
             {
                 toolDefinition: handleCreateView_1.TOOL_DEFINITION,

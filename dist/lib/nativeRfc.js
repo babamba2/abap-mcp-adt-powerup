@@ -20,6 +20,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.callDispatch = callDispatch;
 exports.callTextpool = callTextpool;
+exports.callRfcFunction = callRfcFunction;
 const profileEvents_1 = require("./profileEvents");
 let pool = null;
 let loadErr = null;
@@ -157,6 +158,21 @@ async function callTextpool(_connection, action, params) {
             throw new Error(`ZMCP_ADT_TEXTPOOL error (action=${action}, subrc=${subrc}): ${message}`);
         }
         return { result, subrc, message };
+    }
+    finally {
+        await p.release(client);
+    }
+}
+/**
+ * Call any RFC-enabled function module via native RFC and return the raw
+ * export parameters. Used by the business-action tools (ZMCP_BIZ_EXECUTE),
+ * whose non-zero EV_SUBRC is a business answer, not a transport error.
+ */
+async function callRfcFunction(fmName, params) {
+    const p = getPool();
+    const client = await p.acquire();
+    try {
+        return await client.call(fmName, params);
     }
     finally {
         await p.release(client);
