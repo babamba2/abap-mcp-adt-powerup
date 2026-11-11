@@ -4,8 +4,8 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ## Summary
 
-- Total tools: 335
-- Read-only tools: 67
+- Total tools: 336
+- Read-only tools: 68
 - High-level tools: 134
 - Low-level tools: 134
 
@@ -76,6 +76,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetAbapSemanticAnalysis](#getabapsemanticanalysis-read-only-system)
     - [GetAbapSystemSymbols](#getabapsystemsymbols-read-only-system)
     - [GetAdtTypes](#getadttypes-read-only-system)
+    - [GetAreaMenu](#getareamenu-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
     - [GetJobUsage](#getjobusage-read-only-system)
     - [GetObjectInfo](#getobjectinfo-read-only-system)
@@ -719,7 +720,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="readprogram-read-only-program"></a>
 #### ReadProgram (Read-Only / Program)
-**Description:** [read-only] Read ABAP program source code and metadata (package, responsible, description, etc.).
+**Description:** [read-only] Read ABAP program or include source code and metadata (package, responsible, description, etc.). The result carries object_type PROG/P or PROG/I; an unknown name returns an error.
 
 **Source:** `src/handlers/program/readonly/handleReadProgram.ts`
 
@@ -907,6 +908,21 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getareamenu-read-only-system"></a>
+#### GetAreaMenu (Read-Only / System)
+**Description:** [read-only] Read an SE43 area menu (e.g. a customer menu ZXX00) as a flat list: every t-code with its folder path, plus the folders and the links to other area menus. Links to customer menus (Z / Y / namespace) are followed by default. Pass menu_pattern (e.g. "Z*") instead of menu to list the area menus.
+
+**Source:** `src/handlers/system/readonly/handleGetAreaMenu.ts`
+
+**Parameters:**
+- `follow_links` (string, optional (default: customer)) - Linked area menus: "customer" follows Z / Y / namespace menus only (default), "all" also SAP menus, "none" lists the links only.
+- `language` (string, optional) - SAP one-character language key for texts (e.g. E, 3). Default: the menu master language. Falls back to the master language, then E.
+- `menu` (string, optional) - Area menu name (SE43), e.g. ZXX00.
+- `menu_pattern` (string, optional) - List area menus instead: name pattern with * (e.g. "Z*"). Returns name, master language, last change.
+- `output` (string, optional (default: inline)) - "file" writes the full result as JSON under the MCP output dir (areamenu/<menu>-<time>.json) and returns the path and counts only. Prefer it for large menus.
+
+---
+
 <a id="getinactiveobjects-read-only-system"></a>
 #### GetInactiveObjects (Read-Only / System)
 **Description:** [read-only] Get a list of inactive ABAP objects — modified but not yet activated, pending activation. Shows classes, tables, CDS views, and other objects awaiting activation.
@@ -1018,6 +1034,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.
+- `output` (string, optional (default: inline)) - "inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.
 - `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
 
@@ -3223,12 +3240,12 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 <a id="writetextelementsbulk-high-level-text-element"></a>
 #### WriteTextElementsBulk (High-Level / Text Element)
-**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=false (default) the pool is staged INACTIVE — the parent program's next activation promotes every entry atomically, which is the correct flow for "register 40 now, activate program later". With activate=true the pool is written ACTIVE immediately. Set replace_existing=false to merge into the current pool instead of replacing it.
+**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=true (default) the pool is written ACTIVE immediately. activate=false only stages the pool INACTIVE and does not register it in the inactive worklist, so a later program activation does NOT promote it — avoid it unless you activate the text pool yourself. Set replace_existing=false to merge into the current pool instead of replacing it.
 
 **Source:** `src/handlers/text_element/high/handleWriteTextElementsBulk.ts`
 
 **Parameters:**
-- `activate` (boolean, optional) - false (default) — stage as INACTIVE (program activation promotes). true — write ACTIVE immediately.
+- `activate` (boolean, optional) - true (default) — write ACTIVE immediately. false — stage as INACTIVE only; the pool is NOT added to the inactive worklist, so ActivateObjects on the program does not promote it.
 - `language` (string, optional) - 1-char language key (e.g. "K" for Korean). Defaults to SAP logon language.
 - `program_name` (string, required) - Parent program name.
 - `replace_existing` (boolean, optional) - If true (default), the TPOOL is replaced with the provided entries only. If false, existing rows are preserved and provided rows merge by (type, key).
@@ -5482,4 +5499,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-10-28*
+*Last updated: 2026-11-11*

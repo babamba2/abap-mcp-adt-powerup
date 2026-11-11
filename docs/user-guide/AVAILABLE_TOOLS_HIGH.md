@@ -1999,12 +1999,12 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 <a id="writetextelementsbulk-high-level-text-element"></a>
 #### WriteTextElementsBulk (High-Level / Text Element)
-**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=false (default) the pool is staged INACTIVE — the parent program's next activation promotes every entry atomically, which is the correct flow for "register 40 now, activate program later". With activate=true the pool is written ACTIVE immediately. Set replace_existing=false to merge into the current pool instead of replacing it.
+**Description:** Register many ABAP text elements (R/I/S/H) in ONE tool call via a single TPOOL RFC write. Use instead of calling CreateTextElement N times. With activate=true (default) the pool is written ACTIVE immediately. activate=false only stages the pool INACTIVE and does not register it in the inactive worklist, so a later program activation does NOT promote it — avoid it unless you activate the text pool yourself. Set replace_existing=false to merge into the current pool instead of replacing it.
 
 **Source:** `src/handlers/text_element/high/handleWriteTextElementsBulk.ts`
 
 **Parameters:**
-- `activate` (boolean, optional) - false (default) — stage as INACTIVE (program activation promotes). true — write ACTIVE immediately.
+- `activate` (boolean, optional) - true (default) — write ACTIVE immediately. false — stage as INACTIVE only; the pool is NOT added to the inactive worklist, so ActivateObjects on the program does not promote it.
 - `language` (string, optional) - 1-char language key (e.g. "K" for Korean). Defaults to SAP logon language.
 - `program_name` (string, required) - Parent program name.
 - `replace_existing` (boolean, optional) - If true (default), the TPOOL is replaced with the provided entries only. If false, existing rows are preserved and provided rows merge by (type, key).
@@ -2254,4 +2254,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-10-28*
+*Last updated: 2026-11-11*

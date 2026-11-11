@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: Read-Only
-- Total tools: 67
+- Total tools: 68
 
 ## Navigation
 
@@ -62,6 +62,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetAbapSemanticAnalysis](#getabapsemanticanalysis-read-only-system)
     - [GetAbapSystemSymbols](#getabapsystemsymbols-read-only-system)
     - [GetAdtTypes](#getadttypes-read-only-system)
+    - [GetAreaMenu](#getareamenu-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
     - [GetJobUsage](#getjobusage-read-only-system)
     - [GetObjectInfo](#getobjectinfo-read-only-system)
@@ -389,7 +390,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="readprogram-read-only-program"></a>
 #### ReadProgram (Read-Only / Program)
-**Description:** [read-only] Read ABAP program source code and metadata (package, responsible, description, etc.).
+**Description:** [read-only] Read ABAP program or include source code and metadata (package, responsible, description, etc.). The result carries object_type PROG/P or PROG/I; an unknown name returns an error.
 
 **Source:** `src/handlers/program/readonly/handleReadProgram.ts`
 
@@ -577,6 +578,21 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getareamenu-read-only-system"></a>
+#### GetAreaMenu (Read-Only / System)
+**Description:** [read-only] Read an SE43 area menu (e.g. a customer menu ZXX00) as a flat list: every t-code with its folder path, plus the folders and the links to other area menus. Links to customer menus (Z / Y / namespace) are followed by default. Pass menu_pattern (e.g. "Z*") instead of menu to list the area menus.
+
+**Source:** `src/handlers/system/readonly/handleGetAreaMenu.ts`
+
+**Parameters:**
+- `follow_links` (string, optional (default: customer)) - Linked area menus: "customer" follows Z / Y / namespace menus only (default), "all" also SAP menus, "none" lists the links only.
+- `language` (string, optional) - SAP one-character language key for texts (e.g. E, 3). Default: the menu master language. Falls back to the master language, then E.
+- `menu` (string, optional) - Area menu name (SE43), e.g. ZXX00.
+- `menu_pattern` (string, optional) - List area menus instead: name pattern with * (e.g. "Z*"). Returns name, master language, last change.
+- `output` (string, optional (default: inline)) - "file" writes the full result as JSON under the MCP output dir (areamenu/<menu>-<time>.json) and returns the path and counts only. Prefer it for large menus.
+
+---
+
 <a id="getinactiveobjects-read-only-system"></a>
 #### GetInactiveObjects (Read-Only / System)
 **Description:** [read-only] Get a list of inactive ABAP objects — modified but not yet activated, pending activation. Shows classes, tables, CDS views, and other objects awaiting activation.
@@ -688,6 +704,7 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.
+- `output` (string, optional (default: inline)) - "inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.
 - `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
 
@@ -1067,4 +1084,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-10-28*
+*Last updated: 2026-11-11*
