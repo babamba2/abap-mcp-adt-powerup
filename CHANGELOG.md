@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [4.8.20] - 2026-11-11
+
 ### Added
 - **`GetAreaMenu`** (read-only, on-premise). Reads an SE43 area menu (`TTREE` type `BMENU` → `TMENU01` / `TMENU01R` / `TMENU01T`) as a flat list: every transaction with its folder path and menu text, plus the folders and the links to other area menus. Links to customer menus (Z / Y / namespace) are followed by default (`follow_links`: `customer` | `all` | `none`). `menu_pattern` (e.g. `Z*`) lists the menus with master language and last change instead. Texts in the requested language fall back to the master language, then English; texts stored as `#` only are skipped. `output: "file"` writes the result to `<MCP output dir>/areamenu/<menu>-<time>.json`. Works on the ADT SQL path and on the legacy `TABLE_READ` path (ECC; reference rows are read in batches of 60 nodes).
 

@@ -178,7 +178,10 @@ function sqlResultToFile(parsed) {
     const table = ((0, tableBlocklist_1.extractTablesFromSql)(String(parsed.sql_query ?? ''))[0] ?? 'query')
         .toLowerCase()
         .replace(/[^a-z0-9_]/g, '_');
-    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 17);
+    const stamp = new Date()
+        .toISOString()
+        .replace(/[-:.TZ]/g, '')
+        .slice(0, 17);
     const rand = Math.random().toString(36).slice(2, 6);
     const target = (0, sourceOutput_1.safeOutputPath)(path.join('sql', `${table}-${stamp}-${rand}.json`));
     fs.mkdirSync(path.dirname(target), { recursive: true });
