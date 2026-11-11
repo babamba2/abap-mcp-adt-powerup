@@ -7,7 +7,7 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicDtelRead } from '../../../lib/rfcBackend';
+import { callDdicDtelRead, eccBridgePath } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -91,7 +91,7 @@ export async function handleGetDataElement(
             data_element_data: JSON.stringify(bridge.result),
             status: 200,
             status_text: 'OK',
-            path: 'ecc-odata-rfc',
+            path: eccBridgePath(),
           },
           null,
           2,

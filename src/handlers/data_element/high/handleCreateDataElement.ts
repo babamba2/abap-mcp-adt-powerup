@@ -9,7 +9,12 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicDtel } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicDtel,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -394,8 +399,8 @@ async function handleCreateDataElementEcc(
           transport_request: args.transport_request,
           data_type: args.data_type || null,
           status: shouldActivate ? 'active' : 'inactive',
-          message: `Data element ${dataElementName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
-          path: 'ecc-odata-rfc',
+          message: `Data element ${dataElementName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${eccBridgeVia()})`,
+          path: eccBridgePath(),
         },
         null,
         2,

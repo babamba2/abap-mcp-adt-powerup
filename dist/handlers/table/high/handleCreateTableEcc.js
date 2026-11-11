@@ -167,8 +167,8 @@ async function handleCreateTableEcc(context, args) {
                 transport_request: args.transport_request,
                 field_count: payload.dd03p.length,
                 status: shouldActivate ? 'active' : 'inactive',
-                message: `Table ${tableName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-                path: 'ecc-odata-rfc',
+                message: `Table ${tableName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }, null, 2),
         });
     }

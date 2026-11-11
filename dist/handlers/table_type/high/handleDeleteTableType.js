@@ -50,8 +50,8 @@ async function handleDeleteTableType(context, args) {
                 success: true,
                 table_type_name: name,
                 transport_request: args.transport_request || null,
-                message: `Table type ${name} deleted successfully${ecc ? ' (ECC fallback via OData)' : ''}.`,
-                ...(ecc ? { path: 'ecc-odata-rfc' } : {}),
+                message: `Table type ${name} deleted successfully${ecc ? ` (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})` : ''}.`,
+                ...(ecc ? { path: (0, rfcBackend_1.eccBridgePath)() } : {}),
             }, null, 2),
         });
     }

@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [4.11.0] - 2026-11-11
+
+### Added
+- **NCo RFC backend `SAP_RFC_BACKEND=nco`** (Windows, SAP .NET Connector 3.x). The sc4sap helper FMs are called over RFC — no OData service, no SOAP ICF node. It reuses the OData backend's functions: their single transport point (`postFunctionImport`) sends the same FunctionImport and `IV_*` parameters to the FM over NCo (`lib/ncoRfc.ts`). Remote-enabled FMs (`ZMCP_ADT_DISPATCH`, `_TEXTPOOL`, `_DDIC_TABL` / `DTEL` / `DOMA` / `ACTIVATE`) are called directly; the others (DDIC reads, `ZMCP_ADT_DDIC_TTYP`, `_BADI`, `ZMCP_WL_*`) through the new dispatcher action `FM_PROXY` (allow list, sc4sap `abap/zmcp_adt_dispatch*.abap`). Business actions go through the dispatcher (`BIZ_EXECUTE`). DDIC writes and reads on ECC accept `nco` next to `odata`.
+- **NCo ADT connection `SAP_CONNECTION_TYPE=nco`**: ADT requests over `SADT_REST_RFC_ENDPOINT` through `@babamba2/mcp-abap-connection` 1.6.0 (`RfcAbapConnection`, now NCo-driven). Lock / write / unlock run in one RFC session. `SAP_CONNECTION_TYPE=rfc` stays removed.
+- Keys `SAP_NCO_ASHOST`, `SAP_NCO_SYSNR` (default from the `SAP_URL` port 80XX), `SAP_NCO_LANG`, `SAP_NCO_BRIDGE_EXE`; cleared on a profile switch like `SAP_RFC_*`. Open NCo connections are closed when the connection cache is invalidated (ReloadProfile).
+- ECC bridge replies report `path: "ecc-nco-rfc"` / "via NCo RFC" on the NCo backend; OData replies keep `ecc-odata-rfc` / "via OData".
+
+### Changed
+- Requires `@babamba2/mcp-abap-connection` ^1.6.0.
+
 ## [4.10.0] - 2026-11-11
 
 ### Removed

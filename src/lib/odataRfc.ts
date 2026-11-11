@@ -46,6 +46,7 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
+import { isNcoBackend, ncoFunctionImport } from './ncoRfc';
 import { registerProfileChangeHook } from './profileEvents';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
@@ -246,6 +247,8 @@ async function postFunctionImport(
   actionName: string,
   params: Record<string, string>,
 ): Promise<any> {
+  // SAP_RFC_BACKEND=nco: same FunctionImport contract, sent over RFC (NCo).
+  if (isNcoBackend()) return ncoFunctionImport(actionName, params);
   const base = normaliseBaseUrl(required('SAP_RFC_ODATA_SERVICE_URL'));
   const path = buildFunctionImportQuery(actionName, params);
   const url = withSapClient(`${base}/${path}`);

@@ -51,7 +51,7 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     process.env.SAP_RFC_BACKEND = 'grpc';
     const mod = require('../../lib/rfcBackend');
     expect(() => mod.getBackend()).toThrow(
-      /SAP_RFC_BACKEND must be 'odata' | 'soap'/,
+      /SAP_RFC_BACKEND must be 'odata' \| 'soap' \| 'nco'/,
     );
     expect(() => mod.backend).toThrow();
   });
@@ -76,6 +76,12 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     process.env.SAP_RFC_BACKEND = 'soap';
     const mod = require('../../lib/rfcBackend');
     expect(mod.backend).toBe('soap');
+  });
+
+  it('selects nco when SAP_RFC_BACKEND=nco', () => {
+    process.env.SAP_RFC_BACKEND = 'nco';
+    const mod = require('../../lib/rfcBackend');
+    expect(mod.backend).toBe('nco');
   });
 
   it('resolution is lazy — `backend` reflects env at access time, not module-load', () => {
@@ -185,8 +191,19 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
       process.env.SAP_RFC_BACKEND = 'soap';
       const mod = require('../../lib/rfcBackend');
       expect(() => mod.callDdicTabl({} as any, 'CREATE', {})).toThrow(
-        /requires SAP_RFC_BACKEND=odata \(current='soap'\)/,
+        /requires SAP_RFC_BACKEND=odata or nco \(current='soap'\)/,
       );
+    });
+
+    it('nco routes through the odata module (transport switches inside)', async () => {
+      setupMocks();
+      process.env.SAP_RFC_BACKEND = 'nco';
+      const mod = require('../../lib/rfcBackend');
+      const result = await mod.callDispatch({} as any, 'PING', {});
+      expect(result.result.backend).toBe('odata');
+      await expect(mod.callDdicTabl({} as any, 'CREATE', {})).resolves.toEqual({
+        subrc: 0,
+      });
     });
 
     it('callDdicTabl forwards to odata when SAP_RFC_BACKEND=odata', async () => {

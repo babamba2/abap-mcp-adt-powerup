@@ -10,7 +10,12 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicDoma } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicDoma,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -362,9 +367,9 @@ async function handleUpdateDomainEcc(
         package: args.package_name,
         transport_request: args.transport_request,
         status: shouldActivate ? 'active' : 'inactive',
-        message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+        message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${eccBridgeVia()})`,
         domain_details: null,
-        path: 'ecc-odata-rfc',
+        path: eccBridgePath(),
       }),
     } as AxiosResponse);
   } catch (error: any) {

@@ -7,6 +7,7 @@ import {
 } from '@babamba2/mcp-abap-connection';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { HandlerContext } from '../handlers/interfaces.js';
+import { rfcConnectionTypeFromEnv } from '../lib/connectionType.js';
 import type {
   IHandlersRegistry,
   SapEnvironment,
@@ -168,6 +169,9 @@ export abstract class BaseMcpServer extends McpServer {
               username: connectionConfig.username || '',
               password: connectionConfig.password || '',
               client: connectionConfig.sapClient || '',
+              ...(rfcConnectionTypeFromEnv() && {
+                connectionType: 'rfc' as const,
+              }),
             }
           : {
               url: connectionConfig.serviceUrl || '',
@@ -267,6 +271,9 @@ export abstract class BaseMcpServer extends McpServer {
         username: env.SAP_USERNAME,
         password: env.SAP_PASSWORD,
         client,
+        ...(rfcConnectionTypeFromEnv(env) && {
+          connectionType: 'rfc' as const,
+        }),
       };
     } else if (url && env.SAP_JWT_TOKEN) {
       connectionParams = {

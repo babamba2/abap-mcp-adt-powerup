@@ -10,7 +10,12 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicTabl } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicTabl,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -253,8 +258,8 @@ export async function handleCreateTableEcc(
           transport_request: args.transport_request,
           field_count: payload.dd03p.length,
           status: shouldActivate ? 'active' : 'inactive',
-          message: `Table ${tableName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-          path: 'ecc-odata-rfc',
+          message: `Table ${tableName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${eccBridgeVia()})`,
+          path: eccBridgePath(),
         },
         null,
         2,

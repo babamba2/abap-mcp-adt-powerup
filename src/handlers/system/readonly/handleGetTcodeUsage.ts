@@ -16,7 +16,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callWlTcodeUsage } from '../../../lib/rfcBackend';
+import { callWlTcodeUsage, eccBridgePath } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -101,7 +101,7 @@ export async function handleGetTcodeUsage(
       data: JSON.stringify(
         {
           success: fm.subrc === 0,
-          path: 'ecc-odata-rfc',
+          path: eccBridgePath(),
           system: fm.sysid || null,
           destination: destination || null,
           message: fm.message,

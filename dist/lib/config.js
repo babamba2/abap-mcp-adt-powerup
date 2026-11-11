@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getConfig = getConfig;
 exports.setSapConfigOverride = setSapConfigOverride;
+const connectionType_1 = require("./connectionType");
 // Don't import setConfigOverride from utils.ts to avoid circular dependency
 // setConfigOverride will be called lazily if needed
 let sapConfigOverride;
@@ -85,6 +86,7 @@ function getConfig() {
     const config = {
         url, // Already cleaned and validated above
         authType,
+        ...((0, connectionType_1.rfcConnectionTypeFromEnv)() && { connectionType: 'rfc' }),
     };
     if (client) {
         config.client = client;

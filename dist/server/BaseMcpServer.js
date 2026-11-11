@@ -4,6 +4,7 @@ exports.BaseMcpServer = void 0;
 const node_module_1 = require("node:module");
 const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
+const connectionType_js_1 = require("../lib/connectionType.js");
 const interfaces_js_1 = require("../lib/handlers/interfaces.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const schemaUtils_js_1 = require("../lib/handlers/utils/schemaUtils.js");
@@ -121,6 +122,9 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                     username: connectionConfig.username || '',
                     password: connectionConfig.password || '',
                     client: connectionConfig.sapClient || '',
+                    ...((0, connectionType_js_1.rfcConnectionTypeFromEnv)() && {
+                        connectionType: 'rfc',
+                    }),
                 }
                 : {
                     url: connectionConfig.serviceUrl || '',
@@ -214,6 +218,9 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                 username: env.SAP_USERNAME,
                 password: env.SAP_PASSWORD,
                 client,
+                ...((0, connectionType_js_1.rfcConnectionTypeFromEnv)(env) && {
+                    connectionType: 'rfc',
+                }),
             };
         }
         else if (url && env.SAP_JWT_TOKEN) {

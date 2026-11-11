@@ -124,8 +124,8 @@ async function handleDeleteDataElementEcc(context, dataElementName, transportReq
                 success: true,
                 data_element_name: dataElementName,
                 transport_request: transportRequest || null,
-                message: `Data element ${dataElementName} deleted successfully (ECC fallback via OData).`,
-                path: 'ecc-odata-rfc',
+                message: `Data element ${dataElementName} deleted successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()}).`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }, null, 2),
         });
     }

@@ -73,7 +73,7 @@ async function handleGetTcodeUsage(context, args) {
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: fm.subrc === 0,
-                path: 'ecc-odata-rfc',
+                path: (0, rfcBackend_1.eccBridgePath)(),
                 system: fm.sysid || null,
                 destination: destination || null,
                 message: fm.message,

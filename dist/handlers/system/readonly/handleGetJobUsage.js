@@ -66,7 +66,7 @@ async function handleGetJobUsage(context, args) {
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: fm.subrc === 0,
-                path: 'ecc-odata-rfc',
+                path: (0, rfcBackend_1.eccBridgePath)(),
                 message: fm.message,
                 months,
                 window_start: start,

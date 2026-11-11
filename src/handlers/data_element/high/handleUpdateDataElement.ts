@@ -9,7 +9,12 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicDtel } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicDtel,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -441,9 +446,9 @@ async function handleUpdateDataElementEcc(
         transport_request: args.transport_request,
         data_type: args.data_type || null,
         status: shouldActivate ? 'active' : 'inactive',
-        message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+        message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${eccBridgeVia()})`,
         data_element_details: null,
-        path: 'ecc-odata-rfc',
+        path: eccBridgePath(),
       }),
     } as AxiosResponse);
   } catch (error: any) {

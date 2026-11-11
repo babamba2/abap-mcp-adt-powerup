@@ -24,7 +24,7 @@ export const TOOL_DEFINITION = {
   name: 'CreateTable',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    'Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata).',
+    'Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).',
   inputSchema: {
     type: 'object',
     properties: {

@@ -130,7 +130,7 @@ mcp-abap-adt --transport=sse
 
 ## SAP Connection Type
 
-The server connects over HTTP/HTTPS only. `--connection-type=rfc` and `SAP_CONNECTION_TYPE=rfc` (ADT over node-rfc + SAP NW RFC SDK) were removed in 4.10.0; the server refuses to start when either is set.
+The server connects over HTTP/HTTPS by default. `SAP_CONNECTION_TYPE=nco` (Windows, SAP .NET Connector 3.x) sends the ADT requests over RFC (`SADT_REST_RFC_ENDPOINT`) instead; `SAP_NCO_ASHOST` / `SAP_NCO_SYSNR` / `SAP_NCO_LANG` override the host and system number derived from `SAP_URL` (port 80XX → XX). `--connection-type=rfc` and `SAP_CONNECTION_TYPE=rfc` (ADT over node-rfc + SAP NW RFC SDK) were removed in 4.10.0; the server refuses to start when either is set.
 
 ## Auth-Broker Options
 

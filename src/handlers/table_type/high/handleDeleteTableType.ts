@@ -5,7 +5,11 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicTtyp } from '../../../lib/rfcBackend';
+import {
+  callDdicTtyp,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -63,8 +67,8 @@ export async function handleDeleteTableType(
           success: true,
           table_type_name: name,
           transport_request: args.transport_request || null,
-          message: `Table type ${name} deleted successfully${ecc ? ' (ECC fallback via OData)' : ''}.`,
-          ...(ecc ? { path: 'ecc-odata-rfc' } : {}),
+          message: `Table type ${name} deleted successfully${ecc ? ` (ECC fallback via ${eccBridgeVia()})` : ''}.`,
+          ...(ecc ? { path: eccBridgePath() } : {}),
         },
         null,
         2,

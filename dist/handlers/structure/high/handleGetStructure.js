@@ -57,7 +57,7 @@ async function handleGetStructure(context, args) {
                     structure_data: JSON.stringify(bridge.result),
                     status: 200,
                     status_text: 'OK',
-                    path: 'ecc-odata-rfc',
+                    path: (0, rfcBackend_1.eccBridgePath)(),
                 }, null, 2),
             });
         }

@@ -127,8 +127,8 @@ async function handleDeleteDomainEcc(context, domainName, transportRequest) {
                 success: true,
                 domain_name: domainName,
                 transport_request: transportRequest || null,
-                message: `Domain ${domainName} deleted successfully (ECC fallback via OData).`,
-                path: 'ecc-odata-rfc',
+                message: `Domain ${domainName} deleted successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()}).`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }, null, 2),
         });
     }

@@ -98,7 +98,9 @@ function hydrateSystemContextFromEnvFile(envFilePath) {
         // keys — listing every one here would be lossy. Instead, propagate any SAP_RFC_*
         // key present in the env file so future backends don't need this allowlist edit.
         for (const [key, value] of Object.entries(parsed)) {
-            if (key.startsWith('SAP_RFC_') && !process.env[key] && value) {
+            if ((key.startsWith('SAP_RFC_') || key.startsWith('SAP_NCO_')) &&
+                !process.env[key] &&
+                value) {
                 process.env[key] = value;
             }
         }

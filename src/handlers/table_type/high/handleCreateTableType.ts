@@ -10,7 +10,12 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicTtyp } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicTtyp,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -23,7 +28,7 @@ export const TOOL_DEFINITION = {
   name: 'CreateTableType',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    'Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata).',
+    'Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -257,8 +262,8 @@ export async function handleCreateTableType(
             transport_request: args.transport_request || null,
             row_type: n.rowType,
             status: shouldActivate ? 'active' : 'inactive',
-            message: `Table type ${n.name} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-            path: 'ecc-odata-rfc',
+            message: `Table type ${n.name} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${eccBridgeVia()})`,
+            path: eccBridgePath(),
           },
           null,
           2,

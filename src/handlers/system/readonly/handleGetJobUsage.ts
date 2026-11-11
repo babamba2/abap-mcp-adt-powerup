@@ -13,7 +13,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callWlJobUsage } from '../../../lib/rfcBackend';
+import { callWlJobUsage, eccBridgePath } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -88,7 +88,7 @@ export async function handleGetJobUsage(
       data: JSON.stringify(
         {
           success: fm.subrc === 0,
-          path: 'ecc-odata-rfc',
+          path: eccBridgePath(),
           message: fm.message,
           months,
           window_start: start,

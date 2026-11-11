@@ -49,8 +49,8 @@ async function handleDeleteStructure(context, args) {
                         success: true,
                         structure_name: structureName,
                         transport_request: transport_request || null,
-                        message: `Structure ${structureName} deleted successfully (ECC fallback via OData).`,
-                        path: 'ecc-odata-rfc',
+                        message: `Structure ${structureName} deleted successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()}).`,
+                        path: (0, rfcBackend_1.eccBridgePath)(),
                     }, null, 2),
                 });
             }

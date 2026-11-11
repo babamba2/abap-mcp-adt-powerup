@@ -9,7 +9,12 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicActivate, callDdicTabl } from '../../../lib/rfcBackend';
+import {
+  callDdicActivate,
+  callDdicTabl,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   ErrorCode,
@@ -547,8 +552,8 @@ async function handleCreateStructureEcc(
         activated: shouldActivate,
         activation_rc: shouldActivate ? activationRc : null,
         activation_message: activationMessage || undefined,
-        message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-        path: 'ecc-odata-rfc',
+        message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${eccBridgeVia()})`,
+        path: eccBridgePath(),
       }),
     } as AxiosResponse);
   } catch (error: any) {

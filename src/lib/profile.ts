@@ -74,6 +74,8 @@ const SAP_ENV_KEYS_TO_CLEAR = [
 
 /** Every key with this prefix is wiped on apply (see applyProfile). */
 const SAP_RFC_KEY_PREFIX = 'SAP_RFC_';
+// NCo connection keys (SAP_NCO_ASHOST / SYSNR / LANG / BRIDGE_EXE).
+const SAP_NCO_KEY_PREFIX = 'SAP_NCO_';
 
 // MCP_ALLOW_TABLE set by the process that launched this server (a script that
 // spawns its own server for one audited read). It is captured before the first
@@ -186,7 +188,12 @@ export function applyProfile(loaded: LoadedProfile): void {
   // (SAP_RFC_ODATA_*, ...).
   // A profile that does not set one must not inherit the previous profile's.
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith(SAP_RFC_KEY_PREFIX)) delete process.env[key];
+    if (
+      key.startsWith(SAP_RFC_KEY_PREFIX) ||
+      key.startsWith(SAP_NCO_KEY_PREFIX)
+    ) {
+      delete process.env[key];
+    }
   }
   for (const [k, v] of Object.entries(loaded.envVars)) {
     process.env[k] = v;

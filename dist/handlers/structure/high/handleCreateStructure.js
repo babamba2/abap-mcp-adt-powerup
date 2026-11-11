@@ -406,8 +406,8 @@ async function handleCreateStructureEcc(context, args, structureName) {
                 activated: shouldActivate,
                 activation_rc: shouldActivate ? activationRc : null,
                 activation_message: activationMessage || undefined,
-                message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-                path: 'ecc-odata-rfc',
+                message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }),
         });
     }

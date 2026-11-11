@@ -1,12 +1,15 @@
 /**
  * RFC backend selector.
  *
- * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' opt-in)
- * and routes callDispatch / callTextpool to the matching backend module on
- * every call.
+ * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' / 'nco'
+ * opt-in) and routes callDispatch / callTextpool to the matching backend
+ * module on every call.
  *
  *   odata   — SAP OData v2 service (ZMCP_ADT_SRV) via HTTPS (default)
  *   soap    — classic /sap/bc/soap/rfc HTTPS gateway (SAP built-in)
+ *   nco     — RFC through SAP .NET Connector (Windows; ./ncoRfc). Uses the
+ *             odata module's functions, whose transport point switches to
+ *             NCo, so every DDIC / usage helper works on it too.
  *
  * The 'native', 'gateway' and 'zrfc' backends were removed in 4.10.0; a
  * profile that still selects one fails with a message naming the fix
@@ -32,7 +35,7 @@ import {
 } from './removedTransports';
 import * as soap from './soapRfc';
 
-export type RfcBackend = 'soap' | 'odata';
+export type RfcBackend = 'soap' | 'odata' | 'nco';
 
 function resolveBackend(): RfcBackend {
   const v = (process.env.SAP_RFC_BACKEND ?? '').trim().toLowerCase();
@@ -40,11 +43,12 @@ function resolveBackend(): RfcBackend {
   if (v === '') return 'odata';
   if (v === 'odata') return 'odata';
   if (v === 'soap') return 'soap';
+  if (v === 'nco') return 'nco';
   if ((REMOVED_RFC_BACKENDS as readonly string[]).includes(v)) {
     throw new Error(removedBackendMessage(v));
   }
   throw new Error(
-    `SAP_RFC_BACKEND must be 'odata' | 'soap' (got '${v}'). ` +
+    `SAP_RFC_BACKEND must be 'odata' | 'soap' | 'nco' (got '${v}'). ` +
       `Default is 'odata'. Set in .sc4sap/sap.env.`,
   );
 }
@@ -60,7 +64,8 @@ type BackendModule = {
 };
 
 function pickModule(b: RfcBackend): BackendModule {
-  return b === 'odata' ? odata : soap;
+  // nco reuses the odata functions (their transport switches to NCo).
+  return b === 'soap' ? soap : odata;
 }
 
 export const callDispatch: typeof odata.callDispatch = (...args) =>
@@ -96,7 +101,7 @@ export declare const backend: RfcBackend;
  */
 function unsupportedDdic(name: string, current: RfcBackend): never {
   throw new Error(
-    `${name} requires SAP_RFC_BACKEND=odata (current='${current}'). ` +
+    `${name} requires SAP_RFC_BACKEND=odata or nco (current='${current}'). ` +
       `The ECC DDIC fallback is only implemented against the OData ZMCP_ADT_SRV ` +
       `service. Set SAP_RFC_BACKEND=odata in .sc4sap/sap.env or use S/4HANA (native ADT).`,
   );
@@ -108,7 +113,7 @@ function lazyDdic<T extends (...args: any[]) => any>(
 ): T {
   return ((...args: Parameters<T>) => {
     const b = resolveBackend();
-    if (b !== 'odata') unsupportedDdic(name, b);
+    if (b !== 'odata' && b !== 'nco') unsupportedDdic(name, b);
     return fn()(...args);
   }) as T;
 }
@@ -124,7 +129,7 @@ function lazyDdicRead<T extends (...args: any[]) => any>(
 ): T {
   return ((...args: Parameters<T>) => {
     const b = resolveBackend();
-    if (b === 'odata') return odataFn()(...args);
+    if (b === 'odata' || b === 'nco') return odataFn()(...args);
     if (b === 'soap') return soapFn()(...args);
     unsupportedDdic(name, b);
   }) as T;
@@ -183,3 +188,24 @@ export type { DdicResult } from './odataRfc';
 // soapRfc.ts / odataRfc.ts for them. This keeps the import surface
 // symmetrical.
 export type { DispatchResult, TextpoolResult, TextpoolRow } from './soapRfc';
+
+/**
+ * Response labels of the ECC function-module bridge. The OData labels stay
+ * exactly as before ('ecc-odata-rfc', "via OData"); the NCo backend reports
+ * its own path so a reply never claims a transport that was not used.
+ */
+function backendOrDefault(): RfcBackend {
+  try {
+    return resolveBackend();
+  } catch {
+    return 'odata';
+  }
+}
+
+export function eccBridgePath(): 'ecc-odata-rfc' | 'ecc-nco-rfc' {
+  return backendOrDefault() === 'nco' ? 'ecc-nco-rfc' : 'ecc-odata-rfc';
+}
+
+export function eccBridgeVia(): 'OData' | 'NCo RFC' {
+  return backendOrDefault() === 'nco' ? 'NCo RFC' : 'OData';
+}

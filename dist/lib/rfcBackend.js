@@ -2,12 +2,15 @@
 /**
  * RFC backend selector.
  *
- * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' opt-in)
- * and routes callDispatch / callTextpool to the matching backend module on
- * every call.
+ * Reads SAP_RFC_BACKEND from process.env ('odata' default, 'soap' / 'nco'
+ * opt-in) and routes callDispatch / callTextpool to the matching backend
+ * module on every call.
  *
  *   odata   — SAP OData v2 service (ZMCP_ADT_SRV) via HTTPS (default)
  *   soap    — classic /sap/bc/soap/rfc HTTPS gateway (SAP built-in)
+ *   nco     — RFC through SAP .NET Connector (Windows; ./ncoRfc). Uses the
+ *             odata module's functions, whose transport point switches to
+ *             NCo, so every DDIC / usage helper works on it too.
  *
  * The 'native', 'gateway' and 'zrfc' backends were removed in 4.10.0; a
  * profile that still selects one fails with a message naming the fix
@@ -61,6 +64,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.callWlJobUsage = exports.callWlTcodeUsage = exports.callDdicDomaRead = exports.callDdicDtelRead = exports.callDdicTablRead = exports.callDdicBadi = exports.callDdicActivate = exports.callDdicTtyp = exports.callDdicDoma = exports.callDdicDtel = exports.callDdicTabl = exports.callTextpool = exports.callDispatch = void 0;
 exports.getBackend = getBackend;
+exports.eccBridgePath = eccBridgePath;
+exports.eccBridgeVia = eccBridgeVia;
 const odata = __importStar(require("./odataRfc"));
 const removedTransports_1 = require("./removedTransports");
 const soap = __importStar(require("./soapRfc"));
@@ -73,10 +78,12 @@ function resolveBackend() {
         return 'odata';
     if (v === 'soap')
         return 'soap';
+    if (v === 'nco')
+        return 'nco';
     if (removedTransports_1.REMOVED_RFC_BACKENDS.includes(v)) {
         throw new Error((0, removedTransports_1.removedBackendMessage)(v));
     }
-    throw new Error(`SAP_RFC_BACKEND must be 'odata' | 'soap' (got '${v}'). ` +
+    throw new Error(`SAP_RFC_BACKEND must be 'odata' | 'soap' | 'nco' (got '${v}'). ` +
         `Default is 'odata'. Set in .sc4sap/sap.env.`);
 }
 /** Returns the active backend resolved from current process.env. */
@@ -84,7 +91,8 @@ function getBackend() {
     return resolveBackend();
 }
 function pickModule(b) {
-    return b === 'odata' ? odata : soap;
+    // nco reuses the odata functions (their transport switches to NCo).
+    return b === 'soap' ? soap : odata;
 }
 const callDispatch = (...args) => pickModule(resolveBackend()).callDispatch(...args);
 exports.callDispatch = callDispatch;
@@ -113,14 +121,14 @@ Object.defineProperty(module.exports, 'backend', {
  * these helpers are never invoked.
  */
 function unsupportedDdic(name, current) {
-    throw new Error(`${name} requires SAP_RFC_BACKEND=odata (current='${current}'). ` +
+    throw new Error(`${name} requires SAP_RFC_BACKEND=odata or nco (current='${current}'). ` +
         `The ECC DDIC fallback is only implemented against the OData ZMCP_ADT_SRV ` +
         `service. Set SAP_RFC_BACKEND=odata in .sc4sap/sap.env or use S/4HANA (native ADT).`);
 }
 function lazyDdic(name, fn) {
     return ((...args) => {
         const b = resolveBackend();
-        if (b !== 'odata')
+        if (b !== 'odata' && b !== 'nco')
             unsupportedDdic(name, b);
         return fn()(...args);
     });
@@ -132,7 +140,7 @@ function lazyDdic(name, fn) {
 function lazyDdicRead(name, odataFn, soapFn) {
     return ((...args) => {
         const b = resolveBackend();
-        if (b === 'odata')
+        if (b === 'odata' || b === 'nco')
             return odataFn()(...args);
         if (b === 'soap')
             return soapFn()(...args);
@@ -150,4 +158,23 @@ exports.callDdicDtelRead = lazyDdicRead('callDdicDtelRead', () => odata.callDdic
 exports.callDdicDomaRead = lazyDdicRead('callDdicDomaRead', () => odata.callDdicDomaRead, () => soap.callDdicDomaRead);
 exports.callWlTcodeUsage = lazyDdic('callWlTcodeUsage', () => odata.callWlTcodeUsage);
 exports.callWlJobUsage = lazyDdic('callWlJobUsage', () => odata.callWlJobUsage);
+/**
+ * Response labels of the ECC function-module bridge. The OData labels stay
+ * exactly as before ('ecc-odata-rfc', "via OData"); the NCo backend reports
+ * its own path so a reply never claims a transport that was not used.
+ */
+function backendOrDefault() {
+    try {
+        return resolveBackend();
+    }
+    catch {
+        return 'odata';
+    }
+}
+function eccBridgePath() {
+    return backendOrDefault() === 'nco' ? 'ecc-nco-rfc' : 'ecc-odata-rfc';
+}
+function eccBridgeVia() {
+    return backendOrDefault() === 'nco' ? 'NCo RFC' : 'OData';
+}
 //# sourceMappingURL=rfcBackend.js.map

@@ -7,7 +7,11 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicDoma } from '../../../lib/rfcBackend';
+import {
+  callDdicDoma,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -167,8 +171,8 @@ async function handleDeleteDomainEcc(
           success: true,
           domain_name: domainName,
           transport_request: transportRequest || null,
-          message: `Domain ${domainName} deleted successfully (ECC fallback via OData).`,
-          path: 'ecc-odata-rfc',
+          message: `Domain ${domainName} deleted successfully (ECC fallback via ${eccBridgeVia()}).`,
+          path: eccBridgePath(),
         },
         null,
         2,

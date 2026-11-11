@@ -4,7 +4,11 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicTabl } from '../../../lib/rfcBackend';
+import {
+  callDdicTabl,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -69,8 +73,8 @@ export async function handleDeleteStructure(
               success: true,
               structure_name: structureName,
               transport_request: transport_request || null,
-              message: `Structure ${structureName} deleted successfully (ECC fallback via OData).`,
-              path: 'ecc-odata-rfc',
+              message: `Structure ${structureName} deleted successfully (ECC fallback via ${eccBridgeVia()}).`,
+              path: eccBridgePath(),
             },
             null,
             2,

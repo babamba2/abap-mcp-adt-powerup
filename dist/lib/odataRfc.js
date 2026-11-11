@@ -60,6 +60,7 @@ exports.callDdicDtelRead = callDdicDtelRead;
 exports.callDdicDomaRead = callDdicDomaRead;
 exports.callWlTcodeUsage = callWlTcodeUsage;
 exports.callWlJobUsage = callWlJobUsage;
+const ncoRfc_1 = require("./ncoRfc");
 const profileEvents_1 = require("./profileEvents");
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
@@ -214,6 +215,9 @@ function tryParseJson(str, fallback) {
     }
 }
 async function postFunctionImport(actionName, params) {
+    // SAP_RFC_BACKEND=nco: same FunctionImport contract, sent over RFC (NCo).
+    if ((0, ncoRfc_1.isNcoBackend)())
+        return (0, ncoRfc_1.ncoFunctionImport)(actionName, params);
     const base = normaliseBaseUrl(required('SAP_RFC_ODATA_SERVICE_URL'));
     const path = buildFunctionImportQuery(actionName, params);
     const url = withSapClient(`${base}/${path}`);

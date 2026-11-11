@@ -19,7 +19,7 @@ const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'CreateTableType',
     available_in: ['onprem', 'cloud'],
-    description: 'Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata).',
+    description: 'Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).',
     inputSchema: {
         type: 'object',
         properties: {
@@ -197,8 +197,8 @@ async function handleCreateTableType(context, args) {
                     transport_request: args.transport_request || null,
                     row_type: n.rowType,
                     status: shouldActivate ? 'active' : 'inactive',
-                    message: `Table type ${n.name} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-                    path: 'ecc-odata-rfc',
+                    message: `Table type ${n.name} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
+                    path: (0, rfcBackend_1.eccBridgePath)(),
                 }, null, 2),
             });
         }
