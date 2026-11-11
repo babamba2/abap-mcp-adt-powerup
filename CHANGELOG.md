@@ -4,7 +4,12 @@
 
 ## [Unreleased]
 
+## [4.9.1] - 2026-11-11
+
 ### Added
+- **`CreateTableType` / `DeleteTableType`**. Row type is a structure, a data element or another table type (`row_kind`); `access_type`, `key_definition`, `key_kind`. S/4 goes through ADT. ECC goes through the new FM `ZMCP_ADT_DDIC_TTYP` (OData action `DdicTtyp`, sc4sap setup Step 9a.2); only ECC takes `key_components`. A hashed table type without a unique key is refused before any call to SAP.
+- **`CreateTable` on ECC**: `fields`, `includes`, delivery class and data class are written as DD02V / DD03P / DD09L through `ZMCP_ADT_DDIC_TABL`, then activated.
+- **`CreateStructure` on ECC** takes `structure_ref` and `includes`; **`DeleteStructure`** has an ECC branch.
 - **`GetAreaMenu`** (read-only, on-premise). Reads an SE43 area menu (`TTREE` type `BMENU` → `TMENU01` / `TMENU01R` / `TMENU01T`) as a flat list: every transaction with its folder path and menu text, plus the folders and the links to other area menus. Links to customer menus (Z / Y / namespace) are followed by default (`follow_links`: `customer` | `all` | `none`). `menu_pattern` (e.g. `Z*`) lists the menus with master language and last change instead. Texts in the requested language fall back to the master language, then English; texts stored as `#` only are skipped. `output: "file"` writes the result to `<MCP output dir>/areamenu/<menu>-<time>.json`. Works on the ADT SQL path and on the legacy `TABLE_READ` path (ECC; reference rows are read in batches of 60 nodes).
 
 ### Docs
