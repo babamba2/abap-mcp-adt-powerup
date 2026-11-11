@@ -105,6 +105,10 @@ import {
   TOOL_DEFINITION as ReadStructure_Tool,
 } from '../../../handlers/structure/readonly/handleReadStructure';
 import {
+  TOOL_DEFINITION as GetAreaMenu_Tool,
+  handleGetAreaMenu,
+} from '../../../handlers/system/readonly/handleGetAreaMenu';
+import {
   TOOL_DEFINITION as GetJobUsage_Tool,
   handleGetJobUsage,
 } from '../../../handlers/system/readonly/handleGetJobUsage';
@@ -200,6 +204,10 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetJobUsage_Tool,
         handler: (args: any) => handleGetJobUsage(this.context, args),
+      },
+      {
+        toolDefinition: GetAreaMenu_Tool,
+        handler: (args: any) => handleGetAreaMenu(this.context, args),
       },
       {
         toolDefinition: GetSmartFormLayout_Tool,
