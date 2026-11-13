@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [4.12.0] - 2026-11-13
+
+### Added
+- **`GetRemoteTableContents`** (read-only). Reads rows of one table in another SAP system through an SM59 ABAP destination with the standard `RFC_READ_TABLE`, for realistic test data. Calls the new dispatcher action `REMOTE_READ` (sc4sap `abap/zmcp_adt_dispatch*.abap`); a system whose dispatcher lacks it gets an upload hint. The destination is never guessed: without it the tool lists the destinations saved for the active profile (`config.json` → `remoteDestinations`, most recent first, max 10); a destination is saved after its first successful read. `where` is split into 72-character option lines without cutting quoted literals; `fields`, `max_rows` (default 100, cap 5000), `skip_rows`. Business tables are allowed; the table blocklist applies, and the ABAP side refuses credential / user / authorization tables and sub-queries.
+- Tool docs regenerated (also adds `CreateTableType` / `DeleteTableType`, missing since 4.9.1).
+
 ## [4.11.0] - 2026-11-11
 
 ### Added

@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: High-Level
-- Total tools: 134
+- Total tools: 136
 
 ## Navigation
 
@@ -142,6 +142,9 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteTable](#deletetable-high-level-table)
     - [GetTable](#gettable-high-level-table)
     - [UpdateTable](#updatetable-high-level-table)
+  - [Table Type](#high-level-table-type)
+    - [CreateTableType](#createtabletype-high-level-table-type)
+    - [DeleteTableType](#deletetabletype-high-level-table-type)
   - [Text Element](#high-level-text-element)
     - [CreateTextElement](#createtextelement-high-level-text-element)
     - [DeleteTextElement](#deletetextelement-high-level-text-element)
@@ -1799,6 +1802,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `activate` (boolean, optional) - Activate structure after creation. Default: true. Set to false for batch operations (activate multiple objects later).
 - `description` (string, optional) - Structure description. If not provided, structure_name will be used.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when the structure has includes or structure_ref / table_ref components (it does not activate as 1), else 1.
 - `fields` (array, required (default: 0)) - Array of structure fields
 - `includes` (array, optional) - Include other structures in this structure
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
@@ -1868,13 +1872,20 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 <a id="createtable-high-level-table"></a>
 #### CreateTable (High-Level / Table)
-**Description:** Create a new ABAP table via the ADT API. Creates the table object in initial state. Use UpdateTable to set DDL code afterwards.
+**Description:** Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
 
 **Source:** `src/handlers/table/high/handleCreateTable.ts`
 
 **Parameters:**
+- `activate` (boolean, optional) - ECC only. Activate after create (default true).
+- `data_class` (string, optional) - ECC only. Data class TABART (default APPL1). Some systems enforce a customer class (e.g. USER / USER1) — the SAP message says so.
+- `delivery_class` (string, optional) - ECC only. Delivery class (default A).
 - `description` (string, optional) - Table description for validation and creation.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when "includes" are given, else 1.
+- `fields` (array, optional) - ECC only (SAP_VERSION=ECC): the full field list. ECC has no DDL source, so the table is created from these rows (DD03P) in one call and activated. First field must be a key (MANDT for client tables). Ignored on S/4HANA — use UpdateTable with DDL there.
+- `includes` (array, optional) - ECC only. Structures appended as .INCLUDE rows after the fields (e.g. a create/change info structure).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
+- `size_category` (string, optional) - ECC only. Size category TABKAT (default 0).
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Must follow SAP naming conventions.
 - `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
@@ -1915,6 +1926,42 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 - `ddl_code` (string, required) - Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key ('key mandt : mandt not null'), NOT 'abap.clnt' (that's CDS-view syntax). Standard SAP tables (MARA, T001, VBAK, …) all use MANDT. The annotation block CreateTable seeded must be preserved verbatim: #NOT_EXTENSIBLE enhancement category, #TRANSPARENT tableCategory, #A deliveryClass, #RESTRICTED dataMaintenance. Example: '@EndUserText.label : \'My Table\' @AbapCatalog.enhancement.category : #NOT_EXTENSIBLE @AbapCatalog.tableCategory : #TRANSPARENT @AbapCatalog.deliveryClass : #A @AbapCatalog.dataMaintenance : #RESTRICTED define table ztst_table { key mandt : mandt not null; key id : abap.char(10); name : abap.char(255); }'
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Table must already exist.
 - `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-table-type"></a>
+### High-Level / Table Type
+
+<a id="createtabletype-high-level-table-type"></a>
+#### CreateTableType (High-Level / Table Type)
+**Description:** Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
+
+**Source:** `src/handlers/table_type/high/handleCreateTableType.ts`
+
+**Parameters:**
+- `access_type` (string, optional) - Access mode. Default standard.
+- `activate` (boolean, optional) - Activate after create. Default true.
+- `description` (string, optional) - Short text (max 60 characters).
+- `key_components` (array, optional) - Key fields of the row type, in order. Only with key_definition=key_components (ECC).
+- `key_definition` (string, optional) - Primary key definition. Default standard (standard key).
+- `key_kind` (string, optional) - Primary key category. Default non_unique; hashed tables need unique.
+- `package_name` (string, required) - Package ($TMP for local objects).
+- `row_kind` (string, optional) - What row_type is. Default structure.
+- `row_type` (string, required) - Row type name: a structure / table, a data element, or another table type.
+- `table_type_name` (string, required) - Table type name (e.g., ZSD_T_ORDER_ITEMS). Z/Y namespace, max 30 characters.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
+
+---
+
+<a id="deletetabletype-high-level-table-type"></a>
+#### DeleteTableType (High-Level / Table Type)
+**Description:** Delete a DDIC table type (TTYP). Transport request optional for $TMP objects.
+
+**Source:** `src/handlers/table_type/high/handleDeleteTableType.ts`
+
+**Parameters:**
+- `table_type_name` (string, required) - Table type name.
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2254,4 +2301,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-11-11*
+*Last updated: 2026-11-13*

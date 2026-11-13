@@ -35,6 +35,7 @@ const handleGetSmartFormContent_1 = require("../../../handlers/system/readonly/h
 const handleGetSmartFormLayout_1 = require("../../../handlers/system/readonly/handleGetSmartFormLayout");
 const handleGetTcodeUsage_1 = require("../../../handlers/system/readonly/handleGetTcodeUsage");
 const handleRenderSmartForm_1 = require("../../../handlers/system/readonly/handleRenderSmartForm");
+const handleGetRemoteTableContents_1 = require("../../../handlers/table/readonly/handleGetRemoteTableContents");
 const handleGetTableContents_1 = require("../../../handlers/table/readonly/handleGetTableContents");
 const handleReadTable_1 = require("../../../handlers/table/readonly/handleReadTable");
 const handleGetTransport_1 = require("../../../handlers/transport/readonly/handleGetTransport");
@@ -56,6 +57,10 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetTableContents_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetTableContents_1.handleGetTableContents)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetRemoteTableContents_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetRemoteTableContents_1.handleGetRemoteTableContents)(this.context, args),
             },
             {
                 toolDefinition: handleGetPackageContents_1.TOOL_DEFINITION,

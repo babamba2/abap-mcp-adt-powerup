@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: Read-Only
-- Total tools: 68
+- Total tools: 69
 
 ## Navigation
 
@@ -92,6 +92,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [RuntimeRunClassWithProfiling](#runtimerunclasswithprofiling-read-only-system)
     - [RuntimeRunProgramWithProfiling](#runtimerunprogramwithprofiling-read-only-system)
   - [Table](#read-only-table)
+    - [GetRemoteTableContents](#getremotetablecontents-read-only-table)
     - [GetTableContents](#gettablecontents-read-only-table)
     - [ReadTable](#readtable-read-only-table)
   - [Transport](#read-only-transport)
@@ -1017,6 +1018,17 @@ Generated from code in `src/handlers/**` (not from docs).
 <a id="read-only-table"></a>
 ### Read-Only / Table
 
+<a id="getremotetablecontents-read-only-table"></a>
+#### GetRemoteTableContents (Read-Only / Table)
+**Description:** [read-only; needs the REMOTE_READ action in ZMCP_ADT_DISPATCH] Read rows of one table in another 
+
+**Source:** `src/handlers/table/readonly/handleGetRemoteTableContents.ts`
+
+**Parameters:**
+- None
+
+---
+
 <a id="gettablecontents-read-only-table"></a>
 #### GetTableContents (Read-Only / Table)
 **Description:** [read-only] Retrieve contents (data preview) of an ABAP database table or CDS view, like SE16. Compact by default: column names only, empty cell values left out of each row, 20 rows. Use fields to keep only some columns and include_metadata for column types/descriptions.
@@ -1084,4 +1096,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-11-11*
+*Last updated: 2026-11-13*

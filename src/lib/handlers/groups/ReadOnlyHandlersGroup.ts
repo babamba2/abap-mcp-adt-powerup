@@ -129,6 +129,10 @@ import {
   TOOL_DEFINITION as RenderSmartForm_Tool,
 } from '../../../handlers/system/readonly/handleRenderSmartForm';
 import {
+  TOOL_DEFINITION as GetRemoteTableContents_Tool,
+  handleGetRemoteTableContents,
+} from '../../../handlers/table/readonly/handleGetRemoteTableContents';
+import {
   TOOL_DEFINITION as GetTableContents_Tool,
   handleGetTableContents,
 } from '../../../handlers/table/readonly/handleGetTableContents';
@@ -167,6 +171,11 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetTableContents_Tool,
         handler: (args: any) => handleGetTableContents(this.context, args),
+      },
+      {
+        toolDefinition: GetRemoteTableContents_Tool,
+        handler: (args: any) =>
+          handleGetRemoteTableContents(this.context, args),
       },
       {
         toolDefinition: GetPackageContents_Tool,
