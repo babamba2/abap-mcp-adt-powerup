@@ -35,6 +35,10 @@ exports.TOOL_DEFINITION = {
                 type: 'boolean',
                 description: 'Also read the form interface XML. Default true.',
             },
+            include_check: {
+                type: 'boolean',
+                description: "Also run SAP's own form check (what SFP's Check shows: errors / warnings with message id and text) on the inactive version if there is one, else the active one; read-only, nothing is saved, activated or corrected. Written as <form>.check.json. Default false.",
+            },
         },
         required: ['form_name'],
     },
@@ -48,6 +52,7 @@ async function handleGetAdobeFormContent(context, args) {
         const content = await (0, adobeForm_1.getAdobeFormContent)(connection, args.form_name, {
             language: args?.language?.trim() || undefined,
             includeInterface: args?.include_interface,
+            includeCheck: args?.include_check === true,
         });
         return (0, utils_1.return_response)({
             data: JSON.stringify(content, null, 2),

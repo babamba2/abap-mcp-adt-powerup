@@ -14,6 +14,8 @@ jest.mock('../../lib/rfcBackend', () => ({
 }));
 
 import {
+  checkMigrationNames,
+  createAdobeFormFromSmartForm,
   FP_INSTALL_HINT,
   getAdobeFormContent,
   normalizeFormName,
@@ -21,6 +23,7 @@ import {
   summarizeXdp,
   translateFpError,
 } from '../../lib/adobeForm';
+import { checkToolAllowed } from '../../lib/readonlyGuard';
 
 const b64 = (s: string | Buffer) => Buffer.from(s).toString('base64');
 const XDP =
@@ -132,6 +135,58 @@ describe('adobeForm — GetAdobeFormContent', () => {
       expect(path.relative(outDir, f as string).startsWith('..')).toBe(false);
   });
 
+  it("runs SAP's form check only with includeCheck and writes check.json", async () => {
+    callDispatch.mockImplementation(
+      async (_c: unknown, _action: string, p: any) => {
+        if (p.part === 'FORM')
+          return {
+            result: {
+              form: p.name,
+              interface: '',
+              formType: 'M',
+              xml: b64('<x/>'),
+            },
+          };
+        if (p.part === 'LAYOUT')
+          return { result: { form: p.name, xdp: b64(XDP) } };
+        if (p.part === 'CHECK')
+          return {
+            result: {
+              form: p.name,
+              messages: [
+                {
+                  msgty: 'E',
+                  msgid: 'FPAPICHK',
+                  msgno: '123',
+                  text: 'Loop node: table not found',
+                  type: 'NODE',
+                  navcursor: 'X',
+                },
+              ],
+            },
+          };
+        throw new Error('unexpected part');
+      },
+    );
+    const plain = await getAdobeFormContent({} as any, 'ZSC4SAP_AFM_X', {});
+    expect(plain.check).toBeUndefined();
+    expect(callDispatch.mock.calls.some((c) => c[2].part === 'CHECK')).toBe(
+      false,
+    );
+    const r = await getAdobeFormContent({} as any, 'ZSC4SAP_AFM_X', {
+      includeCheck: true,
+    });
+    expect(r.check?.messages).toEqual([
+      expect.objectContaining({
+        msgty: 'E',
+        text: 'Loop node: table not found',
+      }),
+    ]);
+    expect(
+      JSON.parse(fs.readFileSync(r.files.check as string, 'utf8')).messages,
+    ).toHaveLength(1);
+  });
+
   it('stops with the install hint when the helper is missing', async () => {
     callDispatch.mockRejectedValue(new Error('Unknown action: FP_CONTENT'));
     await expect(getAdobeFormContent({} as any, 'FP_TEST_00')).rejects.toThrow(
@@ -175,6 +230,49 @@ describe('adobeForm — RenderAdobeForm', () => {
     );
   });
 
+  it('asks for the data XML with get_xml and writes it next to the PDF', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        fm: '/1BCDWB/SM1',
+        pages: 1,
+        pdf: b64('%PDF-1.6 x'),
+        xml: b64('<data><A>1</A></data>'),
+      },
+    });
+    const r = await renderAdobeForm(
+      {} as any,
+      'FP_TEST_00',
+      { a: 1, $GETXML: true },
+      undefined,
+      true,
+    );
+    const sent = JSON.parse(callDispatch.mock.calls[0][2].params);
+    expect(sent).toEqual([
+      { name: 'A', json: '1' },
+      { name: '$GETXML', json: 'true' },
+    ]);
+    expect(fs.readFileSync(r.files.dataXml as string, 'utf8')).toBe(
+      '<data><A>1</A></data>',
+    );
+    expect(r.files.dataXml).toMatch(/fp_test_00\.sap\.data\.xml$/);
+    callDispatch.mockResolvedValue({
+      result: { pdf: b64('%PDF-1.6 x'), xmlError: 'ADS returned no data XML' },
+    });
+    const r2 = await renderAdobeForm(
+      {} as any,
+      'FP_TEST_00',
+      {},
+      undefined,
+      true,
+    );
+    expect(r2.xmlError).toBe('ADS returned no data XML');
+    expect(r2.files.dataXml).toBeUndefined();
+    callDispatch.mockResolvedValue({ result: { pdf: b64('%PDF-1.6 x') } });
+    const r3 = await renderAdobeForm({} as any, 'FP_TEST_00', {});
+    expect(JSON.parse(callDispatch.mock.calls[2][2].params)).toEqual([]);
+    expect(r3.xmlError).toBeUndefined();
+  });
+
   it('refuses a non-PDF answer, a missing PDF and oversized values', async () => {
     callDispatch.mockResolvedValue({ result: { pdf: b64('<html>') } });
     await expect(renderAdobeForm({} as any, 'FP_TEST_00', {})).rejects.toThrow(
@@ -189,5 +287,144 @@ describe('adobeForm — RenderAdobeForm', () => {
       renderAdobeForm({} as any, 'FP_TEST_00', { X: 'y'.repeat(200001) }),
     ).rejects.toThrow(/200 000/);
     expect(callDispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('adobeForm — CreateAdobeFormFromSmartForm', () => {
+  it('checks names before any SAP call', async () => {
+    expect(
+      checkMigrationNames(
+        'sf_example_01',
+        'zsc4sap_afm_ex01',
+        'ZSC4SAP_AFM_EX01_IF',
+      ),
+    ).toEqual({
+      source: 'SF_EXAMPLE_01',
+      form: 'ZSC4SAP_AFM_EX01',
+      iface: 'ZSC4SAP_AFM_EX01_IF',
+    });
+    for (const [s, f, i] of [
+      ['ZMY_FORM', 'ZSC4SAP_AFM_A', 'ZSC4SAP_AFM_B'],
+      ['YFORM', 'ZSC4SAP_AFM_A', 'ZSC4SAP_AFM_B'],
+      ['/ABC/X', 'ZSC4SAP_AFM_A', 'ZSC4SAP_AFM_B'],
+      ['SF_EXAMPLE_01', 'ZOTHER', 'ZSC4SAP_AFM_B'],
+      ['SF_EXAMPLE_01', 'ZSC4SAP_AFM_A', 'ZSC4SAP_AFI_B'],
+      ['SF_EXAMPLE_01', 'ZSC4SAP_AFM_' + 'X'.repeat(20), 'ZSC4SAP_AFM_B'],
+    ]) {
+      await expect(
+        createAdobeFormFromSmartForm({} as any, s, f, i),
+      ).rejects.toThrow(/source|form_name|interface_name/);
+    }
+    expect(callDispatch).not.toHaveBeenCalled();
+  });
+
+  it('sends FP_MIGRATE with the FULL preset and writes the result with the log', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        options: { interface: 'X' },
+        raised: false,
+        saved: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
+        left: [],
+        active: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
+        activation: '',
+        log: [{ type: 'W', text: 'Node X: field Y not supported' }],
+        renamed: [
+          {
+            path: 'MAIN.T.GS[*].CARRID',
+            from: 'CARRID',
+            to: 'CARRID_2',
+            type: 4,
+          },
+        ],
+      },
+    });
+    const r = await createAdobeFormFromSmartForm(
+      {} as any,
+      'SF_EXAMPLE_01',
+      'ZSC4SAP_AFM_F',
+      'ZSC4SAP_AFM_IF',
+    );
+    const [, action, params] = callDispatch.mock.calls[0];
+    expect(action).toBe('FP_MIGRATE');
+    expect(params).toEqual({
+      source: 'SF_EXAMPLE_01',
+      form: 'ZSC4SAP_AFM_F',
+      interface: 'ZSC4SAP_AFM_IF',
+      preset: 'FULL',
+    });
+    expect(r).toMatchObject({
+      raised: false,
+      complete: true,
+      renamed: [expect.objectContaining({ from: 'CARRID', to: 'CARRID_2' })],
+      active: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
+      log: [{ type: 'W' }],
+    });
+    expect(
+      JSON.parse(fs.readFileSync(r.files.result, 'utf8')).log,
+    ).toHaveLength(1);
+  });
+
+  it('flags a migration that is saved but not fully active', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        raised: false,
+        saved: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
+        left: [],
+        active: ['SFPI ZSC4SAP_AFM_IF'],
+        activation: 'form activation rc 4',
+        log: [],
+      },
+      message:
+        'FP_MIGRATE: saved but NOT fully active (active: SFPI ZSC4SAP_AFM_IF)',
+    });
+    const r = await createAdobeFormFromSmartForm(
+      {} as any,
+      'SF_EXAMPLE_01',
+      'ZSC4SAP_AFM_F',
+      'ZSC4SAP_AFM_IF',
+    );
+    expect(r.complete).toBe(false);
+    expect(r.message).toMatch(/NOT fully active/);
+    expect(JSON.parse(fs.readFileSync(r.files.result, 'utf8')).complete).toBe(
+      false,
+    );
+  });
+
+  it('passes the objects left behind on a raise through in the error', async () => {
+    callDispatch.mockRejectedValue(
+      new Error(
+        "ZMCP_ADT_DISPATCH error (action=FP_MIGRATE, subrc=8): FP_MIGRATE: SAP's migration raised: X - left behind: SFPI ZSC4SAP_AFM_IF (delete only with the user's OK)",
+      ),
+    );
+    await expect(
+      createAdobeFormFromSmartForm(
+        {} as any,
+        'SF_EXAMPLE_01',
+        'ZSC4SAP_AFM_F',
+        'ZSC4SAP_AFM_IF',
+      ),
+    ).rejects.toThrow(/left behind: SFPI ZSC4SAP_AFM_IF/);
+  });
+
+  it('turns a missing helper into the install hint', async () => {
+    callDispatch.mockRejectedValue(new Error('Unknown action: FP_MIGRATE'));
+    await expect(
+      createAdobeFormFromSmartForm(
+        {} as any,
+        'SF_EXAMPLE_01',
+        'ZSC4SAP_AFM_F',
+        'ZSC4SAP_AFM_IF',
+      ),
+    ).rejects.toThrow(/ZMCP_FP_MIGRATE/);
+  });
+
+  it('is a write: refused on QA and PRD by the server guard', () => {
+    expect(checkToolAllowed('CreateAdobeFormFromSmartForm', 'DEV')).toBeNull();
+    expect(checkToolAllowed('CreateAdobeFormFromSmartForm', 'QA')).toMatch(
+      /mutates/,
+    );
+    expect(checkToolAllowed('CreateAdobeFormFromSmartForm', 'PRD')).toMatch(
+      /mutates/,
+    );
   });
 });

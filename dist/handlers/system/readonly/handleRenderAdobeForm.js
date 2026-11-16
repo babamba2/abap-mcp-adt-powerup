@@ -40,6 +40,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.',
             },
+            get_xml: {
+                type: 'boolean',
+                description: 'Also return the data XML the form hands ADS (adobe/<form>/<form>.sap.data.xml) — for checking a preview value by value. Default false.',
+            },
         },
         required: ['form_name'],
     },
@@ -53,7 +57,7 @@ async function handleRenderAdobeForm(context, args) {
         if (!values && args?.values_file)
             values = (0, valuesFile_1.readValuesFile)(args.values_file);
         logger?.info(`RenderAdobeForm: ${args.form_name}`);
-        const result = await (0, adobeForm_1.renderAdobeForm)(connection, args.form_name, values ?? {}, args?.language?.trim() || undefined);
+        const result = await (0, adobeForm_1.renderAdobeForm)(connection, args.form_name, values ?? {}, args?.language?.trim() || undefined, args?.get_xml === true);
         return (0, utils_1.return_response)({
             data: JSON.stringify(result, null, 2),
         });

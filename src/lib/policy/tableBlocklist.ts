@@ -353,15 +353,55 @@ function splitTopLevel(s: string, sep: string): string[] {
   return out;
 }
 
+/** Keywords that end a FROM clause (at the FROM's own bracket depth). */
+const FROM_END_RE =
+  /^(?:WHERE|GROUP|ORDER|HAVING|UNION|EXCEPT|INTERSECT|INTO|APPENDING|UP|FIELDS|FOR|OFFSET|LIMIT|BYPASSING|CLIENT|USING|WITH)$/i;
+
 /**
  * Extract candidate table names from a freestyle SQL string.
- * Matches `FROM table` and `JOIN table` (no schema qualifier).
+ * Every name of every FROM clause counts, not only the first: `FROM a`,
+ * `JOIN b`, the old comma join `FROM a, b` / `FROM a AS x, b y` and
+ * bracketed sources `FROM ( a ), b`. Over-collecting is safe here — a
+ * name that is not a table never matches the blocklist. The first FROM
+ * name comes first (callers use it as the output name).
  */
 export function extractTablesFromSql(sql: string): string[] {
   const out = new Set<string>();
-  const re = /\b(?:FROM|JOIN)\s+([A-Z0-9_/]+)/gi;
-  for (const match of sql.matchAll(re)) {
-    out.add(match[1].toUpperCase());
+  const tokens =
+    String(sql ?? '').match(/[A-Za-z0-9_/~]+|\(|\)|,|'(?:[^']|'')*'|\S/g) ?? [];
+  const isName = (t: string | undefined) =>
+    !!t && /^[A-Za-z0-9_/]+$/.test(t) && !/^SELECT$/i.test(t);
+  /** first name at i, skipping opening brackets */
+  const nameAt = (i: number): string | undefined => {
+    let j = i;
+    while (tokens[j] === '(') j++;
+    return isName(tokens[j]) ? tokens[j].toUpperCase() : undefined;
+  };
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (/^JOIN$/i.test(t)) {
+      const n = nameAt(i + 1);
+      if (n) out.add(n);
+      continue;
+    }
+    if (!/^FROM$/i.test(t)) continue;
+    const first = nameAt(i + 1);
+    if (first) out.add(first);
+    // Walk the FROM clause: a top-level comma starts another source.
+    let depth = 0;
+    for (let j = i + 1; j < tokens.length; j++) {
+      const u = tokens[j];
+      if (u === '(') depth++;
+      else if (u === ')') {
+        if (depth === 0) break; // end of a sub-query's FROM
+        depth--;
+      } else if (depth === 0 && FROM_END_RE.test(u)) break;
+      else if (u === ',' && depth === 0) {
+        const n = nameAt(j + 1);
+        if (n) out.add(n);
+      }
+      // a nested sub-query's own FROM is handled by the outer loop
+    }
   }
   return [...out];
 }
