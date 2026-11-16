@@ -7,6 +7,7 @@
 
 import {
   hasSymbol,
+  lineSymbols,
   parseSmartFormXml,
   symbolsOf,
   translateSmartFormContentError,
@@ -238,6 +239,39 @@ describe('data declarations and symbols', () => {
 
   it('lists the printed &symbols& without formatting options', () => {
     expect(symbolsOf(parsed.pages)).toEqual(['HEADER-NAME1']);
+  });
+
+  it('reads protected text and pre / post texts the SAPscript way', () => {
+    expect(lineSymbols('A &X-Y(Z)& &&lit &SFSY-PAGE& &X-Y&')).toEqual([
+      'X-Y',
+      'SFSY-PAGE',
+    ]);
+    // <(>&<)> is a literal '&': "<(>&<)>GS_A-B&" holds no symbol
+    expect(lineSymbols('<IT><(>&<)>GS_A-B&</>')).toEqual([]);
+    expect(lineSymbols("&GS_N-NO&&'/ 'GS_N-DATE& &'('GS_N-QTY(C)')'&")).toEqual(
+      ['GS_N-NO', 'GS_N-DATE', 'GS_N-QTY'],
+    );
+    expect(lineSymbols('&GS_T-TEXT+10(5)&')).toEqual(['GS_T-TEXT']);
+  });
+
+  it('skips comment lines', () => {
+    const pages = [
+      {
+        windows: [
+          {
+            content: [
+              {
+                lines: [
+                  { format: '/*', text: '&HIDDEN&' },
+                  { format: '*', text: '&SHOWN&' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(symbolsOf(pages as any)).toEqual(['SHOWN']);
   });
 });
 

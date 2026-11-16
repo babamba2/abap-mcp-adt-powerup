@@ -105,6 +105,10 @@ import {
   TOOL_DEFINITION as ReadStructure_Tool,
 } from '../../../handlers/structure/readonly/handleReadStructure';
 import {
+  TOOL_DEFINITION as GetAdobeFormContent_Tool,
+  handleGetAdobeFormContent,
+} from '../../../handlers/system/readonly/handleGetAdobeFormContent';
+import {
   TOOL_DEFINITION as GetAreaMenu_Tool,
   handleGetAreaMenu,
 } from '../../../handlers/system/readonly/handleGetAreaMenu';
@@ -124,6 +128,10 @@ import {
   TOOL_DEFINITION as GetTcodeUsage_Tool,
   handleGetTcodeUsage,
 } from '../../../handlers/system/readonly/handleGetTcodeUsage';
+import {
+  handleRenderAdobeForm,
+  TOOL_DEFINITION as RenderAdobeForm_Tool,
+} from '../../../handlers/system/readonly/handleRenderAdobeForm';
 import {
   handleRenderSmartForm,
   TOOL_DEFINITION as RenderSmartForm_Tool,
@@ -229,6 +237,14 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: RenderSmartForm_Tool,
         handler: (args: any) => handleRenderSmartForm(this.context, args),
+      },
+      {
+        toolDefinition: GetAdobeFormContent_Tool,
+        handler: (args: any) => handleGetAdobeFormContent(this.context, args),
+      },
+      {
+        toolDefinition: RenderAdobeForm_Tool,
+        handler: (args: any) => handleRenderAdobeForm(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,

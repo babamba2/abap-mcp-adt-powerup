@@ -92,6 +92,14 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     }
   });
 
+  it('form renders run the form code: DEV only', () => {
+    for (const t of ['RenderSmartForm', 'RenderAdobeForm']) {
+      expect(checkToolAllowed(t, 'DEV')).toBeNull();
+      expect(checkToolAllowed(t, 'QA')).toMatch(/executes ABAP code/);
+      expect(checkToolAllowed(t, 'PRD')).toMatch(/executes ABAP code/);
+    }
+  });
+
   it('PRD tier allows reads', () => {
     for (const t of reads) {
       expect(checkToolAllowed(t, 'PRD')).toBeNull();

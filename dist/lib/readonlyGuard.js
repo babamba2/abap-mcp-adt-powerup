@@ -18,6 +18,7 @@
  *   RuntimeRunProgramWithProfiling              ✓    ✗    ✗
  *   RuntimeRunClassWithProfiling                ✓    ✗    ✗
  *   RuntimeCreateProfilerTraceParameters        ✓    ✗    ✗
+ *   RenderSmartForm / RenderAdobeForm           ✓    ✗    ✗   (run the form's code)
  *   RuntimeAnalyze* / RuntimeGet* / List*       ✓    ✓    ✓
  *   Get* / Read* / Search*                      ✓    ✓    ✓
  *   PreviewBusinessAction / ExecuteBusinessAction ✓  ✓    ✗   (business writes; SAP
@@ -59,6 +60,10 @@ const RUNTIME_EXECUTION_TOOLS = new Set([
     // Configures a server-side profiler trace. Grouped with the runs it sets up,
     // which are already blocked on QA/PRD — so no usable capability is lost.
     'RuntimeCreateProfilerTraceParameters',
+    // Run a form's generated function module (its context / initialization code
+    // may read the database) — only on development systems.
+    'RenderSmartForm',
+    'RenderAdobeForm',
 ]);
 /**
  * Business-action tools that change business data in SAP (ZMCP_BIZ_EXECUTE

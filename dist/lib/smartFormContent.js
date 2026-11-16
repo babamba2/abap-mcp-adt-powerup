@@ -55,6 +55,7 @@ exports.hasSymbol = hasSymbol;
 exports.plain = plain;
 exports.parseSmartFormXml = parseSmartFormXml;
 exports.translateSmartFormContentError = translateSmartFormContentError;
+exports.lineSymbols = lineSymbols;
 exports.symbolsOf = symbolsOf;
 exports.summarizeSmartFormContent = summarizeSmartFormContent;
 exports.getSmartFormContent = getSmartFormContent;
@@ -845,13 +846,29 @@ function writeOut(rel, data) {
     fs.writeFileSync(abs, data);
     return abs;
 }
+/**
+ * Symbol names of one SAPscript text line, without output options and offsets.
+ * `<(>…<)>` protects its content (`<(>&<)>` is a literal '&', no symbol starts there);
+ * `&'pre'NAME(opts)'post'&` prints NAME between two literal texts; `&&` is a literal '&'.
+ */
+function lineSymbols(text) {
+    const out = [];
+    const plain = String(text).replace(/<\(>[\s\S]*?<\)>/g, ' ');
+    for (const m of plain.matchAll(/&(?:'[^']*')?([^&'\s(]+)(?:\([^)]*\))?(?:'[^']*')?&/g)) {
+        const name = m[1].replace(/\+\d+$/, '').trim();
+        if (name && !out.includes(name))
+            out.push(name);
+    }
+    return out;
+}
 /** Every &symbol& printed by text lines of the form (system symbols included), sorted. */
 function symbolsOf(pages) {
     const set = new Set();
     const visit = (n) => {
         for (const l of n.lines ?? [])
-            for (const m of l.text.matchAll(/&([^&\s][^&]*?)&/g))
-                set.add(m[1].replace(/\(.*\)$/, '').trim());
+            if (l.format !== '/*')
+                for (const name of lineSymbols(l.text))
+                    set.add(name);
         for (const c of n.children ?? [])
             visit(c);
     };
