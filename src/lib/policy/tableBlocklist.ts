@@ -143,6 +143,10 @@ const RAW: RawEntry[] = [
       'AGR_1251',
       'AGR_USERS',
       'AGR_AGRS',
+      // role -> generated profile and role change times: opened only by the role-matrix
+      // triage script (its own server process, MCP_ALLOW_TABLE)
+      'AGR_1016',
+      'AGR_TIMEB',
       'PRGN_CUST',
       'RFCDES',
       'RSECACTB',
