@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [4.12.1] - 2026-11-16
+
+### Fixed
+- **`RuntimeListDumps`** follows the feed's time cursor (`to=`) back to `date_from` instead of stopping at the first page, so a week of dumps on S/4HANA (the feed returns about 100 per page) is complete. The answer carries `paging: { pages, complete, reached, oldest }`; `complete: false` says the page cap stopped it before `date_from`.
+
 ## [4.12.0] - 2026-11-13
 
 ### Added
