@@ -337,6 +337,8 @@ export interface AdobeMigrationResult {
   /** sibling context nodes renamed after SAP's migration (gap G1: 4.6C table cells vs work-area fields) */
   renamed: { path: string; from: string; to: string; type: number }[];
   log: { type: string; text: string }[];
+  /** the layout's new ADS cache info (gap G4: never the placeholder 0$0$0$0$…) */
+  cacheInfo?: string;
   /** true only when nothing raised and both the form and the interface are active. */
   complete: boolean;
   /** SAP's message, e.g. "saved but NOT fully active ...". */
@@ -412,6 +414,7 @@ export async function createAdobeFormFromSmartForm(
     ...(res.activation ? { activation: String(res.activation) } : {}),
     renamed: Array.isArray(res.renamed) ? res.renamed : [],
     log: Array.isArray(res.log) ? res.log : [],
+    ...(res.cacheInfo ? { cacheInfo: String(res.cacheInfo) } : {}),
     complete: false,
     ...(r.message ? { message: String(r.message) } : {}),
     files: { result: '' },

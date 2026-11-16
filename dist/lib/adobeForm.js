@@ -293,6 +293,7 @@ async function createAdobeFormFromSmartForm(connection, source, formName, interf
         ...(res.activation ? { activation: String(res.activation) } : {}),
         renamed: Array.isArray(res.renamed) ? res.renamed : [],
         log: Array.isArray(res.log) ? res.log : [],
+        ...(res.cacheInfo ? { cacheInfo: String(res.cacheInfo) } : {}),
         complete: false,
         ...(r.message ? { message: String(r.message) } : {}),
         files: { result: '' },

@@ -336,6 +336,8 @@ describe('adobeForm — CreateAdobeFormFromSmartForm', () => {
             type: 4,
           },
         ],
+        cacheInfo:
+          '2026-11-17T08:00:00Z$0f0e0d0c-aaaa-bbbb-cccc-000000000001$0$0$v1.0',
       },
     });
     const r = await createAdobeFormFromSmartForm(
@@ -356,6 +358,7 @@ describe('adobeForm — CreateAdobeFormFromSmartForm', () => {
       raised: false,
       complete: true,
       renamed: [expect.objectContaining({ from: 'CARRID', to: 'CARRID_2' })],
+      cacheInfo: expect.stringMatching(/^2026-11-17T/),
       active: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
       log: [{ type: 'W' }],
     });
