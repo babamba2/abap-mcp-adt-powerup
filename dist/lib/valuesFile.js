@@ -54,6 +54,9 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const sourceOutput_1 = require("./sourceOutput");
 exports.MAX_VALUES_BYTES = 1024 * 1024;
+// one message for a missing file and a file outside the allowed folders: the answer must not tell whether
+// a file exists somewhere else
+const NOT_ALLOWED = 'values_file: refused — no such .json file inside the MCP output directory or the profile work folder';
 const SECRET_SEGMENT = /(^|[\\/])(\.env[^\\/]*|[^\\/]*\.env|sap\.env[^\\/]*|profiles?|config\.json|[^\\/]*keychain[^\\/]*|[^\\/]*token[^\\/]*|[^\\/]*credential[^\\/]*|[^\\/]*secret[^\\/]*|[^\\/]*passw[^\\/]*|[^\\/]*\.(pem|key|pfx|p12))([\\/]|$)/i;
 /** Folders a values file may live in (real paths of those that exist). */
 function valuesRoots() {
@@ -99,10 +102,10 @@ function readValuesFile(file) {
         real = fs.realpathSync(path.resolve(roots[0], p));
     }
     catch {
-        throw new Error('values_file: file not found');
+        throw new Error(NOT_ALLOWED);
     }
     if (!roots.some((r) => inside(r, real)))
-        throw new Error('values_file: refused — the file must be inside the MCP output directory or the profile work folder');
+        throw new Error(NOT_ALLOWED);
     if (SECRET_SEGMENT.test(real))
         throw new Error('values_file: refused (the path looks like a secret or profile file)');
     const st = fs.statSync(real);

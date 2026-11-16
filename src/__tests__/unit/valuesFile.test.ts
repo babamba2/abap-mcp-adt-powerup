@@ -46,18 +46,35 @@ describe('values_file of the form render tools', () => {
   it('refuses a path outside, a ../ path and a link that leads out', () => {
     fs.writeFileSync(path.join(outside, 'v.json'), '{"A":1}');
     expect(() => readValuesFile(path.join(outside, 'v.json'))).toThrow(
-      /must be inside/,
+      /no such .json file inside/,
     );
     expect(() =>
       readValuesFile(path.relative(out, path.join(outside, 'v.json'))),
-    ).toThrow(/must be inside/);
+    ).toThrow(/no such .json file inside/);
     expect(() => readValuesFile('../../../../x.json')).toThrow(/values_file/);
     fs.symlinkSync(
       outside,
       path.join(out, 'link'),
       process.platform === 'win32' ? 'junction' : 'dir',
     );
-    expect(() => readValuesFile('link/v.json')).toThrow(/must be inside/);
+    expect(() => readValuesFile('link/v.json')).toThrow(
+      /no such .json file inside/,
+    );
+  });
+
+  it('answers a missing file and an outside file alike (no existence oracle)', () => {
+    fs.writeFileSync(path.join(outside, 'there.json'), '{"A":1}');
+    const msg = (p: string) => {
+      try {
+        readValuesFile(p);
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return '';
+    };
+    const existing = msg(path.join(outside, 'there.json'));
+    expect(existing).toBe(msg(path.join(outside, 'missing.json')));
+    expect(existing).toBe(msg('missing-inside.json'));
   });
 
   it('refuses secret-looking names, UNC paths and non-JSON extensions before reading', () => {
