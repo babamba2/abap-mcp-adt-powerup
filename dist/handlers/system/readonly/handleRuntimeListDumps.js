@@ -117,8 +117,9 @@ const dayOf = (d) => {
 async function pageFeedBack(first, dateFrom, fetchPage, maxPages = 20) {
     const all = entriesOf(first);
     const seen = new Set(all.map((e) => e?.['atom:id']));
-    const older = (es) => es.some((e) => String(e?.['atom:published'] || '').replace(/-/g, '').slice(0, 8) <
-        dateFrom);
+    const older = (es) => es.some((e) => String(e?.['atom:published'] || '')
+        .replace(/-/g, '')
+        .slice(0, 8) < dateFrom);
     let cursor = nextFeedCursor(first);
     let pages = 1;
     let complete = !cursor || older(all);
@@ -140,11 +141,16 @@ async function pageFeedBack(first, dateFrom, fetchPage, maxPages = 20) {
     // `reached`: an entry older than dateFrom was seen. A feed that simply ends
     // before that (retention deleted older dumps) is complete, but not reached.
     const days = all
-        .map((e) => String(e?.['atom:published'] || '').replace(/-/g, '').slice(0, 8))
+        .map((e) => String(e?.['atom:published'] || '')
+        .replace(/-/g, '')
+        .slice(0, 8))
         .filter((d) => /^\d{8}$/.test(d))
         .sort();
     return {
-        parsed: { ...first, 'atom:feed': { ...feed, 'atom:entry': all } },
+        parsed: {
+            ...first,
+            'atom:feed': { ...feed, 'atom:entry': all },
+        },
         pages,
         complete,
         reached: older(all),
