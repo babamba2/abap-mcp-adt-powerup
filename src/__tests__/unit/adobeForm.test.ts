@@ -367,6 +367,54 @@ describe('adobeForm — CreateAdobeFormFromSmartForm', () => {
     ).toHaveLength(1);
   });
 
+  it('passes sender_country only when given, refuses a bad one, returns adjusted', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        raised: false,
+        saved: [],
+        left: [],
+        active: ['SFPI ZSC4SAP_AFM_IF', 'SFPF ZSC4SAP_AFM_F'],
+        adjusted: [
+          {
+            path: 'FIRST.ADDR',
+            attribute: 'SENDERCOUNTRY',
+            from: '',
+            to: 'DE',
+          },
+        ],
+        log: [],
+      },
+    });
+    const r = await createAdobeFormFromSmartForm(
+      {} as any,
+      'SF_EXAMPLE_01',
+      'ZSC4SAP_AFM_F',
+      'ZSC4SAP_AFM_IF',
+      ' de ',
+    );
+    expect(callDispatch.mock.calls[0][2]).toMatchObject({
+      sender_country: 'DE',
+    });
+    expect(r.adjusted).toEqual([expect.objectContaining({ to: 'DE' })]);
+    callDispatch.mockClear();
+    await createAdobeFormFromSmartForm(
+      {} as any,
+      'SF_EXAMPLE_01',
+      'ZSC4SAP_AFM_F',
+      'ZSC4SAP_AFM_IF',
+    );
+    expect(callDispatch.mock.calls[0][2]).not.toHaveProperty('sender_country');
+    await expect(
+      createAdobeFormFromSmartForm(
+        {} as any,
+        'SF_EXAMPLE_01',
+        'ZSC4SAP_AFM_F',
+        'ZSC4SAP_AFM_IF',
+        'DE"; x',
+      ),
+    ).rejects.toThrow(/sender_country/);
+  });
+
   it('flags a migration that is saved but not fully active', async () => {
     callDispatch.mockResolvedValue({
       result: {

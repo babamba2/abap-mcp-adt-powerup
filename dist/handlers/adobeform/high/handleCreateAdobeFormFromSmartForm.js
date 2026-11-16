@@ -32,6 +32,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'New form interface name, ZSC4SAP_AFM_* (≤ 30).',
             },
+            sender_country: {
+                type: 'string',
+                description: 'Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.',
+            },
         },
         required: ['source', 'form_name', 'interface_name'],
     },
@@ -40,7 +44,7 @@ async function handleCreateAdobeFormFromSmartForm(context, args) {
     const { connection, logger } = context;
     try {
         logger?.info(`CreateAdobeFormFromSmartForm: ${args?.source} → ${args?.form_name}`);
-        const result = await (0, adobeForm_1.createAdobeFormFromSmartForm)(connection, args?.source, args?.form_name, args?.interface_name);
+        const result = await (0, adobeForm_1.createAdobeFormFromSmartForm)(connection, args?.source, args?.form_name, args?.interface_name, args?.sender_country);
         return (0, utils_1.return_response)({
             data: JSON.stringify(result, null, 2),
         });

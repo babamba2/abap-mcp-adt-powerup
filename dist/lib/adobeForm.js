@@ -262,8 +262,13 @@ function checkMigrationNames(source, form, iface) {
     return { source: src, form: f, iface: i };
 }
 /** SAP's SmartForm migration into new $TMP objects (ZMCP_FP_MIGRATE); the result and log go to a file too. */
-async function createAdobeFormFromSmartForm(connection, source, formName, interfaceName) {
+async function createAdobeFormFromSmartForm(connection, source, formName, interfaceName, senderCountry) {
     const n = checkMigrationNames(source, formName, interfaceName);
+    const country = String(senderCountry ?? '')
+        .trim()
+        .toUpperCase();
+    if (country && !/^[A-Z0-9]{1,3}$/.test(country))
+        throw new Error(`sender_country: a country key (T005, e.g. "DE"): ${String(senderCountry).slice(0, 10)}`);
     let r;
     try {
         r = await fpCall(connection, 'FP_MIGRATE', {
@@ -271,6 +276,7 @@ async function createAdobeFormFromSmartForm(connection, source, formName, interf
             form: n.form,
             interface: n.iface,
             preset: 'FULL',
+            ...(country ? { sender_country: country } : {}),
         });
     }
     catch (e) {
@@ -292,6 +298,7 @@ async function createAdobeFormFromSmartForm(connection, source, formName, interf
         active: Array.isArray(res.active) ? res.active : [],
         ...(res.activation ? { activation: String(res.activation) } : {}),
         renamed: Array.isArray(res.renamed) ? res.renamed : [],
+        adjusted: Array.isArray(res.adjusted) ? res.adjusted : [],
         log: Array.isArray(res.log) ? res.log : [],
         ...(res.cacheInfo ? { cacheInfo: String(res.cacheInfo) } : {}),
         complete: false,

@@ -336,6 +336,8 @@ export interface AdobeMigrationResult {
   activation?: string;
   /** sibling context nodes renamed after SAP's migration (gap G1: 4.6C table cells vs work-area fields) */
   renamed: { path: string; from: string; to: string; type: number }[];
+  /** node attributes set after SAP's migration (gaps G2 include-text language, G3 sender country) */
+  adjusted: { path: string; attribute: string; from: string; to: string }[];
   log: { type: string; text: string }[];
   /** the layout's new ADS cache info (gap G4: never the placeholder 0$0$0$0$…) */
   cacheInfo?: string;
@@ -380,8 +382,16 @@ export async function createAdobeFormFromSmartForm(
   source: string,
   formName: string,
   interfaceName: string,
+  senderCountry?: string,
 ): Promise<AdobeMigrationResult> {
   const n = checkMigrationNames(source, formName, interfaceName);
+  const country = String(senderCountry ?? '')
+    .trim()
+    .toUpperCase();
+  if (country && !/^[A-Z0-9]{1,3}$/.test(country))
+    throw new Error(
+      `sender_country: a country key (T005, e.g. "DE"): ${String(senderCountry).slice(0, 10)}`,
+    );
   let r: { result: any; message?: string };
   try {
     r = await fpCall(connection, 'FP_MIGRATE', {
@@ -389,6 +399,7 @@ export async function createAdobeFormFromSmartForm(
       form: n.form,
       interface: n.iface,
       preset: 'FULL',
+      ...(country ? { sender_country: country } : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -413,6 +424,7 @@ export async function createAdobeFormFromSmartForm(
     active: Array.isArray(res.active) ? res.active : [],
     ...(res.activation ? { activation: String(res.activation) } : {}),
     renamed: Array.isArray(res.renamed) ? res.renamed : [],
+    adjusted: Array.isArray(res.adjusted) ? res.adjusted : [],
     log: Array.isArray(res.log) ? res.log : [],
     ...(res.cacheInfo ? { cacheInfo: String(res.cacheInfo) } : {}),
     complete: false,
