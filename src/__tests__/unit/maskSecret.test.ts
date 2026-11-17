@@ -43,6 +43,29 @@ describe('owner-only key file', () => {
     ).toThrow(/could not be restricted to its owner/);
   });
 
+  it('names the reason: entry count, or an owner name that differs (Azure AD / Microsoft account)', () => {
+    const two = jest.fn((_c: string, args: string[]) =>
+      args.length === 1
+        ? 'C:\\k\\mask.key BUILTIN\\Administrators:(F)\r\n DOM\\alice:(F)\r\n'
+        : '',
+    );
+    expect(() =>
+      hardenKeyFile('C:\\k\\mask.key', 'win32', two as any, 'DOM\\alice'),
+    ).toThrow(/2 access entries remain instead of 1/);
+    const other = jest.fn((_c: string, args: string[]) =>
+      args.length === 1 ? 'C:\\k\\mask.key AzureAD\\AliceKim:(F)\r\n' : '',
+    );
+    expect(() =>
+      hardenKeyFile('C:\\k\\mask.key', 'win32', other as any, 'DOM\\alice'),
+    ).toThrow(/not DOM\\alice — on an Azure AD or Microsoft-account sign-in/);
+    const broken = jest.fn(() => {
+      throw new Error('x');
+    });
+    expect(() =>
+      hardenKeyFile('C:\\k\\mask.key', 'win32', broken as any, 'DOM\\alice'),
+    ).toThrow(/icacls did not run/);
+  });
+
   it('does nothing elsewhere (mode 600 is set at creation)', () => {
     const exec = jest.fn();
     hardenKeyFile('/k/mask.key', 'linux', exec as any, 'alice');

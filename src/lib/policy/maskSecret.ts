@@ -49,9 +49,9 @@ export function hardenKeyFile(
   account: string = platform === 'win32' ? windowsAccount() : '',
 ): void {
   if (platform !== 'win32') return;
-  const fail = () =>
+  const fail = (why: string) =>
     new Error(
-      'mask: the masking key could not be restricted to its owner; rows are not returned',
+      `mask: the masking key could not be restricted to its owner (${why}); rows are not returned`,
     );
   let acl = '';
   try {
@@ -66,18 +66,19 @@ export function hardenKeyFile(
       exec('icacls', [file], { encoding: 'utf8', windowsHide: true }) ?? '',
     );
   } catch {
-    throw fail();
+    throw fail('icacls did not run');
   }
   // Verify: exactly one entry left, the owner's.
   const entries = acl
     .split(/\r?\n/)
     .map((l) => l.replace(file, '').trim())
     .filter((l) => /:\(/.test(l));
-  if (
-    entries.length !== 1 ||
-    !entries[0].toLowerCase().startsWith(`${account.toLowerCase()}:`)
-  )
-    throw fail();
+  if (entries.length !== 1)
+    throw fail(`${entries.length} access entries remain instead of 1`);
+  if (!entries[0].toLowerCase().startsWith(`${account.toLowerCase()}:`))
+    throw fail(
+      `the remaining entry is not ${account} — on an Azure AD or Microsoft-account sign-in the owner name can differ from USERDOMAIN\\user`,
+    );
 }
 
 function readKey(file: string): Buffer {
