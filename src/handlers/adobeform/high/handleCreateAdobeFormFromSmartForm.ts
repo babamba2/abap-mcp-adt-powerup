@@ -49,7 +49,7 @@ export const TOOL_DEFINITION = {
       correction_file: {
         type: 'string',
         description:
-          'Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}.',
+          'Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence|datePicture|bind","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}. bind: match "dataRef" + ref "$record…" ([0] / [*] only) or "none", with a basis. Model ops (no target, with a basis): {"op":"contextDeactivate","node":"CONTEXT/MAIN/<program lines>"} deactivates one program-lines node; {"op":"initSumByKey","source":"<table>","target":"<global table>","key":[…],"sum":[…]} adds a COLLECT loop to the interface initialization.',
       },
       strict: {
         type: 'boolean',

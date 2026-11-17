@@ -769,6 +769,118 @@ describe('adobeForm — migration layout correction', () => {
       expect(() => normalizeCorrection(dp(p))).toThrow(/datePicture/);
   });
 
+  it('bind: dataRef with a $record path ([0] / [*]) or none, always with a basis', () => {
+    const b = (o: Record<string, unknown>) => ({
+      version: 1,
+      ops: [
+        {
+          op: 'bind',
+          target: { protoId: 'X2500_EVENT5', path: 'NLOOP1/GS_TOTAL' },
+          basis: 'SF footer',
+          ...o,
+        },
+      ],
+    });
+    const ref = '$record.MAIN.SFLIGHTN.GS_SFLIGHT[0].NLOOP1.GS_TOTAL[*]';
+    expect(
+      JSON.parse(normalizeCorrection(b({ match: 'dataRef', ref })).json).ops[0],
+    ).toEqual({
+      op: 'bind',
+      protoid: 'X2500_EVENT5',
+      path: 'NLOOP1/GS_TOTAL',
+      basis: 'SF footer',
+      match: 'dataRef',
+      ref,
+    });
+    // none drops the ref
+    expect(
+      JSON.parse(normalizeCorrection(b({ match: 'none', ref })).json).ops[0]
+        .ref,
+    ).toBeUndefined();
+    for (const bad of [
+      { match: 'once', ref },
+      { match: 'global', ref },
+      { match: 'dataRef', ref: '$record.A.B[1]' },
+      { match: 'dataRef', ref: '$data.A.B' },
+      { match: 'dataRef', ref: '$record.A..B' },
+      { match: 'dataRef', ref: '$record.A #B' },
+      { match: 'dataRef', ref: '$form.A' },
+      { match: 'dataRef', ref, basis: '' },
+    ])
+      expect(() => normalizeCorrection(b(bad))).toThrow(/bind/);
+  });
+
+  it('contextDeactivate / initSumByKey: model ops without a layout target, names checked', () => {
+    const m = (o: Record<string, unknown>) => ({
+      version: 1,
+      ops: [{ basis: 'SF CALC_TOTALS', ...o }],
+    });
+    const cd = JSON.parse(
+      normalizeCorrection(
+        m({ op: 'contextDeactivate', node: 'CONTEXT/MAIN/INITIATE_SUM_VARS' }),
+      ).json,
+    ).ops[0];
+    expect(cd).toEqual({
+      op: 'contextDeactivate',
+      basis: 'SF CALC_TOTALS',
+      node: 'CONTEXT/MAIN/INITIATE_SUM_VARS',
+    });
+    const is = JSON.parse(
+      normalizeCorrection(
+        m({
+          op: 'initSumByKey',
+          source: 't_sflight',
+          target: 'GT_TOTAL',
+          key: ['CURRENCY'],
+          sum: ['price'],
+        }),
+      ).json,
+    ).ops[0];
+    expect(is).toEqual({
+      op: 'initSumByKey',
+      basis: 'SF CALC_TOTALS',
+      source: 'T_SFLIGHT',
+      target: 'GT_TOTAL',
+      key: ['CURRENCY'],
+      sum: ['PRICE'],
+    });
+    for (const bad of [
+      { op: 'contextDeactivate', node: 'MAIN' },
+      { op: 'contextDeactivate', node: 'CONTEXT/MAIN/A B' },
+      { op: 'contextDeactivate', node: 'CONTEXT/../X' },
+      { op: 'contextDeactivate', node: 'CONTEXT/MAIN/X', basis: ' ' },
+      { op: 'initSumByKey', source: 'T', target: 'G', key: [], sum: ['P'] },
+      {
+        op: 'initSumByKey',
+        source: 'T',
+        target: 'G',
+        key: ['K'],
+        sum: ['P', 'Q', 'R', 'S', 'U', 'V'],
+      },
+      { op: 'initSumByKey', source: 'T', target: 'G', key: 'K', sum: ['P'] },
+      { op: 'initSumByKey', source: 'T', target: 'G', key: ['K'], sum: ['K'] },
+      { op: 'initSumByKey', source: 'T', target: 'T', key: ['K'], sum: ['P'] },
+      {
+        op: 'initSumByKey',
+        source: 'T; DELETE',
+        target: 'G',
+        key: ['K'],
+        sum: ['P'],
+      },
+      {
+        op: 'initSumByKey',
+        source: 'T',
+        target: 'G',
+        key: ['K-X'],
+        sum: ['P'],
+      },
+      { op: 'initSumByKey', source: 'T', target: 'G', key: ['K'], sum: ['1P'] },
+    ])
+      expect(() => normalizeCorrection(m(bad))).toThrow(
+        /contextDeactivate|initSumByKey|basis/,
+      );
+  });
+
   it('sends the correction with FP_MIGRATE and returns the per-op report', async () => {
     callDispatch.mockResolvedValue({
       result: {
