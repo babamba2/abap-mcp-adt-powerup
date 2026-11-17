@@ -5,9 +5,9 @@ Generated from code in `src/handlers/**` (not from docs).
 Tools available on legacy SAP systems (BASIS < 7.50) connected via RFC.
 Legacy systems support a subset of tools — primarily Class, Interface, View, Program, Function Group/Module, Package (read/update/delete), Include, Unit Test, and common utilities.
 
-- Total tools: 168
-- Read-Only: 25
-- High-Level: 71
+- Total tools: 171
+- Read-Only: 27
+- High-Level: 72
 - Low-Level: 72
 
 ## Navigation
@@ -39,6 +39,7 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
     - [GetScreensList](#getscreenslist-read-only-screen)
     - [ReadScreen](#readscreen-read-only-screen)
   - [System](#read-only-system)
+    - [GetAdobeFormContent](#getadobeformcontent-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
     - [GetJobUsage](#getjobusage-read-only-system)
     - [GetSmartFormContent](#getsmartformcontent-read-only-system)
@@ -47,10 +48,13 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
     - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
+    - [RenderAdobeForm](#renderadobeform-read-only-system)
     - [RenderSmartForm](#rendersmartform-read-only-system)
   - [View](#read-only-view)
     - [ReadView](#readview-read-only-view)
 - [High-Level Group](#high-level-group)
+  - [Adobeform](#high-level-adobeform)
+    - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
   - [Class](#high-level-class)
     - [CreateClass](#createclass-high-level-class)
     - [DeleteClass](#deleteclass-high-level-class)
@@ -469,6 +473,22 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 <a id="read-only-system"></a>
 ### Read-Only / System
 
+<a id="getadobeformcontent-read-only-system"></a>
+#### GetAdobeFormContent (Read-Only / System)
+**Description:** [read-only] Read an Adobe form (transaction SFP) for a preview: the header (interface, form type, layout technology), the whole form as XML (SFP download format: context tree, texts, layout), the layout alone as XDP / XFA template and the form interface as XML — written as files under the MCP output directory (adobe/<form>/: <form>.form.json, <form>.form.xml, <form>.layout.xdp, <interface>.interface.xml) — and counts from the XDP (page areas, subforms, fields, draws, data bindings, scripts). Active version. Needs the ZMCP_FP_CONTENT FM and the FP_CONTENT dispatcher action (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleGetAdobeFormContent.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `include_check` (boolean, optional) - Also run SAP's own form check (what SFP's Check shows: errors / warnings with message id and text) on the inactive version if there is one, else the active one; read-only, nothing is saved, activated or corrected. Written as <form>.check.json. Default false.
+- `include_interface` (boolean, optional) - Also read the form interface XML. Default true.
+- `language` (string, optional) - Text language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+
+---
+
 <a id="getinactiveobjects-read-only-system"></a>
 #### GetInactiveObjects (Read-Only / System)
 **Description:** [read-only] Get a list of inactive ABAP objects — modified but not yet activated, pending activation. Shows classes, tables, CDS views, and other objects awaiting activation.
@@ -597,6 +617,23 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
+<a id="renderadobeform-read-only-system"></a>
+#### RenderAdobeForm (Read-Only / System)
+**Description:** [runs the form, no output] The PDF of an active Adobe form (SFP) as ADS produces it, for given interface values: calls the generated function module with FP_JOB_OPEN GETPDF (no dialog, no print, no spool) and writes the PDF under the MCP output directory (adobe/<form>/<form>.sap.pdf). The form's own context coding runs as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_FP_CONTENT FM, the FP_RENDER dispatcher action and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeForm.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `get_xml` (boolean, optional) - Also return the data XML the form hands ADS (adobe/<form>/<form>.sap.data.xml) — for checking a preview value by value. Default false.
+- `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+- `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
+- `values_file` (string, optional) - Path of a JSON file with the same content as values (for large tables): a .json file inside the MCP output directory or the profile work folder, at most 1 MB.
+
+---
+
 <a id="rendersmartform-read-only-system"></a>
 #### RenderSmartForm (Read-Only / System)
 **Description:** [runs the form, no output] The output of a SmartForm as SAP prints it, for given interface values: calls the generated function module with GETOTF (no dialog, no print, no spool) and writes the OTF (text: positions, fonts, strings) and the PDF under the MCP output directory (smartforms/<form>/<form>.sap.otf.txt / .sap.pdf). The form's own program lines run as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_SSF_RENDER FM and the SSF_RENDER dispatcher action.
@@ -611,7 +648,7 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 - `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
 - `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
 - `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, TABLES parameters / table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
-- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.
+- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces): a .json file inside the MCP output directory or the profile work folder, at most 1 MB. Ignored when `values` is given.
 
 ---
 
@@ -634,6 +671,25 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 <a id="high-level-group"></a>
 ## High-Level Group
+
+<a id="high-level-adobeform"></a>
+### High-Level / Adobeform
+
+<a id="createadobeformfromsmartform-high-level-adobeform"></a>
+#### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
+- `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
+- `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
+- `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+
+---
 
 <a id="high-level-class"></a>
 ### High-Level / Class
@@ -3008,4 +3064,4 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
-*Last updated: 2026-11-13*
+*Last updated: 2026-11-17*

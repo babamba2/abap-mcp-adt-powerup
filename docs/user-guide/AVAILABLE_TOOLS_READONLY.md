@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: Read-Only
-- Total tools: 69
+- Total tools: 71
 
 ## Navigation
 
@@ -61,6 +61,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetAbapAST](#getabapast-read-only-system)
     - [GetAbapSemanticAnalysis](#getabapsemanticanalysis-read-only-system)
     - [GetAbapSystemSymbols](#getabapsystemsymbols-read-only-system)
+    - [GetAdobeFormContent](#getadobeformcontent-read-only-system)
     - [GetAdtTypes](#getadttypes-read-only-system)
     - [GetAreaMenu](#getareamenu-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
@@ -78,6 +79,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
+    - [RenderAdobeForm](#renderadobeform-read-only-system)
     - [RenderSmartForm](#rendersmartform-read-only-system)
     - [RuntimeAnalyzeDump](#runtimeanalyzedump-read-only-system)
     - [RuntimeAnalyzeProfilerTrace](#runtimeanalyzeprofilertrace-read-only-system)
@@ -568,6 +570,20 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getadobeformcontent-read-only-system"></a>
+#### GetAdobeFormContent (Read-Only / System)
+**Description:** [read-only] Read an Adobe form (transaction SFP) for a preview: the header (interface, form type, layout technology), the whole form as XML (SFP download format: context tree, texts, layout), the layout alone as XDP / XFA template and the form interface as XML — written as files under the MCP output directory (adobe/<form>/: <form>.form.json, <form>.form.xml, <form>.layout.xdp, <interface>.interface.xml) — and counts from the XDP (page areas, subforms, fields, draws, data bindings, scripts). Active version. Needs the ZMCP_FP_CONTENT FM and the FP_CONTENT dispatcher action (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleGetAdobeFormContent.ts`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `include_check` (boolean, optional) - Also run SAP's own form check (what SFP's Check shows: errors / warnings with message id and text) on the inactive version if there is one, else the active one; read-only, nothing is saved, activated or corrected. Written as <form>.check.json. Default false.
+- `include_interface` (boolean, optional) - Also read the form interface XML. Default true.
+- `language` (string, optional) - Text language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+
+---
+
 <a id="getadttypes-read-only-system"></a>
 #### GetAdtTypes (Read-Only / System)
 **Description:** [read-only] Retrieve all valid ADT object types (CLAS, TABL, PROG, DEVC, FUGR, INTF, DDLS, DTEL, DOMA, SRVD, SRVB, BDEF, DDLX, etc.) or validate a specific type name.
@@ -794,6 +810,21 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="renderadobeform-read-only-system"></a>
+#### RenderAdobeForm (Read-Only / System)
+**Description:** [runs the form, no output] The PDF of an active Adobe form (SFP) as ADS produces it, for given interface values: calls the generated function module with FP_JOB_OPEN GETPDF (no dialog, no print, no spool) and writes the PDF under the MCP output directory (adobe/<form>/<form>.sap.pdf). The form's own context coding runs as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_FP_CONTENT FM, the FP_RENDER dispatcher action and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeForm.ts`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `get_xml` (boolean, optional) - Also return the data XML the form hands ADS (adobe/<form>/<form>.sap.data.xml) — for checking a preview value by value. Default false.
+- `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+- `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
+- `values_file` (string, optional) - Path of a JSON file with the same content as values (for large tables): a .json file inside the MCP output directory or the profile work folder, at most 1 MB.
+
+---
+
 <a id="rendersmartform-read-only-system"></a>
 #### RenderSmartForm (Read-Only / System)
 **Description:** [runs the form, no output] The output of a SmartForm as SAP prints it, for given interface values: calls the generated function module with GETOTF (no dialog, no print, no spool) and writes the OTF (text: positions, fonts, strings) and the PDF under the MCP output directory (smartforms/<form>/<form>.sap.otf.txt / .sap.pdf). The form's own program lines run as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_SSF_RENDER FM and the SSF_RENDER dispatcher action.
@@ -806,7 +837,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
 - `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
 - `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, TABLES parameters / table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
-- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.
+- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces): a .json file inside the MCP output directory or the profile work folder, at most 1 MB. Ignored when `values` is given.
 
 ---
 
@@ -914,7 +945,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleRuntimeListDumps.ts`
 
 **Parameters:**
-- `date_from` (string, optional) - Start date (YYYYMMDD or YYYY-MM-DD). On ECC a date older than 24 hours (or an empty feed) adds the ST22 list for date_from..date_to under `st22`.
+- `date_from` (string, optional) - Start date (YYYYMMDD or YYYY-MM-DD). The ADT feed is followed back page by page (its `next` cursor) until it reaches this day — `paging.reached` says whether an entry older than this day was seen, `paging.oldest` the oldest day read (max 20 pages). On ECC a date older than 24 hours (or an empty feed) also adds the ST22 list for date_from..date_to under `st22`.
 - `date_to` (string, optional) - End date (YYYYMMDD or YYYY-MM-DD). Default: today.
 - `include_summary` (boolean, optional) - Keep each entry's HTML summary (atom:summary). Default false — it is ~96% of the payload and duplicates what RuntimeGetDumpById returns.
 - `inlinecount` (string, optional) - Include total count metadata.
@@ -1096,4 +1127,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-11-13*
+*Last updated: 2026-11-17*

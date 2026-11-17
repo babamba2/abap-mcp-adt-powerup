@@ -3,11 +3,13 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: High-Level
-- Total tools: 136
+- Total tools: 137
 
 ## Navigation
 
 - [High-Level Group](#high-level-group)
+  - [Adobeform](#high-level-adobeform)
+    - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
   - [Behavior Definition](#high-level-behavior-definition)
     - [CreateBehaviorDefinition](#createbehaviordefinition-high-level-behavior-definition)
     - [DeleteBehaviorDefinition](#deletebehaviordefinition-high-level-behavior-definition)
@@ -178,6 +180,23 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="high-level-group"></a>
 ## High-Level Group
+
+<a id="high-level-adobeform"></a>
+### High-Level / Adobeform
+
+<a id="createadobeformfromsmartform-high-level-adobeform"></a>
+#### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
+
+**Parameters:**
+- `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
+- `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
+- `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
+- `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+
+---
 
 <a id="high-level-behavior-definition"></a>
 ### High-Level / Behavior Definition
@@ -2301,4 +2320,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-11-13*
+*Last updated: 2026-11-17*

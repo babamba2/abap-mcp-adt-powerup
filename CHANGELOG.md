@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+## [4.13.0] - 2026-11-17
+
+### Added
+- **Adobe forms (SFP)**. These need the DEV helper `ZMCP_FP_CONTENT` and its dispatcher actions (sc4sap `abap/`). A system without them gets an install hint.
+  - **`GetAdobeFormContent`** (read-only): the form XML, the layout XDP and the interface XML of one form, written under the MCP output directory (`adobe/<form>/`). The name is checked before any call. `include_check` (off by default) adds SAP's own form check messages (`<form>.check.json`).
+  - **`RenderAdobeForm`** (runs the form, no output): the PDF that ADS produces for given interface values, with no spool and no device. `get_xml` also returns the data XML the form hands ADS; SmartForm-type interfaces have none. It is refused on QA and PRD.
+  - **`CreateAdobeFormFromSmartForm`** (DEV write, high-level group): SAP's own SmartForm → Adobe migration (`FP_MIGRATE`) into new `ZSC4SAP_AFM_*` names in `$TMP`. It never overwrites an existing name. The result reports `complete`, SAP's messages, the context nodes it renamed (duplicate sibling names), the layout `cacheInfo`, and what it `adjusted`. An optional `sender_country` is passed through.
+- Tool docs regenerated (342 tools).
+
+### Changed
+- **`values_file`** (`RenderSmartForm`, `RenderAdobeForm`): the file must be inside the MCP output directory or `.sc4sap/work/<alias>`, checked on its real path.
+  - Links and junctions out, UNC paths and secret-like names are refused before the file is read.
+  - Only `.json` up to 1 MB is accepted.
+  - A missing file and a refused one get the same answer, so the answer does not reveal whether an outside file exists.
+- Output paths are checked on the real path of the existing parent (all output tools).
+- **`GetSmartFormContent`** symbols: `<(>…<)>` protected text is skipped, `&'pre'NAME'post'&` yields `NAME`, and comment lines are ignored.
+- **Table blocklist**: every table of a `FROM` list is checked (commas, aliases, brackets). `AGR_1016` and `AGR_TIMEB` join the role tables in the minimal blocklist.
+
 ## [4.12.1] - 2026-11-16
 
 ### Fixed
