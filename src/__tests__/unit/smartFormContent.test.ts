@@ -305,3 +305,55 @@ describe('command nodes', () => {
     ).toMatchObject({ attrs: { NEWPAGE: 'X', PAGENAME: '%PAGE3' } });
   });
 });
+
+describe('text modules (TTYPE R)', () => {
+  const ref = (name: string, refName: string, tkey: string) =>
+    `<sf:item><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT><NAME><INAME>${name}</INAME></NAME>${cap(name)}` +
+    `<TTYPE>R</TTYPE><STYLE_NAME>ZTEST_STYLE</STYLE_NAME><REF_NAME>${refName}</REF_NAME>` +
+    `<TKEY><OBJECT>TEXT</OBJECT><NAME>${tkey}</NAME><ID>ADRS</ID></TKEY><IGNORE>X</IGNORE>` +
+    `</sf:TEXT></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+
+  it('names a text module by REF_NAME, not by a TKEY left from an include text', () => {
+    const xml = XML.replace(
+      rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+      rc('852', ref('FOOTER_INCL', 'ZTEST_TM_FOOTER', 'ZTEST_OLD_SO10')),
+    );
+    const p = parseSmartFormXml(xml);
+    const n = p.pages[0].windows.find(
+      (x: { name: string }) => x.name === '%WINDOW1',
+    )?.content[0];
+    expect(n).toMatchObject({
+      textType: 'reference',
+      include: { object: 'TEXTMODULE', name: 'ZTEST_TM_FOOTER', id: '' },
+    });
+    expect(p.textKeys).toEqual([
+      {
+        object: 'TEXTMODULE',
+        name: 'ZTEST_TM_FOOTER',
+        id: '',
+        language: '',
+        resolved: false,
+      },
+    ]);
+  });
+
+  it('reads the text of a text module (FORMTYPE T: one text node, no pages)', () => {
+    const tm =
+      `<?xml version="1.0" encoding="utf-8"?><sf:SMARTFORM xmlns:sf="urn:sap-com:SmartForms:2000:internal-structure" xmlns="urn:sap-com:sdixml-ifr:2000" sf:language="EN">` +
+      `<HEADER><FORMNAME>ZTEST_TM_FOOTER</FORMNAME><FORMTYPE>T</FORMTYPE><MASTERLANG>D</MASTERLANG></HEADER>` +
+      `<sf:VARHEADER><sf:item><PAGEFORMAT>DINA4</PAGEFORMAT><STDSTYLE>ZTEST_STYLE</STDSTYLE><sf:PAGETREE><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT>` +
+      `<NAME><INAME>%TEXT1</INAME></NAME>${cap('New Text')}<TTYPE>R</TTYPE><TEXT><item><TDFORMAT>FT</TDFORMAT><TDLINE>Sample Street 1</TDLINE></item>` +
+      `<item><TDFORMAT>/</TDFORMAT><TDLINE>Sample City</TDLINE></item></TEXT><STYLE_NAME>ZTEST_TM_STYLE</STYLE_NAME></sf:TEXT></sf:OBJ></sf:NODE></sf:PAGETREE></sf:item></sf:VARHEADER></sf:SMARTFORM>`;
+    const p = parseSmartFormXml(tm);
+    expect(p.pages).toEqual([]);
+    expect(p.textModule).toEqual({
+      lines: [
+        { format: 'FT', text: 'Sample Street 1' },
+        { format: '/', text: 'Sample City' },
+      ],
+      style: 'ZTEST_TM_STYLE',
+    });
+    // a form is no text module
+    expect(parseSmartFormXml(XML).textModule).toBeUndefined();
+  });
+});
