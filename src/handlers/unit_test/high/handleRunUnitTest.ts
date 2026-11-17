@@ -10,6 +10,8 @@ import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { getSystemContext } from '../../../lib/systemContext';
 import {
   type AxiosResponse,
+  encodeSapObjectName,
+  makeAdtRequestWithTimeout,
   return_error,
   return_response,
 } from '../../../lib/utils';
@@ -22,7 +24,8 @@ export const TOOL_DEFINITION = {
     'On legacy systems (ECC / BASIS < 7.50) the run is synchronous: the result is returned inline as run_result ' +
     '(run_id "legacy-sync" cannot be queried later), every test class of the container runs (test_class is not a filter), ' +
     'and container_type PROG/FUGR runs local test classes of a program / function group. ' +
-    'On S/4HANA only CLAS containers are supported.',
+    'On S/4HANA, PROG / FUGR containers also run synchronously (run_id "object-sync", result inline as run_result, ' +
+    'every test class of the container runs); CLAS containers start an asynchronous run.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -46,7 +49,7 @@ export const TOOL_DEFINITION = {
               type: 'string',
               enum: ['CLAS', 'PROG', 'FUGR'],
               description:
-                'Type of container_class. Default CLAS. PROG/FUGR: legacy systems only.',
+                'Type of container_class. Default CLAS. PROG / FUGR run synchronously with the result inline.',
             },
           },
           required: ['container_class', 'test_class'],
@@ -90,6 +93,93 @@ export const TOOL_DEFINITION = {
 } as const;
 
 const LEGACY_SYNC_RUN_ID = 'legacy-sync';
+const OBJECT_SYNC_RUN_ID = 'object-sync';
+
+const CONTAINER_URI_PREFIX: Record<string, string> = {
+  CLAS: '/sap/bc/adt/oo/classes/',
+  PROG: '/sap/bc/adt/programs/programs/',
+  FUGR: '/sap/bc/adt/functions/groups/',
+};
+
+/**
+ * Run configuration for the synchronous /abapunit/testruns endpoint: object references,
+ * so programs and function groups can be addressed (the asynchronous /abapunit/runs
+ * endpoint addresses tests by class name only).
+ */
+export function buildObjectRunXml(
+  tests: Array<{ container_class: string; container_type?: string }>,
+): string {
+  const refs = tests
+    .map((t) => {
+      const prefix = CONTAINER_URI_PREFIX[t.container_type ?? 'CLAS'];
+      if (!prefix) {
+        throw new Error(`Unsupported container_type: ${t.container_type}`);
+      }
+      const uri = `${prefix}${encodeSapObjectName(t.container_class).toLowerCase()}`;
+      return `        <adtcore:objectReference adtcore:uri="${uri}"/>`;
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?><aunit:runConfiguration xmlns:aunit="http://www.sap.com/adt/aunit">
+  <external>
+    <coverage active="false"/>
+  </external>
+  <options>
+    <uriType value="semantic"/>
+    <testDeterminationStrategy sameProgram="true" assignedTests="false"/>
+    <testRiskLevels harmless="true" dangerous="true" critical="true"/>
+    <testDurations short="true" medium="true" long="true"/>
+  </options>
+  <adtcore:objectSets xmlns:adtcore="http://www.sap.com/adt/core">
+    <objectSet kind="inclusive">
+      <adtcore:objectReferences>
+${refs}
+      </adtcore:objectReferences>
+    </objectSet>
+  </adtcore:objectSets>
+</aunit:runConfiguration>`;
+}
+
+// Media types tried in order: plain XML first, then the versioned types Eclipse sends.
+const OBJECT_RUN_MEDIA = [
+  { contentType: 'application/xml', accept: 'application/xml' },
+  {
+    contentType: 'application/vnd.sap.adt.abapunit.testruns.config.v4+xml',
+    accept: 'application/vnd.sap.adt.abapunit.testruns.result.v1+xml',
+  },
+];
+
+/**
+ * Synchronous ABAP Unit run by object reference on a modern system.
+ * @returns the runResult XML
+ */
+export async function runUnitTestByObjects(
+  connection: any,
+  tests: Array<{ container_class: string; container_type?: string }>,
+): Promise<string> {
+  const xml = buildObjectRunXml(tests);
+  let lastError: unknown;
+  for (const media of OBJECT_RUN_MEDIA) {
+    try {
+      const response = await makeAdtRequestWithTimeout(
+        connection,
+        '/sap/bc/adt/abapunit/testruns',
+        'POST',
+        'long',
+        xml,
+        undefined,
+        { 'Content-Type': media.contentType, Accept: media.accept },
+      );
+      return typeof response.data === 'string'
+        ? response.data
+        : JSON.stringify(response.data);
+    } catch (e: any) {
+      lastError = e;
+      const status = e?.response?.status ?? e?.status;
+      if (status !== 406 && status !== 415) throw e;
+    }
+  }
+  throw lastError;
+}
 
 interface RunUnitTestArgs {
   tests: Array<{
@@ -149,11 +239,32 @@ export async function handleRunUnitTest(
       (test) => test.container_type && test.container_type !== 'CLAS',
     );
     if (nonClass && !getSystemContext().isLegacy) {
-      return return_error(
-        new Error(
-          `container_type ${nonClass.container_type} is not supported on S/4HANA yet; only CLAS containers can be run`,
-        ),
+      // The asynchronous /abapunit/runs addresses tests by class only — run the whole set
+      // through the synchronous object-reference endpoint instead and return the result inline.
+      logger?.info(
+        `Starting synchronous ABAP Unit run by object for ${tests.length} container(s)`,
       );
+      try {
+        const runResult = await runUnitTestByObjects(connection, tests);
+        return return_response({
+          data: JSON.stringify(
+            {
+              success: true,
+              run_id: OBJECT_SYNC_RUN_ID,
+              message:
+                'ABAP Unit run completed (synchronous, by object). Result is in run_result.',
+              run_result: runResult,
+            },
+            null,
+            2,
+          ),
+        } as AxiosResponse);
+      } catch (error: any) {
+        logger?.error(
+          `Error in synchronous ABAP Unit run: ${error?.message || error}`,
+        );
+        return return_error(new Error(error?.message || String(error)));
+      }
     }
 
     // Format tests for AdtClient
