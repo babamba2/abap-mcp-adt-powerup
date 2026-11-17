@@ -96,6 +96,19 @@ export const TOOL_DEFINITION = {
 const LEGACY_SYNC_RUN_ID = 'legacy-sync';
 const OBJECT_SYNC_RUN_ID = 'object-sync';
 
+/**
+ * A run result without a single test method: SAP answers like this for a container that
+ * does not exist, is not active, or has no FOR TESTING class — the same empty runResult,
+ * so the caller is told instead of reading "success".
+ */
+export function emptyRunWarning(runResult: unknown): string | undefined {
+  const xml =
+    typeof runResult === 'string' ? runResult : JSON.stringify(runResult ?? '');
+  // abapunit results list <testMethod>, junit results (GetUnitTestResult format "junit") <testcase>
+  if (/<(?:\w+:)?(?:testMethod|testcase)\b/.test(xml)) return undefined;
+  return 'No test method ran: the container does not exist, is not active, or has no FOR TESTING class. Treat this run as NOT RUN, not as passed.';
+}
+
 const CONTAINER_URI_PREFIX: Record<string, string> = {
   CLAS: '/sap/bc/adt/oo/classes/',
   PROG: '/sap/bc/adt/programs/programs/',
@@ -255,6 +268,9 @@ export async function handleRunUnitTest(
               message:
                 'ABAP Unit run completed (synchronous, by object). Result is in run_result.',
               run_result: runResult,
+              ...(emptyRunWarning(runResult)
+                ? { methods: 0, warning: emptyRunWarning(runResult) }
+                : {}),
             },
             null,
             2,
@@ -319,6 +335,12 @@ export async function handleRunUnitTest(
               message:
                 'ABAP Unit run completed (legacy, synchronous). Result is in run_result.',
               run_result: createResult.runResult,
+              ...(emptyRunWarning(createResult.runResult)
+                ? {
+                    methods: 0,
+                    warning: emptyRunWarning(createResult.runResult),
+                  }
+                : {}),
             },
             null,
             2,

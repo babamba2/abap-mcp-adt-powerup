@@ -11,6 +11,7 @@ import {
   return_error,
   return_response,
 } from '../../../lib/utils';
+import { emptyRunWarning } from './handleRunUnitTest';
 
 export const TOOL_DEFINITION = {
   name: 'GetUnitTestResult',
@@ -84,6 +85,9 @@ export async function handleGetUnitTestResult(
             success: true,
             run_id,
             run_result: readResult?.runResult,
+            ...(emptyRunWarning(readResult?.runResult)
+              ? { methods: 0, warning: emptyRunWarning(readResult?.runResult) }
+              : {}),
           },
           null,
           2,

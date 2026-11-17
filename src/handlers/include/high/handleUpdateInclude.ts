@@ -47,6 +47,11 @@ export const TOOL_DEFINITION = {
         description:
           'Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.',
       },
+      function_group: {
+        type: 'string',
+        description:
+          'Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.',
+      },
       transport_request: {
         type: 'string',
         description:
@@ -66,8 +71,22 @@ interface UpdateIncludeArgs {
   include_name: string;
   source_code: string;
   main_program?: string;
+  function_group?: string;
   transport_request?: string;
   activate?: boolean;
+}
+
+/** The function group of a function-group include: explicit, or from main_program SAPL<group>. */
+export function functionGroupOf(args: {
+  function_group?: string;
+  main_program?: string;
+}): string | null {
+  const explicit = String(args.function_group ?? '').trim();
+  if (explicit) return explicit.toUpperCase();
+  const main = String(args.main_program ?? '')
+    .trim()
+    .toUpperCase();
+  return main.startsWith('SAPL') && main.length > 4 ? main.slice(4) : null;
 }
 
 export async function handleUpdateInclude(
@@ -93,7 +112,12 @@ export async function handleUpdateInclude(
 
   const includeName = args.include_name.toUpperCase();
   const encodedName = encodeSapObjectName(includeName);
-  const baseUrl = `/sap/bc/adt/programs/includes/${encodedName}`;
+  // A function-group include lives under its group (/functions/groups/<fg>/includes/<inc>);
+  // locking it through /programs/includes fails ("This syntax cannot be used for an object name").
+  const functionGroup = functionGroupOf(args);
+  const baseUrl = functionGroup
+    ? `/sap/bc/adt/functions/groups/${encodeSapObjectName(functionGroup).toLowerCase()}/includes/${encodedName.toLowerCase()}`
+    : `/sap/bc/adt/programs/includes/${encodedName}`;
   const shouldActivate = args.activate === true;
 
   logger?.info(
@@ -115,7 +139,8 @@ export async function handleUpdateInclude(
     // in a single SAP call and returns ALL errors it can detect (with
     // line numbers), without writing anything to the server. Only fires
     // when main_program is provided.
-    if (args.main_program) {
+    // (function-group includes: activation below is the check)
+    if (args.main_program && !functionGroup) {
       currentStep = 'check_new_code';
       const mainProgram = args.main_program.toUpperCase();
       const programUri = `/sap/bc/adt/programs/programs/${encodeSapObjectName(mainProgram).toLowerCase()}`;
