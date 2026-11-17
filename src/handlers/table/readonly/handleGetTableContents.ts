@@ -6,6 +6,14 @@ import {
   legacyTableRead,
 } from '../../../lib/legacyTableRead';
 import {
+  maskPayload,
+  maskZod,
+  refuseMaskedTables,
+  resolveTableDdic,
+} from '../../../lib/policy/maskedRead';
+import { loadMaskSecret } from '../../../lib/policy/maskSecret';
+import { maskSpecFrom, type TableDdic } from '../../../lib/policy/personalMask';
+import {
   activeProfile,
   checkTables,
   evaluateHits,
@@ -49,6 +57,7 @@ export const TOOL_DEFINITION = {
       .describe(
         "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.",
       ),
+    mask: maskZod,
   },
 } as const;
 
@@ -136,6 +145,33 @@ export async function handleGetTableContents(
       );
     }
 
+    // Test-data mode: DDIC first, so a failure returns no rows at all.
+    const mask = maskSpecFrom(args.mask);
+    if (typeof mask === 'string')
+      throw new McpError(ErrorCode.InvalidParams, mask);
+    let ddic: TableDdic | null = null;
+    let secret: Buffer | null = null;
+    if (mask) {
+      refuseMaskedTables([String(tableName)]);
+      secret = loadMaskSecret();
+      ddic = await resolveTableDdic(
+        connection,
+        String(tableName).toUpperCase(),
+        logger,
+      );
+    }
+    const finish = (payload: Record<string, any>) =>
+      mask && ddic && secret
+        ? maskPayload(
+            payload,
+            mask,
+            ddic,
+            null,
+            String(tableName).toUpperCase(),
+            secret,
+          )
+        : payload;
+
     logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
 
     const client = createAdtClient(connection, logger);
@@ -162,10 +198,12 @@ export async function handleGetTableContents(
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              ...compact,
-              path: 'ecc-dispatch-table-read',
-            }),
+            text: JSON.stringify(
+              finish({
+                ...compact,
+                path: 'ecc-dispatch-table-read',
+              }),
+            ),
           },
         ],
       };
@@ -195,7 +233,7 @@ export async function handleGetTableContents(
         content: [
           {
             type: 'text',
-            text: JSON.stringify(compact),
+            text: JSON.stringify(finish(compact)),
           },
         ],
       };

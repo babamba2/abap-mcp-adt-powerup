@@ -4,6 +4,14 @@ import * as path from 'path';
 import * as z from 'zod';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import {
+  maskPayload,
+  maskZod,
+  refuseMaskedTables,
+  resolveTableDdic,
+} from '../../../lib/policy/maskedRead';
+import { loadMaskSecret } from '../../../lib/policy/maskSecret';
+import { maskSpecFrom, type TableDdic } from '../../../lib/policy/personalMask';
+import {
   activeProfile,
   checkTables,
   evaluateHits,
@@ -68,6 +76,7 @@ export const TOOL_DEFINITION = {
       .describe(
         "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table.",
       ),
+    mask: maskZod,
   },
 } as const;
 
@@ -228,6 +237,27 @@ export async function handleGetRemoteTableContents(
       );
     }
 
+    // Test-data mode: the DDIC of the connected (DEV) system first; no rows when it fails.
+    const mask = maskSpecFrom(args.mask);
+    if (typeof mask === 'string')
+      throw new McpError(ErrorCode.InvalidParams, mask);
+    let ddic: TableDdic | null = null;
+    let secret: Buffer | null = null;
+    if (mask) {
+      refuseMaskedTables([tableName]);
+      secret = loadMaskSecret();
+      try {
+        ddic = await resolveTableDdic(connection, tableName, logger);
+      } catch (e) {
+        // A table the connected (DEV) system does not know, e.g. a Z table that exists
+        // only in the remote system: no field is known, so every column is masked.
+        logger?.warn(
+          `mask: DDIC of ${tableName} not read on the connected system (${String(e)}); every column is masked`,
+        );
+        ddic = {};
+      }
+    }
+
     const requested =
       Number(args.max_rows) > 0
         ? Math.floor(Number(args.max_rows))
@@ -252,6 +282,36 @@ export async function handleGetRemoteTableContents(
       throw new Error(dispatchErrorText(e));
     }
     rememberRemoteDestination(destination); // saved only after a read worked, so typos never enter the list
+    if (mask && ddic) {
+      let parsed: unknown = result;
+      if (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          throw new Error(
+            'mask: the remote result is not JSON; rows are not returned',
+          );
+        }
+      }
+      return {
+        isError: false,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              maskPayload(
+                parsed as Record<string, any>,
+                mask,
+                ddic,
+                null,
+                tableName,
+                secret as Buffer,
+              ),
+            ),
+          },
+        ],
+      };
+    }
     return {
       isError: false,
       content: [

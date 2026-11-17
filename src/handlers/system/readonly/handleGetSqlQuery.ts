@@ -9,6 +9,20 @@ import {
   parseSimpleSelect,
 } from '../../../lib/legacyTableRead';
 import {
+  MASK_JSON_SCHEMA,
+  maskPayload,
+  refuseMaskedTables,
+  resolveTableDdic,
+} from '../../../lib/policy/maskedRead';
+import { loadMaskSecret } from '../../../lib/policy/maskSecret';
+import {
+  maskSpecFrom,
+  parseStrictSelect,
+  type StrictSelect,
+  type TableDdic,
+  tablesInSql,
+} from '../../../lib/policy/personalMask';
+import {
   activeProfile,
   checkTables,
   evaluateHits,
@@ -49,6 +63,7 @@ export const TOOL_DEFINITION = {
           "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.",
         default: false,
       },
+      mask: MASK_JSON_SCHEMA,
     },
     required: ['sql_query'],
   },
@@ -285,6 +300,34 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
       }
     }
 
+    // Test-data mode: strict single-table SELECT, DDIC first, rows masked before they leave.
+    const mask = maskSpecFrom(args.mask);
+    if (typeof mask === 'string')
+      throw new McpError(ErrorCode.InvalidParams, mask);
+    let ddic: TableDdic | null = null;
+    let secret: Buffer | null = null;
+    let strict: StrictSelect | null = null;
+    if (mask) {
+      if (args.output === 'file')
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          'mask: output "file" is not allowed; the masked rows come inline',
+        );
+      refuseMaskedTables(tablesInSql(sqlQuery));
+      strict = parseStrictSelect(sqlQuery);
+      if (!strict.ok)
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          `mask: ${strict.why} — use one table, plain fields (optional AS), a simple WHERE`,
+        );
+      secret = loadMaskSecret();
+      ddic = await resolveTableDdic(connection, strict.table, logger);
+    }
+    const finish = (parsed: Record<string, any>) =>
+      mask && ddic && secret && strict?.ok
+        ? maskPayload(parsed, mask, ddic, strict, strict.table, secret)
+        : parsed;
+
     logger?.info(`Executing SQL query (rows=${rowNumber})`);
 
     const client = createAdtClient(connection, logger);
@@ -314,10 +357,13 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
         content: [
           {
             type: 'text',
-            text: sqlText(args, {
-              ...parsed,
-              path: 'ecc-dispatch-table-read',
-            }),
+            text: sqlText(
+              args,
+              finish({
+                ...parsed,
+                path: 'ecc-dispatch-table-read',
+              }),
+            ),
           },
         ],
       };
@@ -343,7 +389,7 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
         content: [
           {
             type: 'text',
-            text: sqlText(args, parsedData),
+            text: sqlText(args, finish(parsedData as Record<string, any>)),
           },
         ],
       };
