@@ -7,10 +7,13 @@
  * shared vectors in `src/__tests__/unit/fixtures/mask-vectors.json` — change both
  * together. Tokens are made only here: HMAC under a server-side key (maskSecret.ts).
  *
- * Default-deny: a column keeps its value only when it maps (through the SELECT list,
- * alias → source field, or by its own name) to a field of the table's DDIC that is not
- * personal by field name, data element or domain. Expressions, unknown columns and
- * fields the DDIC does not list are masked.
+ * Allow-list: a column keeps its value only when it maps (through the SELECT list,
+ * alias → source field, or by its own name) to a field of the table's DDIC that is
+ * clearly non-personal by DDIC semantics (isClearField: client, org keys, document
+ * numbers, type / status codes, plain document dates, amounts, quantities, currency and
+ * unit fields) AND matches none of the personal name / data element / domain shapes.
+ * Everything else — unlisted data elements, expressions, unknown columns, fields the
+ * DDIC does not list — is masked.
  */
 import { createHmac } from 'node:crypto';
 
@@ -119,8 +122,75 @@ export const PERSONAL_EXACT: ReadonlySet<string> = new Set([
   'CRUSR',
   'CHUSR',
   'USERNAME',
+  'NAME',
+  'NAME_LAST2',
+  'NAME1_TEXT',
+  'NAMECOMBINED',
+  'NAME_GRP1',
+  'NAME_GRP2',
+  'NICKNAME',
+  'INITIALS',
+  'SPNAM',
+  'EMPLO',
+  'MCOD3',
+  'MC_NAMEFIR',
+  'MC_NAMELAS',
+  'BU_SORT1',
+  'BU_SORT2',
+  'SORT_PHN',
+  'ANRED',
+  'FORM',
+  'PASSNAME',
+  'PASSFORM',
+  'PROFESSION',
+  'CITY',
+  'HOME_CITY',
+  'POSTCODE',
+  'POSTBOX',
+  'PSTLZ',
+  'POST_CODE1',
+  'POST_CODE2',
+  'POST_CODE3',
+  'PO_BOX_LOC',
+  'PO_BOX_LOBBY',
+  'HOUSE_NUM3',
+  'LOCATION',
+  'BUILDING',
+  'FLOOR',
+  'ROOMNUMBER',
+  'EXTENSION1',
+  'EXTENSION2',
+  'COUNTY',
+  'TOWNSHIP',
+  'MC_COUNTY',
+  'MC_TOWNSHIP',
+  'TELEPHONE',
+  'PHONE',
+  'MOBILE',
+  'FAX',
+  'TELNR_LONG',
+  'TELNR_CALL',
+  'SMTP_SRCH',
+  'WEBUSER',
+  'KNURL',
+  'LFURL',
+  'PASSBIRTH',
+  'DEATHDT',
+  'SEX',
+  'SEXKZ',
+  'GENDER',
+  'XSEXM',
+  'XSEXF',
+  'XSEXU',
+  'MARST',
+  'FAMST',
+  'NATIO',
+  'PERNO',
+  'STCD6',
+  'XUBNAME',
 ]);
 const DATE_FIELDS: ReadonlySet<string> = new Set(['GBDAT', 'BIRTHDT']);
+const BIRTH_DATE_NAME = /BIRTH|GBDAT|GEB|DOB|DEATHDT/;
 
 /** Data elements of personal data. */
 export const PERSONAL_DTEL: ReadonlySet<string> = new Set([
@@ -228,6 +298,56 @@ export const PERSONAL_DTEL: ReadonlySet<string> = new Set([
   'ABP_LASTCHANGE_USER',
   'VDM_CREATEDBYUSERID',
   'VDM_LASTCHANGEDBYUSERID',
+  'S_CUSTNAME',
+  'S_FORM',
+  'S_STREET',
+  'S_POSTBOX',
+  'S_PHONENO',
+  'S_EMAIL',
+  'S_WEBNAME',
+  'S_PASSNAME',
+  'S_BIRTHDAT',
+  'POSTCODE',
+  'CITY',
+  'PSTLZ',
+  'PSTL2',
+  'NAMECOMBINED',
+  'SPNAM',
+  'ANRED',
+  'ANRED_AP',
+  'FAMST',
+  'AD_NAMLAS2',
+  'AD_INITS',
+  'AD_SEX',
+  'AD_PROFESS',
+  'AD_POBXLOC',
+  'AD_LCTN',
+  'AD_BLDNG',
+  'AD_FLOOR',
+  'AD_ROOMNUM',
+  'AD_EXTENS1',
+  'AD_EXTENS2',
+  'AD_COUNTY',
+  'AD_TOWNSHIP',
+  'AD_TELNRLG',
+  'AD_TELNRCL',
+  'BU_NAME1TX',
+  'BU_NICKNAM',
+  'BU_EMPLO',
+  'BU_MARST',
+  'BU_NATIO',
+  'BU_PERNO',
+  'BU_XUBNAME',
+  'BU_XSEXM',
+  'BU_XSEXF',
+  'BU_XSEXU',
+  'GBDAT_Q',
+  'GBORT_Q',
+  'SEXKZ',
+  'STCD6',
+  'ERNAM_RF',
+  'AENAM_RF',
+  'REPRES',
 ]);
 /** Domains of personal data. */
 export const PERSONAL_DOMAIN: ReadonlySet<string> = new Set([
@@ -251,6 +371,19 @@ export const PERSONAL_DOMAIN: ReadonlySet<string> = new Set([
   'NAME',
   'ORT01',
   'STRAS',
+  'AD_SMTPAD2',
+  'AD_TELNRLG',
+  'AD_TELNRCL',
+  'AD_NAMEFIR',
+  'AD_NAMELAS',
+  'BU_NAME',
+  'S_CUSTNAME',
+  'S_PHONENO',
+  'S_EMAIL',
+  'POSTCODE',
+  'PSTLZ',
+  'TELF2',
+  'TELFX',
 ]);
 
 /** Tables never read for test data: HR, user / credential, contact / bank detail, secure store. */
@@ -276,8 +409,53 @@ const REFUSED_TABLES: RegExp[] = [
   /^PCA_/,
 ];
 
-export type FieldDdic = { rollname: string; domname: string };
+export type FieldDdic = {
+  rollname: string;
+  domname: string;
+  /** DDIC data type (CURR, QUAN, CUKY, UNIT, …) when the source gives it. */
+  datatype?: string;
+};
 export type TableDdic = Record<string, FieldDdic>;
+
+/** Field-name shapes of personal data (names, phone / fax / mobile, e-mail, birth, street lines, bank and tax numbers). */
+export const PERSONAL_NAME_PATTERNS: readonly RegExp[] = [
+  /^NAME(\d|_|$|V$|COMBINED|MIDDLE)/,
+  /_NAME\d?$/,
+  // custom fields (Z tables): CUSTNAME, FULLNAME, CONTACT_NAME, NAME_KR, …
+  /NAME\d?$|_NAME|NAME_/,
+  /CONTACT|ANSPR|SACHB|OWNER|RESP_?PERS|TITLE_LET|SALUT/,
+  /HOMEPAGE|URL|URI$|IP_?ADDR/,
+  /^MC_(NAME|STREET|CITY|COUNTY|TOWNSHIP)/,
+  /TELEPHONE|PHONE|MOBILE/,
+  /^(TEL|FAX|MOB)/,
+  /SMTP|MAIL/,
+  /BIRTH|GBDAT|GEB|DOB|DEATHDT/,
+  /^(STREET|STRAS|STR_SUPPL|HOUSE_NUM|POST_CODE|PSTLZ|ORT0)/,
+  /^CITY\d?$/,
+  /IBAN|BANKN/,
+  /^STCD\d$/,
+];
+/** Data element / domain shapes of personal data — checked on the source field's DDIC. */
+export const PERSONAL_DDIC_PATTERNS: readonly RegExp[] = [
+  /^AD_NAME/,
+  /^AD_MC_/,
+  /^AD_(TLNMBR|TLXTNS|FXNMBR|FXXTNS|MBNMBR|TELNR|SMTPAD|STRSPP|HSNM|PSTCD|SORT|SRTPHN|CITY\d)/,
+  /^BU_(NAME|MCNAME|BIRTH|DEATH|NICKNAM|SORT\d|XSEX)/,
+  /^NAME\d/,
+  /^NAMEV/,
+  /^(TELF|TELX|TELBX|TELTX)/,
+  /^(STRAS|ORT0\d|PSTLZ|PSTL2|PFACH)(_|$)/,
+  /^MCD[DK]\d$/,
+  /SMTP|E_?MAIL/,
+  /PHONE|TELNR|FAXNR|MOBNR/,
+  /BIRTH|GBDAT|GBORT|GEB|DOB/,
+  /IBAN|BANKN|BKONT/,
+  /^STCD\d/,
+  // custom data elements (Z*): ZZ_CUSTNAME, Z_CONTACT_NAME, ZURL, …
+  /NAME\d?$|_NAME|NAME_/,
+  /CONTACT|ANSPR|SACHB|OWNER|RESP_?PERS|TITLE_LET|SALUT/,
+  /HOMEPAGE|URL|URI$|IP_?ADDR/,
+];
 
 export function isPersonalField(
   name: string,
@@ -286,12 +464,219 @@ export function isPersonalField(
 ): boolean {
   const n = up(name);
   if (PERSONAL_EXACT.has(n) || extra.map(up).includes(n)) return true;
-  if (ddic)
-    return (
-      PERSONAL_DTEL.has(up(ddic.rollname)) ||
-      PERSONAL_DOMAIN.has(up(ddic.domname))
-    );
-  return false;
+  if (PERSONAL_NAME_PATTERNS.some((re) => re.test(n))) return true;
+  if (!ddic) return false;
+  const r = up(ddic.rollname);
+  const d = up(ddic.domname);
+  return (
+    PERSONAL_DTEL.has(r) ||
+    PERSONAL_DOMAIN.has(d) ||
+    PERSONAL_DDIC_PATTERNS.some((re) => (r && re.test(r)) || (d && re.test(d)))
+  );
+}
+
+/**
+ * Data elements / domains that are clearly non-personal: client, organisational keys,
+ * country / region / language, business-partner and document numbers, type / status /
+ * flag codes, plain document dates, amounts, quantities, currency and unit keys.
+ * Anything not on this list is masked on a masked read.
+ */
+export const CLEAR_DDIC: ReadonlySet<string> = new Set([
+  // client
+  'MANDT',
+  'S_MANDT',
+  // organisational keys, country, region, language, zones
+  'BUKRS',
+  'WERKS',
+  'WERKS_D',
+  'WERKS_EXT',
+  'VKORG',
+  'VTWEG',
+  'SPART',
+  'VKBUR',
+  'VKGRP',
+  'EKORG',
+  'EKGRP',
+  'LGORT',
+  'LGORT_D',
+  'LGNUM',
+  'KOKRS',
+  'KOSTL',
+  'PRCTR',
+  'GSBER',
+  'VSTEL',
+  'BWKEY',
+  'LAND1',
+  'LAND1_GP',
+  'S_COUNTRY',
+  'AD_COMCTRY',
+  'AD_POBXCTY',
+  'AD_NATION',
+  'REGIO',
+  'S_REGION',
+  'REGIOGROUP',
+  'SPRAS',
+  'LANGU',
+  'BU_LANGU_CORR',
+  'LZONE',
+  'AD_TZONE',
+  'TZNZONE',
+  'TXJCD',
+  'AD_TXJCD',
+  // partner, address and document numbers / keys
+  'KUNNR',
+  'LIFNR',
+  'BU_PARTNER',
+  'PARNR',
+  'ADRNR',
+  'AD_ADDRNUM',
+  'AD_PERSNUM',
+  'AD_CONSNUM',
+  'S_CUSTOMER',
+  'MATNR',
+  'CHARG_D',
+  'VBELN',
+  'VBELN_VA',
+  'VBELN_VL',
+  'VBELN_VF',
+  'POSNR',
+  'POSNR_VA',
+  'POSNR_VL',
+  'POSNR_VF',
+  'EBELN',
+  'EBELP',
+  'BANFN',
+  'BNFPO',
+  'BELNR',
+  'BELNR_D',
+  'BUZEI',
+  'GJAHR',
+  'MBLNR',
+  'MJAHR',
+  'MBLPO',
+  'AUFNR',
+  'SAKNR',
+  'HKONT',
+  'S_CARR_ID',
+  'S_CONN_ID',
+  'S_BOOK_ID',
+  'S_AGNCYNUM',
+  'S_COUNTNUM',
+  // type / status / flag codes
+  'KTOKD',
+  'KTOKK',
+  'BU_GROUP',
+  'BU_GRPTYP',
+  'BU_LEGENTY',
+  'BU_INDSECT',
+  'BRSCH',
+  'KUKLA',
+  'KDGRP',
+  'AUART',
+  'BSART',
+  'BLART',
+  'BWART',
+  'PSTYV',
+  'S_CUSTTYPE',
+  'S_CLASS',
+  'S_CANCEL',
+  'S_RESERV',
+  'S_INVFLAG',
+  'S_SMOKER',
+  'AD_GROUP',
+  'AD_COMM',
+  'AD_FLGDFAD',
+  'AD_FLGDFNR',
+  'AD_FLNOUSE',
+  'AD_FLGHOME',
+  'LOEVM_X',
+  'SPERB_X',
+  'SPERM_X',
+  'AUFSD_X',
+  'LIFSD_X',
+  'FAKSD_X',
+  'CASSD_X',
+  'NODEL_X',
+  'XCPDK',
+  'BU_XBLCK',
+  'BU_XDELE',
+  'BU_XPCPT',
+  'AD_XPCPT',
+  'XFELD',
+  'DATA_TEMPERATURE',
+  // plain document dates and times
+  'ERDAT',
+  'ERDAT_RF',
+  'AEDAT',
+  'UPDAT_RF',
+  'UPTIM_RF',
+  'BUDAT',
+  'BLDAT',
+  'CPUDT',
+  'CPUTM',
+  'AUDAT',
+  'BEDAT',
+  'EINDT',
+  'S_BDATE',
+  'AD_DATE_FR',
+  'AD_DATE_TO',
+  'AD_VALFROM',
+  'AD_VALTO',
+  'BU_BP_VALID_FROM',
+  'BU_BP_VALID_TO',
+  // amounts, quantities, currency and unit keys
+  'WAERS',
+  'WAERK',
+  'S_CURR',
+  'S_CURRCODE',
+  'S_F_CUR_PR',
+  'S_L_CUR_PR',
+  'S_DISCOUNT',
+  'NETWR',
+  'NETWR_AP',
+  'NETPR',
+  'DMBTR',
+  'WRBTR',
+  'KBETR',
+  'MENGE_D',
+  'BSTMG',
+  'KWMENG',
+  'LFIMG',
+  'FKIMG',
+  'MEINS',
+  'VRKME',
+  'BSTME',
+  'S_LUGWEIGH',
+  'S_WEIUNIT',
+  'BRGEW',
+  'NTGEW',
+  'GEWEI',
+]);
+/** DDIC data types that are never personal on their own: amounts, quantities, currency and unit keys. */
+export const CLEAR_DATATYPES: ReadonlySet<string> = new Set([
+  'CURR',
+  'QUAN',
+  'CUKY',
+  'UNIT',
+]);
+
+/**
+ * Keep this field in clear on a masked read? Only with its DDIC, only when the data
+ * element, domain or data type is on the clear list, and only when no personal shape
+ * (name, data element, domain, extra field) matches.
+ */
+export function isClearField(
+  name: string,
+  extra: readonly string[] = [],
+  ddic: FieldDdic | null = null,
+): boolean {
+  if (!ddic) return false;
+  if (isPersonalField(name, extra, ddic)) return false;
+  return (
+    CLEAR_DDIC.has(up(ddic.rollname)) ||
+    CLEAR_DDIC.has(up(ddic.domname)) ||
+    CLEAR_DATATYPES.has(up(ddic.datatype))
+  );
 }
 
 export function isRefusedTable(name: string): boolean {
@@ -299,8 +684,8 @@ export function isRefusedTable(name: string): boolean {
   return REFUSED_TABLES.some((re) => re.test(t));
 }
 
-/** Version of the token scheme, returned in `masking.version`. */
-export const MASK_VERSION = 'hmac-v1';
+/** Version of the token scheme and rule set, returned in `masking.version`. v2 = allow-list classifier (only clearly non-personal DDIC stays clear); v1 servers kept unlisted fields clear and are not accepted by the plugin. */
+export const MASK_VERSION = 'hmac-v2';
 
 /**
  * Deterministic stand-in: HMAC-SHA256 under the server-side key (maskSecret.ts) of
@@ -319,6 +704,9 @@ export function maskToken(
   const f = up(field);
   if (DATE_FIELDS.has(f))
     return /^\d{4}-\d{2}-\d{2}$/.test(s) ? '1900-01-01' : '19000101';
+  // other birth / death dates: a date-shaped value becomes the fixed date too
+  if (BIRTH_DATE_NAME.test(f) && /^(\d{8}|\d{4}-\d{2}-\d{2})$/.test(s.trim()))
+    return s.includes('-') ? '1900-01-01' : '19000101';
   const h = createHmac('sha256', secret)
     .update(`${salt}|${up(table)}|${f}|${s.trim()}`)
     .digest('hex');
@@ -360,6 +748,7 @@ export function ddicFromTableData(body: string): TableDdic | null {
         fields[up(k.fieldname)] = {
           rollname: up(k.rollname || k.data_element || ''),
           domname: up(k.domname || k.domain || ''),
+          datatype: up(k.datatype || k.data_type || ''),
         };
       }
       for (const v of Object.values(o as Record<string, unknown>))
@@ -368,9 +757,13 @@ export function ddicFromTableData(body: string): TableDdic | null {
     walk(asJson);
   } else {
     for (const line of String(body).replace(/\r/g, '').split('\n')) {
-      const m = line.match(/^\s*(?:key\s+)?([a-z0-9_/]+)\s*:\s*([a-z0-9_/]+)/i);
+      const m = line.match(
+        /^\s*(?:key\s+)?([a-z0-9_/]+)\s*:\s*([a-z0-9_/]+)(?:\.([a-z0-9_]+))?/i,
+      );
       if (m && !/^(include|annotation|@)/i.test(m[1]))
-        fields[up(m[1])] = { rollname: up(m[2]), domname: '' };
+        fields[up(m[1])] = /^abap$/i.test(m[2])
+          ? { rollname: '', domname: '', datatype: up(m[3]) }
+          : { rollname: up(m[2]), domname: '' };
     }
   }
   return Object.keys(fields).length ? fields : null;
@@ -559,7 +952,7 @@ export function maskRows(
     if (!src) return true;
     const dd = opts.ddic[src];
     if (!dd) return true;
-    return isPersonalField(src, extra, dd) || isPersonalField(col, extra);
+    return !isClearField(src, extra, dd) || isPersonalField(col, extra);
   };
   const out = rows.map((r) => {
     const o: Record<string, unknown> = {};

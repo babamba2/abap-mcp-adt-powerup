@@ -28,16 +28,21 @@ import { handleGetTableContents } from '../../handlers/table/readonly/handleGetT
 import { createAdtClient } from '../../lib/clients';
 import { loadMaskSecret, maskSecretPath } from '../../lib/policy/maskSecret';
 import {
+  CLEAR_DATATYPES,
+  CLEAR_DDIC,
   ddicFromTableData,
+  isClearField,
   isPersonalField,
   isRefusedTable,
   MASK_VERSION,
   maskRows,
   maskSpecFrom,
   maskToken,
+  PERSONAL_DDIC_PATTERNS,
   PERSONAL_DOMAIN,
   PERSONAL_DTEL,
   PERSONAL_EXACT,
+  PERSONAL_NAME_PATTERNS,
   parseStrictSelect,
   tablesInSql,
 } from '../../lib/policy/personalMask';
@@ -120,6 +125,131 @@ describe('shared rule vectors (pt-lib parity)', () => {
     expect(
       isPersonalField('MENGE', [], { rollname: 'BSTMG', domname: 'MENG13' }),
     ).toBe(false);
+  });
+
+  it('has the same name and data element / domain patterns', () => {
+    expect(PERSONAL_NAME_PATTERNS.map((re) => re.source)).toEqual(
+      V.patterns.name,
+    );
+    expect(PERSONAL_DDIC_PATTERNS.map((re) => re.source)).toEqual(
+      V.patterns.ddic,
+    );
+  });
+
+  // pinned: real columns of SCUSTOM, KNA1, LFA1, ADRC, BUT000, ADR6, ADR2, KNVK, SBOOK (data elements from S/4 DDIC)
+  it.each(Object.keys(V.pinned_tables))(
+    'pinned %s: names, phones, e-mail, address, birth and IDs masked; keys clear',
+    (table) => {
+      const fields = V.pinned_tables[table] as Record<
+        string,
+        { rollname: string; domname: string; personal: boolean }
+      >;
+      const ddic = Object.fromEntries(
+        Object.entries(fields).map(([f, d]) => [
+          f,
+          { rollname: d.rollname, domname: d.domname },
+        ]),
+      );
+      const row: Record<string, string> = Object.fromEntries(
+        Object.keys(fields).map((f, i) => [f, `v${i}-${f.toLowerCase()}`]),
+      );
+      row.ZZ_UNKNOWN = 'not in the DDIC';
+      const r = maskRows([row], SALT, [], { ddic, table, secret: KEY });
+      const expected = [
+        ...Object.keys(fields).filter((f) => fields[f].personal),
+        'ZZ_UNKNOWN',
+      ].sort();
+      expect(r.masked).toEqual(expected);
+      for (const [f, d] of Object.entries(fields)) {
+        if (d.personal) expect(r.rows[0][f]).not.toBe(row[f]);
+        else expect(r.rows[0][f]).toBe(row[f]);
+      }
+      const leaked = JSON.stringify(r.rows);
+      for (const f of expected) expect(leaked).not.toContain(row[f]);
+    },
+  );
+
+  it('catches renamed / custom fields by data element and domain shape', () => {
+    const dd = (rollname: string, domname = '') => ({ rollname, domname });
+    expect(isPersonalField('ZZCUST', [], dd('S_CUSTNAME'))).toBe(true);
+    expect(isPersonalField('ZZTEL', [], dd('AD_TLNMBR9'))).toBe(true);
+    expect(isPersonalField('ZZFAX', [], dd('ZZ_X', 'AD_FXNMBR2'))).toBe(true);
+    expect(isPersonalField('ZZMAIL', [], dd('ZZ_X', 'ZZ_EMAIL_ADDR'))).toBe(
+      true,
+    );
+    expect(isPersonalField('ZZNM', [], dd('BU_NAMEP_X'))).toBe(true);
+    expect(isPersonalField('ZZTAX', [], dd('STCD9'))).toBe(true);
+    expect(isPersonalField('ZZ_PHONE_2', [], dd('CHAR30'))).toBe(true);
+    expect(isPersonalField('ZZ_CONTACT_EMAIL', [], dd('CHAR241'))).toBe(true);
+    expect(isPersonalField('ZZQTY', [], dd('MENGE_D', 'MENG13'))).toBe(false);
+    expect(isPersonalField('NAMEFORMAT', [], dd('AD_FORMAT'))).toBe(false);
+    expect(isPersonalField('CITY_CODE', [], dd('AD_CITYNUM'))).toBe(false);
+    // not personal by shape, but not on the clear list either → still masked
+    expect(isClearField('NAMEFORMAT', [], dd('AD_FORMAT'))).toBe(false);
+    expect(isClearField('CITY_CODE', [], dd('AD_CITYNUM'))).toBe(false);
+  });
+
+  it('keeps a field clear only on the allow-list (data element, domain or data type) and never over a personal shape', () => {
+    const dd = (rollname: string, domname = '', datatype = '') => ({
+      rollname,
+      domname,
+      datatype,
+    });
+    expect([...CLEAR_DDIC].sort()).toEqual(V.lists.clear_ddic);
+    expect([...CLEAR_DATATYPES].sort()).toEqual(V.lists.clear_datatypes);
+    expect(isClearField('KUNNR', [], dd('KUNNR'))).toBe(true);
+    expect(isClearField('ZZBETRAG', [], dd('', '', 'CURR'))).toBe(true);
+    expect(isClearField('ZZFLAG', [], dd('ZZ_FLAG', 'XFELD'))).toBe(true);
+    // dates: only document / posting / validity data elements; a generic DATUM stays masked
+    expect(isClearField('BUDAT', [], dd('BUDAT', 'DATUM'))).toBe(true);
+    expect(isClearField('ZZDATE', [], dd('DATUM', 'DATUM'))).toBe(false);
+    expect(isClearField('ZDOB', [], dd('ERDAT'))).toBe(false);
+    expect(isClearField('ZGEBDAT', [], dd('BUDAT'))).toBe(false);
+    expect(maskToken('19800512', 'ZTAB', 'ZGEBDAT', SALT, KEY)).toBe(
+      '19000101',
+    );
+    expect(maskToken('1980-05-12', 'ZTAB', 'ZDOB', SALT, KEY)).toBe(
+      '1900-01-01',
+    );
+    // an unlisted data element (the 4.14.0 gap: S_CUSTNAME / S_PHONENO were simply unknown)
+    expect(isClearField('ZZINFO', [], dd('ZZ_NEW_DTEL', 'CHAR30'))).toBe(false);
+    expect(isClearField('ZZTEXT', [], dd('', '', 'CHAR'))).toBe(false);
+    expect(isClearField('KUNNR', [], null)).toBe(false);
+    // a personal shape wins over the clear list
+    expect(isClearField('TELEPHONE', [], dd('MANDT'))).toBe(false);
+    expect(isClearField('ZZ_CONTACT_NAME', [], dd('KUNNR'))).toBe(false);
+    expect(isClearField('ZZX', [], dd('KUNNR', 'AD_SMTPADR'))).toBe(false);
+    expect(isClearField('KUNNR', ['kunnr'], dd('KUNNR'))).toBe(false);
+    const r = maskRows(
+      [{ KUNNR: '7', ZZINFO: 'Kim Minsu', AMOUNT: '10.00', NOTE: 'call 010' }],
+      SALT,
+      [],
+      {
+        ddic: {
+          KUNNR: dd('KUNNR'),
+          ZZINFO: dd('ZZ_NEW_DTEL', 'CHAR30'),
+          AMOUNT: dd('', '', 'CURR'),
+          NOTE: dd('', '', 'CHAR'),
+        },
+        table: 'ZTAB',
+        secret: KEY,
+      },
+    );
+    expect(r.masked).toEqual(['NOTE', 'ZZINFO']);
+    expect(r.rows[0].KUNNR).toBe('7');
+    expect(r.rows[0].AMOUNT).toBe('10.00');
+    expect(JSON.stringify(r.rows)).not.toContain('Kim Minsu');
+  });
+
+  it('catches custom personal field names without any DDIC (name probe)', () => {
+    for (const n of V.name_probe.personal)
+      expect([n, isPersonalField(n)]).toEqual([n, true]);
+    for (const n of V.name_probe.not_personal)
+      expect([n, isPersonalField(n)]).toEqual([n, false]);
+  });
+
+  it('answers with the v2 rule-set version', () => {
+    expect(MASK_VERSION).toBe('hmac-v2');
   });
 });
 
@@ -222,12 +352,27 @@ describe('mask argument and DDIC parsing', () => {
       ddicFromTableData(
         JSON.stringify({
           fields: [
-            { FIELDNAME: 'NAME1', ROLLNAME: 'NAME1_GP', DOMNAME: 'NAME' },
+            {
+              FIELDNAME: 'NAME1',
+              ROLLNAME: 'NAME1_GP',
+              DOMNAME: 'NAME',
+              DATATYPE: 'CHAR',
+            },
           ],
         }),
       ),
     ).toEqual({
-      NAME1: { rollname: 'NAME1_GP', domname: 'NAME' },
+      NAME1: { rollname: 'NAME1_GP', domname: 'NAME', datatype: 'CHAR' },
+    });
+    // S/4 source: built-in types give the data type, no data element
+    expect(
+      ddicFromTableData(
+        'define table zx {\n key mandt : mandt not null;\n amount : abap.curr(15,2);\n note : abap.char(40);\n}',
+      ),
+    ).toEqual({
+      MANDT: { rollname: 'MANDT', domname: '' },
+      AMOUNT: { rollname: '', domname: '', datatype: 'CURR' },
+      NOTE: { rollname: '', domname: '', datatype: 'CHAR' },
     });
     expect(
       Object.keys(
