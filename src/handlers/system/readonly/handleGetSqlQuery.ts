@@ -24,10 +24,10 @@ import {
 } from '../../../lib/policy/personalMask';
 import {
   activeProfile,
+  aggregateExempt,
   checkTables,
   evaluateHits,
   extractTablesFromSql,
-  isAggregateOnly,
 } from '../../../lib/policy/tableBlocklist';
 import { safeOutputPath } from '../../../lib/sourceOutput';
 import { ErrorCode, McpError } from '../../../lib/utils';
@@ -273,7 +273,7 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
     const rowNumber = args.row_number || 100; // Default to 100 rows if not specified
 
     const tables = extractTablesFromSql(sqlQuery);
-    if (tables.length > 0 && !isAggregateOnly(sqlQuery)) {
+    if (tables.length > 0 && !aggregateExempt(sqlQuery, tables)) {
       const hits = checkTables(tables);
       const verdict = evaluateHits(
         hits,
