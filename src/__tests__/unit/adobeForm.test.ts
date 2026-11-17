@@ -769,6 +769,25 @@ describe('adobeForm — migration layout correction', () => {
       expect(() => normalizeCorrection(dp(p))).toThrow(/datePicture/);
   });
 
+  it('embedLead: a layout op with a target and nothing else', () => {
+    const j = JSON.parse(
+      normalizeCorrection({
+        version: 1,
+        ops: [
+          { op: 'embedLead', target: { path: 'F.MAIN.CELL.TXT' }, rule: 'R8' },
+        ],
+      }).json,
+    );
+    expect(j.ops[0]).toEqual({
+      op: 'embedLead',
+      path: 'F.MAIN.CELL.TXT',
+      rule: 'R8',
+    });
+    expect(() =>
+      normalizeCorrection({ version: 1, ops: [{ op: 'embedLead' }] }),
+    ).toThrow(/no target/);
+  });
+
   it('bind: dataRef with a $record path ([0] / [*]) or none, always with a basis', () => {
     const b = (o: Record<string, unknown>) => ({
       version: 1,

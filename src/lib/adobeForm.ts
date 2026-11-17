@@ -528,6 +528,8 @@ const CORRECTION_OPS = new Set([
   'datePicture',
   // G5 (a): a subform / field binds another $record path (or none)
   'bind',
+  // a draw: one blank before the value of right / center paragraphs that hold embedded values only (ADS aligns them then)
+  'embedLead',
   // G5 (a) model ops — on the interface / context, no layout target
   'contextDeactivate',
   'initSumByKey',
