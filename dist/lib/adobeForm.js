@@ -354,9 +354,24 @@ const CORRECTION_OPS = new Set([
     'presence',
     // the only script edit: one DateFmt(<n>, $.locale) call in the field's initialize script → a fixed picture
     'datePicture',
+    // G5 (a): a subform / field binds another $record path (or none)
+    'bind',
+    // a draw: one blank before the value of right / center paragraphs that hold embedded values only (ADS aligns them then)
+    'embedLead',
+    // G5 (a) model ops — on the interface / context, no layout target
+    'contextDeactivate',
+    'initSumByKey',
 ]);
+/** Ops that work on the interface / context (ZMCP_FP_MIGRATE FORM fpc_model), not on the XDP. */
+const MODEL_OPS = new Set(['contextDeactivate', 'initSumByKey']);
 /** date{…} pictures datePicture may write: D / M / Y and . / - or space only. */
 const DATE_PICTURE_RE = /^date\{[DMY][DMY./ -]{0,19}\}$/;
+/** bind refs: $record and names, [0] or [*] only — no $data, $form, .., #, other indexes or blanks. */
+const BIND_REF_RE = /^\$record(\.[A-Za-z_][A-Za-z0-9_]{0,29}(\[(0|\*)\])?){1,12}$/;
+/** ABAP names initSumByKey takes (the FM checks them against the interface). */
+const ABAP_NAME_RE = /^[A-Z][A-Z0-9_]{0,29}$/;
+/** contextDeactivate: node names from the context root, "/"-separated. */
+const NODE_PATH_RE = /^[A-Z0-9_]{1,30}(\/[A-Z0-9_]{1,30}){1,20}$/;
 /** op fields passed on (spec name → the FM's lower-case key); anything else is ignored. */
 const CORRECTION_FIELDS = [
     'rule',
@@ -389,6 +404,8 @@ const CORRECTION_FIELDS = [
     'presence',
     'thickness',
     'picture',
+    'match',
+    'ref',
 ];
 const CSS_NAMES = new Set([
     'line-height',
@@ -405,6 +422,51 @@ const CSS_NAMES = new Set([
 ]);
 const MAX_CORRECTION_OPS = 500;
 const MAX_CORRECTION_CHARS = 1000000;
+/**
+ * G5 (a) model ops → the FM's flat shape. contextDeactivate {node, basis}: a program-lines node by its path of
+ * node names from the context root. initSumByKey {source, target, key[1–5], sum[1–5], basis}: ABAP names only
+ * (upper-cased), all different. The FM checks them again against the interface and context.
+ */
+function modelOp(o, i, op, scalar) {
+    const out = { op };
+    if (o.rule != null)
+        out.rule = scalar(o.rule, `op ${i} rule`);
+    const basis = o.basis != null ? scalar(o.basis, `op ${i} basis`) : '';
+    if (!basis.trim() || basis.length > 200)
+        throw new Error(`correction: op ${i} ${op} needs a basis (the SmartForm node or rule, ≤ 200 characters)`);
+    out.basis = basis;
+    const name = (v, where) => {
+        const n = scalar(v ?? '', `op ${i} ${where}`)
+            .trim()
+            .toUpperCase();
+        if (!ABAP_NAME_RE.test(n))
+            throw new Error(`correction: op ${i} ${op} ${where} must be an ABAP name ([A-Z][A-Z0-9_], ≤ 30)`);
+        return n;
+    };
+    if (op === 'contextDeactivate') {
+        const node = scalar(o.node ?? '', `op ${i} node`)
+            .trim()
+            .toUpperCase();
+        if (!NODE_PATH_RE.test(node))
+            throw new Error(`correction: op ${i} contextDeactivate node must be a path of node names from the context root (e.g. CONTEXT/MAIN/X)`);
+        out.node = node;
+        return out;
+    }
+    const list = (v, where) => {
+        if (!Array.isArray(v) || v.length < 1 || v.length > 5)
+            throw new Error(`correction: op ${i} initSumByKey ${where}: 1 to 5 names`);
+        return v.map((x, k) => name(x, `${where}[${k}]`));
+    };
+    const source = name(o.source, 'source');
+    const target = name(o.target, 'target');
+    const key = list(o.key, 'key');
+    const sum = list(o.sum, 'sum');
+    const all = [source, target, ...key, ...sum];
+    if (new Set(all).size !== all.length)
+        throw new Error(`correction: op ${i} initSumByKey source, target, key and sum names must all differ`);
+    Object.assign(out, { source, target, key, sum });
+    return out;
+}
 /**
  * Layout correction spec v1 ({version:1, strict?, ops:[{op, target:{path | protoId [+ path] | xliffId}, …}]}) →
  * the flat JSON ZMCP_FP_MIGRATE takes (lower-case keys, CSS as "name:value;…"). Unknown op keys are ignored;
@@ -431,6 +493,8 @@ function normalizeCorrection(spec, strict) {
         const op = String(o.op ?? '');
         if (!CORRECTION_OPS.has(op))
             throw new Error(`correction: op ${i} "${op.slice(0, 20)}" unknown`);
+        if (MODEL_OPS.has(op))
+            return modelOp(o, i, op, scalar);
         const t = o.target ?? {};
         const out = { op };
         if (t.path != null)
@@ -446,6 +510,17 @@ function normalizeCorrection(spec, strict) {
                 out[f.toLowerCase()] = scalar(o[f], `op ${i} ${f}`);
         if (op === 'datePicture' && !DATE_PICTURE_RE.test(out.picture ?? ''))
             throw new Error(`correction: op ${i} datePicture needs picture date{…} with D / M / Y and . / - or space only`);
+        if (op === 'bind') {
+            const match = (out.match ?? '').toLowerCase();
+            if (match !== 'dataref' && match !== 'none')
+                throw new Error(`correction: op ${i} bind needs match dataRef or none`);
+            if (match === 'dataref' && !BIND_REF_RE.test(out.ref ?? ''))
+                throw new Error(`correction: op ${i} bind ref must be a $record path (names, [0] or [*] only)`);
+            if (match === 'none')
+                delete out.ref;
+            if (!(out.basis ?? '').trim())
+                throw new Error(`correction: op ${i} bind needs a basis (the SmartForm node or rule)`);
+        }
         if (o.css != null) {
             if (typeof o.css !== 'object' || Array.isArray(o.css))
                 throw new Error(`correction: op ${i} css must be an object`);

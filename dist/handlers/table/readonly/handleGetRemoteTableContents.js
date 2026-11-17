@@ -43,6 +43,9 @@ const fs = __importStar(require("fs"));
 const os = __importStar(require("os"));
 const path = __importStar(require("path"));
 const z = __importStar(require("zod"));
+const maskedRead_1 = require("../../../lib/policy/maskedRead");
+const maskSecret_1 = require("../../../lib/policy/maskSecret");
+const personalMask_1 = require("../../../lib/policy/personalMask");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const profile_1 = require("../../../lib/profile");
 const rfcBackend_1 = require("../../../lib/rfcBackend");
@@ -93,6 +96,7 @@ exports.TOOL_DEFINITION = {
             .boolean()
             .optional()
             .describe("Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table."),
+        mask: maskedRead_1.maskZod,
     },
 };
 /** Path of the active profile's config.json, or null when no profile alias is active (legacy sap.env). */
@@ -228,6 +232,25 @@ async function handleGetRemoteTableContents(context, args) {
         if (verdict.kind === 'approved') {
             process.stderr.write(`[mcp-abap-adt][blocklist] AUDIT: user-acknowledged GetRemoteTableContents on ${verdict.tables.join(',')}\n`);
         }
+        // Test-data mode: the DDIC of the connected (DEV) system first; no rows when it fails.
+        const mask = (0, personalMask_1.maskSpecFrom)(args.mask);
+        if (typeof mask === 'string')
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, mask);
+        let ddic = null;
+        let secret = null;
+        if (mask) {
+            (0, maskedRead_1.refuseMaskedTables)([tableName]);
+            secret = (0, maskSecret_1.loadMaskSecret)();
+            try {
+                ddic = await (0, maskedRead_1.resolveTableDdic)(connection, tableName, logger);
+            }
+            catch (e) {
+                // A table the connected (DEV) system does not know, e.g. a Z table that exists
+                // only in the remote system: no field is known, so every column is masked.
+                logger?.warn(`mask: DDIC of ${tableName} not read on the connected system (${String(e)}); every column is masked`);
+                ddic = {};
+            }
+        }
         const requested = Number(args.max_rows) > 0
             ? Math.floor(Number(args.max_rows))
             : DEFAULT_ROWS;
@@ -251,6 +274,26 @@ async function handleGetRemoteTableContents(context, args) {
             throw new Error(dispatchErrorText(e));
         }
         rememberRemoteDestination(destination); // saved only after a read worked, so typos never enter the list
+        if (mask && ddic) {
+            let parsed = result;
+            if (typeof parsed === 'string') {
+                try {
+                    parsed = JSON.parse(parsed);
+                }
+                catch {
+                    throw new Error('mask: the remote result is not JSON; rows are not returned');
+                }
+            }
+            return {
+                isError: false,
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify((0, maskedRead_1.maskPayload)(parsed, mask, ddic, null, tableName, secret)),
+                    },
+                ],
+            };
+        }
         return {
             isError: false,
             content: [

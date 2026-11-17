@@ -27,6 +27,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isAggregateOnly = isAggregateOnly;
+exports.aggregateExempt = aggregateExempt;
 exports.extractTablesFromSql = extractTablesFromSql;
 exports.checkTables = checkTables;
 exports.formatRefusal = formatRefusal;
@@ -34,6 +35,7 @@ exports.formatAskPrompt = formatAskPrompt;
 exports.partitionHits = partitionHits;
 exports.evaluateHits = evaluateHits;
 exports.activeProfile = activeProfile;
+const personalMask_1 = require("./personalMask");
 const TIER_ORDER = {
     minimal: 1,
     standard: 2,
@@ -294,29 +296,120 @@ function readExtendPatterns() {
     return { exact, patterns };
 }
 /**
- * True when the SELECT projection contains only aggregate calls
- * (COUNT/SUM/MIN/MAX/AVG) and no plain column references. Used to exempt
- * row-count and aggregate queries from the blocklist — they don't return
- * row-level PII even on protected tables.
+ * True when a SELECT returns only counts over non-personal fields. Allowed projection
+ * items: COUNT(*), COUNT([DISTINCT] col) — col a plain, non-personal field. MIN / MAX
+ * return a real value (MAX(STCD1) is a tax number), AVG and SUM of a narrow WHERE are one
+ * person's value (SUM(BET01) of one row is a salary), so none of them qualify. The WHERE
+ * clause may name non-personal fields only: COUNT(*) … WHERE <personal field> = 'x' would be
+ * an existence probe for one person.
  *
- * Rejects: subqueries, UNION, GROUP BY (which surfaces grouping keys).
+ * Rejects: subqueries, UNION / INTERSECT / EXCEPT, JOIN, GROUP BY / HAVING (grouping
+ * keys come back), any personal field anywhere in the statement.
+ * Shape only — whether the blocklist may be skipped is decided by aggregateExempt().
  */
 function isAggregateOnly(sql) {
-    const norm = sql.replace(/\s+/g, ' ').trim();
-    if (/\b(UNION|GROUP\s+BY|HAVING)\b/i.test(norm))
+    // literals out first: their contents are data, not field names
+    const norm = sql
+        .replace(/'(?:[^']|'')*'/g, "'L'")
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (/\b(UNION|INTERSECT|EXCEPT|JOIN|GROUP\s+BY|HAVING)\b/i.test(norm))
         return false;
-    const m = norm.match(/^SELECT\s+(.+?)\s+FROM\s+/i);
+    if (/\(\s*SELECT\b/i.test(norm))
+        return false;
+    const m = norm.match(/^SELECT\s+(.+?)\s+FROM\s+(.*)$/i);
     if (!m)
         return false;
     const projection = m[1];
-    if (/\(\s*SELECT\b/i.test(projection))
-        return false;
     const items = splitTopLevel(projection, ',');
     if (items.length === 0)
         return false;
-    const aggRe = /^(?:COUNT|SUM|MIN|MAX|AVG)\s*\(\s*(?:DISTINCT\s+)?(?:\*|[A-Z0-9_./~]+)\s*\)(?:\s+AS\s+[A-Z0-9_]+)?$/i;
-    return items.every((item) => aggRe.test(item.trim()));
+    const aggRe = /^(?:COUNT\s*\(\s*\*\s*\)|COUNT\s*\(\s*(?:DISTINCT\s+)?([A-Z0-9_./~]+)\s*\))(?:\s+AS\s+[A-Z0-9_]+)?$/i;
+    for (const item of items) {
+        const a = item.trim().match(aggRe);
+        if (!a)
+            return false;
+        const col = a[1];
+        if (col && (0, personalMask_1.isPersonalField)(col.split('~').pop() ?? col))
+            return false;
+    }
+    // every field the rest of the statement names must be non-personal
+    const rest = m[2];
+    const where = rest.match(/\bWHERE\b(.*)$/i)?.[1] ?? '';
+    for (const tok of where.match(/[A-Z_][A-Z0-9_/~]*/gi) ?? []) {
+        if (WHERE_WORDS.has(tok.toUpperCase()))
+            continue;
+        if ((0, personalMask_1.isPersonalField)(tok.split('~').pop() ?? tok))
+            return false;
+    }
+    return true;
 }
+/**
+ * Credential, security and HR tables: a count with a WHERE on them is an oracle (a
+ * password-hash prefix, one person's record), so they never skip the blocklist.
+ */
+const NEVER_EXEMPT = [
+    /^USR\d\d/,
+    /^USH\d\d/,
+    /^UST\d\d/,
+    /^USRACL/,
+    /^RSECTAB$/,
+    /^RSECACTB$/,
+    /^RSECSTORE/,
+    /^RFCDES$/,
+    /^SSF_PSE/,
+    /^PA\d{4}$/,
+    /^PB\d{4}$/,
+    /^HRP\d{4}$/,
+    /^PCL\d$/,
+    /^AGR_/,
+];
+/**
+ * Whether a GetSqlQuery may skip the blocklist: an aggregate-only shape (isAggregateOnly),
+ * no credential / security / HR table, and every blocklist hit an "ask" one — a "deny"
+ * table always goes through the normal check.
+ */
+function aggregateExempt(sql, tables) {
+    if (!isAggregateOnly(sql))
+        return false;
+    const upper = tables.map((t) => String(t).trim().toUpperCase());
+    if (upper.some((t) => NEVER_EXEMPT.some((re) => re.test(t))))
+        return false;
+    return checkTables(upper).every((hit) => hit.action === 'ask');
+}
+/** Words of a simple WHERE clause that are not field names. */
+const WHERE_WORDS = new Set([
+    'AND',
+    'OR',
+    'NOT',
+    'IN',
+    'BETWEEN',
+    'LIKE',
+    'IS',
+    'NULL',
+    'INITIAL',
+    'ESCAPE',
+    'EQ',
+    'NE',
+    'LT',
+    'GT',
+    'LE',
+    'GE',
+    'L',
+    'UP',
+    'TO',
+    'ROWS',
+    'ORDER',
+    'BY',
+    'ASCENDING',
+    'DESCENDING',
+    'ASC',
+    'DESC',
+    'PRIMARY',
+    'KEY',
+    'CLIENT',
+    'SPECIFIED',
+]);
 function splitTopLevel(s, sep) {
     const out = [];
     let depth = 0;

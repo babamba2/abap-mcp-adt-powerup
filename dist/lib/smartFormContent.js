@@ -537,15 +537,24 @@ class Walker {
                     out.lines = textLines(obj.TEXT);
                 if (tt === 'I' || tt === 'R') {
                     const k = (obj.TKEY ?? {});
-                    const key = {
-                        object: trimmed(k.OBJECT) || 'TEXT',
-                        name: trimmed(k.NAME),
-                        id: trimmed(k.ID) || 'ST',
-                        language: trimmed(k.LANG),
-                        resolved: false,
-                    };
-                    if (tt === 'R')
-                        key.name = key.name || trimmed(obj.REF_NAME);
+                    // a text module (R) is named by REF_NAME alone: Form Builder keeps the TKEY of an earlier
+                    // include text when the type is switched (SF_EXAMPLE_01 FOOTER_INCL: TKEY ADRS_FOOTER, an
+                    // SO10 text; REF_NAME SF_ADRS_FOOTER, the text module SAP prints)
+                    const key = tt === 'R'
+                        ? {
+                            object: 'TEXTMODULE',
+                            name: trimmed(obj.REF_NAME),
+                            id: '',
+                            language: '',
+                            resolved: false,
+                        }
+                        : {
+                            object: trimmed(k.OBJECT) || 'TEXT',
+                            name: trimmed(k.NAME),
+                            id: trimmed(k.ID) || 'ST',
+                            language: trimmed(k.LANG),
+                            resolved: false,
+                        };
                     out.include = key;
                     const dyn = [key.object, key.name, key.id, key.language].some(hasSymbol);
                     if (key.name && !dyn) {
@@ -553,6 +562,10 @@ class Walker {
                     }
                     else if (key.name) {
                         this.dynamic.push(`text ${out.name}: ${key.object} ${key.name} ${key.id} ${key.language}`);
+                    }
+                    else if (tt === 'R') {
+                        // a text module node without REF_NAME prints nothing in SAP; say so (a TKEY it keeps is not used)
+                        this.dynamic.push(`text ${out.name}: text module without REF_NAME${trimmed(k.NAME) ? ` (TKEY ${trimmed(k.NAME)} ignored)` : ''}`);
                     }
                 }
                 const tabline = plain(obj.TABLINE);
@@ -651,6 +664,10 @@ class Walker {
             default: {
                 const s = scalars(obj);
                 delete s.INAME;
+                // a command's target page (NEWPAGE to %PAGE3): PAGENAME is a name object, not a scalar
+                const page = trimmed(obj?.PAGENAME?.INAME);
+                if (page)
+                    s.PAGENAME = page;
                 if (Object.keys(s).length)
                     out.attrs = s;
             }
@@ -718,6 +735,22 @@ function parseSmartFormXml(xml) {
     const pages = [];
     const stdStyles = [];
     const variants = asArray(sf.VARHEADER?.item);
+    // a text module: no pages, one text node (%TEXT1) in the page tree
+    const isModule = trimmed(sf.HEADER?.FORMTYPE) === 'T';
+    let textModule;
+    const firstText = (node, depth) => {
+        if (depth > 40)
+            return null;
+        const ob = objectOf(node);
+        if (ob?.kind === 'TEXT')
+            return ob.obj;
+        for (const c of walker.succ(node)) {
+            const t = firstText(c, depth + 1);
+            if (t)
+                return t;
+        }
+        return null;
+    };
     for (const v of variants) {
         const lpi = Number(trimmed(v.LPI)) || smartFormLayout_1.DEFAULT_LPI;
         const cpi = Number(trimmed(v.CPI)) || smartFormLayout_1.DEFAULT_CPI;
@@ -726,6 +759,18 @@ function parseSmartFormXml(xml) {
             stdStyles.push(std);
         const tree = v.PAGETREE;
         const roots = asArray((tree?.NODE ?? tree)).map((n) => walker.resolve(n));
+        if (isModule && !textModule) {
+            for (const r of roots) {
+                const t = firstText(r, 0);
+                if (t) {
+                    textModule = {
+                        lines: t.TEXT && typeof t.TEXT === 'object' ? textLines(t.TEXT) : [],
+                        style: trimmed(t.STYLE_NAME) || std,
+                    };
+                    break;
+                }
+            }
+        }
         const visit = (node, depth) => {
             if (depth > 40)
                 return;
@@ -804,6 +849,7 @@ function parseSmartFormXml(xml) {
         textKeys: [...walker.textKeys.values()],
         styles: [...walker.styles],
         dynamic: walker.dynamic,
+        ...(textModule ? { textModule } : {}),
     };
 }
 // ---------------------------------------------------------------------------
@@ -951,6 +997,37 @@ async function getStandardText(connection, name, id = 'ST', language = '') {
             text: str(x?.l).replace(/\s+$/, ''),
         })),
     };
+}
+/** The text of a SmartForm text module (TTYPE R target): its Form Builder XML, the first text node. An empty
+ *  text in the asked language is taken from the module's master language. */
+async function textModuleOf(connection, name, language) {
+    const read = async (lang) => {
+        const r = await part(connection, {
+            part: 'FORM',
+            form_name: name,
+            ...(lang ? { language: lang } : {}),
+        });
+        const xml = Buffer.from(String(r.xml ?? ''), 'base64').toString('utf8');
+        if (!xml.trim())
+            throw new Error(`text module ${name}: SSF_CONTENT FORM returned no XML`);
+        return { xml, parsed: parseSmartFormXml(xml) };
+    };
+    const first = await read(language || undefined);
+    if (!first.parsed.textModule)
+        throw new Error(`${name} is not a text module (FORMTYPE T)`);
+    let tm = first.parsed.textModule;
+    const master = (/<MASTERLANG>([^<]*)<\/MASTERLANG>/.exec(first.xml)?.[1] ?? '').trim();
+    if (!tm.lines.length && master && master !== language) {
+        try {
+            const m = (await read(master)).parsed.textModule;
+            if (m?.lines.length)
+                tm = m;
+        }
+        catch {
+            // keep the empty text of the asked language
+        }
+    }
+    return tm;
 }
 async function getSmartFormContent(connection, formName, options = {}) {
     const form = String(formName ?? '')
@@ -1157,18 +1234,29 @@ async function getSmartFormContent(connection, formName, options = {}) {
                 language: lang,
             };
             try {
-                const r = await part(connection, {
-                    part: 'STDTEXT',
-                    object: t.object,
-                    name: t.name,
-                    id: t.id,
-                    language: lang,
-                });
-                entry.lines = asArray(r.lines).map((l) => ({
-                    format: trimmed(l?.f),
-                    text: str(l?.l).replace(/\s+$/, ''),
-                }));
-                t.resolved = true;
+                if (t.object === 'TEXTMODULE') {
+                    // a SmartForm text module: its own Form Builder XML (FORMTYPE T), in the form's language,
+                    // else its master language (as for the form's own texts)
+                    const tm = await textModuleOf(connection, t.name, lang);
+                    entry.lines = tm.lines;
+                    if (tm.style)
+                        entry.style = tm.style;
+                    t.resolved = true;
+                }
+                else {
+                    const r = await part(connection, {
+                        part: 'STDTEXT',
+                        object: t.object,
+                        name: t.name,
+                        id: t.id,
+                        language: lang,
+                    });
+                    entry.lines = asArray(r.lines).map((l) => ({
+                        format: trimmed(l?.f),
+                        text: str(l?.l).replace(/\s+$/, ''),
+                    }));
+                    t.resolved = true;
+                }
             }
             catch (e) {
                 entry.error = e instanceof Error ? e.message : String(e);

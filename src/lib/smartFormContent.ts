@@ -702,6 +702,11 @@ class Walker {
             this.dynamic.push(
               `text ${out.name}: ${key.object} ${key.name} ${key.id} ${key.language}`,
             );
+          } else if (tt === 'R') {
+            // a text module node without REF_NAME prints nothing in SAP; say so (a TKEY it keeps is not used)
+            this.dynamic.push(
+              `text ${out.name}: text module without REF_NAME${trimmed(k.NAME) ? ` (TKEY ${trimmed(k.NAME)} ignored)` : ''}`,
+            );
           }
         }
         const tabline = plain(obj.TABLINE);

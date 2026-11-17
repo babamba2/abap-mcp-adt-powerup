@@ -357,3 +357,21 @@ describe('text modules (TTYPE R)', () => {
     expect(parseSmartFormXml(XML).textModule).toBeUndefined();
   });
 });
+
+describe('text modules without REF_NAME', () => {
+  it('lists the node in dynamicReferences instead of resolving a TKEY', () => {
+    const node =
+      `<sf:item><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT><NAME><INAME>NO_REF</INAME></NAME>${cap('NO_REF')}` +
+      `<TTYPE>R</TTYPE><TKEY><OBJECT>TEXT</OBJECT><NAME>ZTEST_OLD_SO10</NAME><ID>ST</ID></TKEY></sf:TEXT></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+    const p = parseSmartFormXml(
+      XML.replace(
+        rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+        rc('852', node),
+      ),
+    );
+    expect(p.textKeys).toEqual([]);
+    expect(p.dynamic).toContain(
+      'text NO_REF: text module without REF_NAME (TKEY ZTEST_OLD_SO10 ignored)',
+    );
+  });
+});

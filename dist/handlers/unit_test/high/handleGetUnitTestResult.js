@@ -9,6 +9,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleGetUnitTestResult = handleGetUnitTestResult;
 const clients_1 = require("../../../lib/clients");
 const utils_1 = require("../../../lib/utils");
+const handleRunUnitTest_1 = require("./handleRunUnitTest");
 exports.TOOL_DEFINITION = {
     name: 'GetUnitTestResult',
     available_in: ['onprem', 'cloud', 'legacy'],
@@ -59,6 +60,9 @@ async function handleGetUnitTestResult(context, args) {
                     success: true,
                     run_id,
                     run_result: readResult?.runResult,
+                    ...((0, handleRunUnitTest_1.emptyRunWarning)(readResult?.runResult)
+                        ? { methods: 0, warning: (0, handleRunUnitTest_1.emptyRunWarning)(readResult?.runResult) }
+                        : {}),
                 }, null, 2),
             });
         }

@@ -4,6 +4,34 @@
 
 ## [Unreleased]
 
+## [4.14.0] - 2026-11-17
+
+### Added
+- **`RenderAdobeXdp`** (read-only): ADS renders an XDP template with an XML data file — no SAP form object, no output. Both files must be inside the MCP output directory or `.sc4sap/work/<alias>` (`.xdp` / `.xml`, no network paths, no secret-like names, contents never echoed); external references in the template are refused before the call.
+- **`CreateAdobeFormFromSmartForm`**: optional `correction_file` (a layout correction spec, size-capped) and `strict`. The result reports every op as applied / not_found / ambiguous / refused. Ops:
+  - layout, geometry, margin, font, para, xhtml, picture, border, presence (needs a basis);
+  - `datePicture`: replaces exactly one `$.format.picture = DateFmt(n, $.locale)` in a field's initialize script with a checked `date{…}` literal;
+  - `bind` (`dataRef` with a `$record` path, `[0]` / `[*]` only, or `none`; needs a basis);
+  - `embedLead`: one blank before the value of right- / center-aligned paragraphs that hold embedded values only (ADS aligns them only then);
+  - model ops for SmartForm table-event totals: `contextDeactivate` (one program-lines node by its context path) and `initSumByKey` (a COLLECT loop in the interface initialization; names checked against the interface, no free text reaches ABAP).
+  These need the matching `ZMCP_FP_MIGRATE` helper (sc4sap `abap/`).
+- **`GetStandardText`** (read-only, DEV systems only): a SAPscript standard text (object TEXT) with its lines; refused on QA / PRD.
+- **Masking for table reads**: `GetTableContents`, `GetSqlQuery` and `GetRemoteTableContents` accept an optional `mask`. With it the server refuses personal / credential tables, accepts a strict single-table SELECT only, and returns rows masked by an allow-list (`MASK_VERSION` hmac-v2; the sc4sap plugin refuses v1 answers): a column prints in clear only when its DDIC data element / domain / type is on an explicit non-personal list and no personal shape matches (names, contacts, phone / fax / mail, address parts, URLs / IPs, birth dates — personal wins); everything else, and any column without DDIC, becomes an HMAC-SHA256 token under a per-profile, owner-only server key. Any failure returns no rows. Without `mask` the tools behave as before.
+- **`RunUnitTest`** runs program and function-group containers on S/4HANA (synchronous ADT call, result inline); a batch with any PROG / FUGR runs fully synchronous.
+
+### Changed
+- **`GetSmartFormContent`**:
+  - text-module references (TTYPE R) are read by `REF_NAME` through the form export (`FORMTYPE T`), in the form's language with a fall-back to the module's master language — not as an SO10 text through a stale `TKEY`; a text-module node without `REF_NAME` is listed in `dynamicReferences`;
+  - NEWPAGE command nodes keep their target page (`PAGENAME`).
+- **`UpdateInclude`** writes function-group includes through the group's own path (`function_group`, or a `SAPL<fg>` main program).
+- **`RunUnitTest` / `GetUnitTestResult`** report `methods: 0` and a warning when no test method ran.
+- **Legacy `TABLE_READ`** (BASIS < 7.50): with `MCP_BLOCKLIST_PROFILE=off` the dispatcher is asked for all tables (it checks the user's SE16 authority); credential tables stay closed on every profile, with clear refusal messages.
+  Known gaps under `off`: the dispatcher's credential guard is a name-prefix list (`USR*`, `UST*`, `SSF_PSE*`, `STRUST*`, `SNC*`, `TRUSTED*`, `RSAU*`, `RFCDES`, `RSECTAB`, `RSECACTB`, most `AGR_*`). It does not cover `USH*` (user change history) or database views over those tables. Keep `off` for systems where SE16 authority already restricts them.
+
+### Fixed
+- Table blocklist: the aggregate exemption covers `COUNT(*)` / `COUNT([DISTINCT] col)` only — never MIN / MAX / SUM, never personal fields, credential / HR / security tables or deny-tier tables.
+- Masking key (Windows): the key file is restricted to its owner with `icacls` and read back; anything else → no rows, with an error that names the cause.
+
 ## [4.13.0] - 2026-11-17
 
 ### Added
