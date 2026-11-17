@@ -780,6 +780,9 @@ class Walker {
       default: {
         const s = scalars(obj);
         delete s.INAME;
+        // a command's target page (NEWPAGE to %PAGE3): PAGENAME is a name object, not a scalar
+        const page = trimmed((obj?.PAGENAME as Raw | undefined)?.INAME);
+        if (page) s.PAGENAME = page;
         if (Object.keys(s).length) out.attrs = s;
       }
     }

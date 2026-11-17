@@ -287,3 +287,21 @@ describe('helpers', () => {
     ).toMatch(/ZMCP_SSF_CONTENT/);
   });
 });
+
+describe('command nodes', () => {
+  it('keep the target page of NEWPAGE (PAGENAME is a name object)', () => {
+    const cmd =
+      `<sf:item><sf:NODE><NODETYPE>CM</NODETYPE><sf:OBJ><sf:COMMAND><NAME><INAME>%COMMAND1</INAME></NAME>${cap('Next page')}` +
+      `<NEWPAGE>X</NEWPAGE><PAGENAME><INAME>%PAGE3</INAME></PAGENAME></sf:COMMAND></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+    const xml = XML.replace(
+      rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+      rc('852', text('%TEXT1', 'BJ', 'X') + cmd),
+    );
+    const w = parseSmartFormXml(xml).pages[0].windows.find(
+      (x: { name: string }) => x.name === '%WINDOW1',
+    );
+    expect(
+      w?.content.find((n: { kind?: string }) => n.kind === 'command'),
+    ).toMatchObject({ attrs: { NEWPAGE: 'X', PAGENAME: '%PAGE3' } });
+  });
+});
