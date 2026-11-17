@@ -96,3 +96,48 @@ export function readValuesFile(file: unknown): Record<string, unknown> {
     );
   return parsed as Record<string, unknown>;
 }
+
+export const MAX_FORM_INPUT_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Read a form input file (an XDP template or an XML data file for RenderAdobeXdp) under the same confinement
+ * as values_file: real path inside the MCP output directory or the profile work folder, no UNC / device paths,
+ * nothing that looks like a secret, only the given extensions, at most MAX_FORM_INPUT_BYTES. One message for a
+ * missing file and a file outside the allowed folders; the content is never echoed.
+ */
+export function readFormInputFile(
+  file: unknown,
+  label: string,
+  exts: string[],
+): Buffer {
+  const p = String(file ?? '').trim();
+  const notAllowed = `${label}: refused — no such ${exts.join(' / ')} file inside the MCP output directory or the profile work folder`;
+  if (!p) throw new Error(`${label}: empty path`);
+  if (/^(\\\\|\/\/)/.test(p) || /^\\\\\?\\/.test(p) || /^[a-z]:[^\\/]/i.test(p))
+    throw new Error(`${label}: UNC and device paths are not allowed`);
+  if (SECRET_SEGMENT.test(p))
+    throw new Error(
+      `${label}: refused (the path looks like a secret or profile file)`,
+    );
+  if (!exts.includes(path.extname(p).toLowerCase()))
+    throw new Error(`${label}: a ${exts.join(' / ')} file is expected`);
+  const roots = valuesRoots();
+  if (!roots.length)
+    throw new Error(`${label}: the MCP output directory does not exist yet`);
+  let real: string;
+  try {
+    real = fs.realpathSync(path.resolve(roots[0], p));
+  } catch {
+    throw new Error(notAllowed);
+  }
+  if (!roots.some((r) => inside(r, real))) throw new Error(notAllowed);
+  if (SECRET_SEGMENT.test(real))
+    throw new Error(
+      `${label}: refused (the path looks like a secret or profile file)`,
+    );
+  const st = fs.statSync(real);
+  if (!st.isFile()) throw new Error(`${label}: not a file`);
+  if (st.size > MAX_FORM_INPUT_BYTES)
+    throw new Error(`${label}: larger than ${MAX_FORM_INPUT_BYTES} bytes`);
+  return fs.readFileSync(real);
+}

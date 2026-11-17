@@ -33,13 +33,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FP_MIGRATE_INSTALL_HINT = exports.FP_INSTALL_HINT = void 0;
+exports.FP_MIGRATE_INSTALL_HINT = exports.XDP_EXTERNAL_RE = exports.XDP_LABEL_RE = exports.FP_INSTALL_HINT = void 0;
 exports.normalizeFormName = normalizeFormName;
 exports.translateFpError = translateFpError;
 exports.summarizeXdp = summarizeXdp;
 exports.getAdobeFormContent = getAdobeFormContent;
 exports.renderAdobeForm = renderAdobeForm;
+exports.prepareXdp = prepareXdp;
+exports.renderAdobeXdp = renderAdobeXdp;
 exports.checkMigrationNames = checkMigrationNames;
+exports.normalizeCorrection = normalizeCorrection;
 exports.createAdobeFormFromSmartForm = createAdobeFormFromSmartForm;
 /**
  * Adobe forms (SFP) — read the form and its PDF from ADS, for previews and checks.
@@ -230,6 +233,84 @@ async function renderAdobeForm(connection, formName, values, language, getXml = 
         files,
     };
 }
+/** Labels RENDER_XDP accepts (the SAP form-template samples, or own ZSC4SAP_* templates); the FM checks again. */
+exports.XDP_LABEL_RE = /^(ZF_CINE_TICKET|ZFORM_FDP_SCRATCH|ZSC4SAP_[A-Z0-9_]+)$/;
+const LOCALE_RE = /^[a-z]{2}_[A-Z]{2}$/;
+/** References that would make ADS fetch something from outside — refused (the FM checks the same again). */
+exports.XDP_EXTERNAL_RE = /<(\w+:)?(wsdlAddress|soapAddress|submit|effectiveOutputPolicy)\b|<(\w+:)?uri\s*>\s*[^<\s]|\b(href|src)\s*=\s*["'](?!#|data:)|usehref\s*=\s*["'](?!#)|url\s*\(|\.(gotoURL|importData|launchURL|exportData)\b|\b(Get|Post|Put)\s*\(/i;
+const CONNECTION_SET_RE = /<(\w+:)?connectionSet\b[\s\S]*?<\/(\w+:)?connectionSet\s*>/gi;
+/**
+ * Check an XDP before it goes to ADS: the designer's data-connection packet (<connectionSet>, a design-time link
+ * to a sample data / schema file, never used when the data comes with the call) is taken out; anything that could
+ * still make ADS fetch a resource is refused. Returns the template to send and what was removed.
+ */
+function prepareXdp(xdp) {
+    let s = xdp.toString('utf8');
+    const removed = [];
+    if (CONNECTION_SET_RE.test(s)) {
+        s = s.replace(CONNECTION_SET_RE, '');
+        removed.push('connectionSet');
+    }
+    if (/<(\w+:)?connectionSet\b/i.test(s))
+        throw new Error('xdp_file: refused — unterminated <connectionSet> packet');
+    const m = s.match(exports.XDP_EXTERNAL_RE);
+    if (m)
+        throw new Error(`xdp_file: refused — external or data-connection reference (${m[0].slice(0, 40)}); ADS must not fetch anything`);
+    return { xdp: Buffer.from(s, 'utf8'), removed };
+}
+/**
+ * An XDP template rendered with XML data straight in ADS (CL_FP_ADS_UTIL=>RENDER_PDF via ZMCP_FP_CONTENT part
+ * RENDER_XDP): no SAP form object, no form code, no print, no spool. `xdp` / `xml` are the file contents.
+ */
+async function renderAdobeXdp(connection, label, xdp, xml, locale = 'en_US', embedFonts = false) {
+    const form = String(label ?? '')
+        .trim()
+        .toUpperCase();
+    if (!exports.XDP_LABEL_RE.test(form) || form.length > 30)
+        throw new Error(`form_name: ZF_CINE_TICKET, ZFORM_FDP_SCRATCH or ZSC4SAP_* (≤ 30): ${String(label ?? '').slice(0, 40)}`);
+    if (!LOCALE_RE.test(locale))
+        throw new Error(`locale: language_COUNTRY, e.g. en_US: ${String(locale).slice(0, 12)}`);
+    if (!xdp.length || !xml.length)
+        throw new Error('xdp and xml must not be empty');
+    const prepared = prepareXdp(xdp);
+    const params = JSON.stringify({
+        xdp: prepared.xdp.toString('base64'),
+        xml: xml.toString('base64'),
+        locale,
+        embedFonts,
+    });
+    if (params.length > 3000000)
+        throw new Error('xdp + xml: more than 3 000 000 characters once base64-encoded');
+    const r = await fpCall(connection, 'FP_CONTENT', {
+        part: 'RENDER_XDP',
+        name: form,
+        params,
+    });
+    if (r.result?.error) {
+        // ADS error: the FM returns the ADS trace with it (subrc 0, no pdf) — keep it as a file.
+        const tracePath = r.result.trace
+            ? writeOut(dirOf(form), `${form.toLowerCase()}.xdp.ads-trace.txt`, String(r.result.trace))
+            : '';
+        throw new Error(`RENDER_XDP: ADS error: ${String(r.result.error).slice(0, 300)}${tracePath ? ` (ADS trace: ${tracePath})` : ''}`);
+    }
+    if (!r.result?.pdf)
+        throw new Error(`RENDER_XDP returned no PDF: ${String(r.message ?? JSON.stringify(r.result)).slice(0, 300)}`);
+    const pdf = Buffer.from(String(r.result.pdf), 'base64');
+    if (pdf.subarray(0, 4).toString('latin1') !== '%PDF')
+        throw new Error('RENDER_XDP returned data that is not a PDF');
+    const base = form.toLowerCase();
+    const files = {
+        pdf: writeOut(dirOf(form), `${base}.xdp.sap.pdf`, pdf),
+    };
+    if (r.result.trace)
+        files.trace = writeOut(dirOf(form), `${base}.xdp.ads-trace.txt`, String(r.result.trace));
+    return {
+        form,
+        pages: Number(r.result.pages ?? 0),
+        ...(prepared.removed.length ? { removed: prepared.removed } : {}),
+        files,
+    };
+}
 /** /UI2/CL_JSON matches ABAP component names; send them upper case. */
 function upperKeys(v) {
     if (Array.isArray(v))
@@ -261,8 +342,128 @@ function checkMigrationNames(source, form, iface) {
             throw new Error(`${k}: must match ZSC4SAP_AFM_[A-Z0-9_]+ (≤ 30 characters)`);
     return { source: src, form: f, iface: i };
 }
+const CORRECTION_OPS = new Set([
+    'layout',
+    'geometry',
+    'margin',
+    'font',
+    'para',
+    'xhtml',
+    'picture',
+    'border',
+    'presence',
+]);
+/** op fields passed on (spec name → the FM's lower-case key); anything else is ignored. */
+const CORRECTION_FIELDS = [
+    'rule',
+    'basis',
+    'value',
+    'x',
+    'y',
+    'w',
+    'h',
+    'anchorType',
+    'topInset',
+    'bottomInset',
+    'leftInset',
+    'rightInset',
+    'typeface',
+    'size',
+    'weight',
+    'spaceAbove',
+    'spaceBelow',
+    'marginLeft',
+    'marginRight',
+    'textIndent',
+    'lineHeight',
+    'hAlign',
+    'vAlign',
+    'div',
+    'display',
+    'format',
+    'edge',
+    'presence',
+    'thickness',
+];
+const CSS_NAMES = new Set([
+    'line-height',
+    'margin-left',
+    'margin-right',
+    'margin-top',
+    'margin-bottom',
+    'text-indent',
+    'tab-stops',
+    'font-size',
+    'font-family',
+    'font-weight',
+    'text-align',
+]);
+const MAX_CORRECTION_OPS = 500;
+const MAX_CORRECTION_CHARS = 1000000;
+/**
+ * Layout correction spec v1 ({version:1, strict?, ops:[{op, target:{path | protoId [+ path] | xliffId}, …}]}) →
+ * the flat JSON ZMCP_FP_MIGRATE takes (lower-case keys, CSS as "name:value;…"). Unknown op keys are ignored;
+ * unknown ops, a missing target, non-scalar values or CSS names outside the allow-list are refused here. The FM
+ * checks every value again (allow-lists, measurements) and reports each op as applied / not_found / ambiguous /
+ * refused.
+ */
+function normalizeCorrection(spec, strict) {
+    const s = spec;
+    if (!s || typeof s !== 'object' || s.version !== 1 || !Array.isArray(s.ops))
+        throw new Error('correction: expected {"version":1,"ops":[...]}');
+    if (!s.ops.length || s.ops.length > MAX_CORRECTION_OPS)
+        throw new Error(`correction: 1 to ${MAX_CORRECTION_OPS} ops (${s.ops.length})`);
+    const scalar = (v, where) => {
+        if (typeof v === 'number' && Number.isFinite(v))
+            return String(v);
+        if (typeof v === 'string' && v.length <= 1000)
+            return v;
+        throw new Error(`correction: ${where} must be a string or number`);
+    };
+    const ops = s.ops.map((o, i) => {
+        if (!o || typeof o !== 'object')
+            throw new Error(`correction: op ${i} is not an object`);
+        const op = String(o.op ?? '');
+        if (!CORRECTION_OPS.has(op))
+            throw new Error(`correction: op ${i} "${op.slice(0, 20)}" unknown`);
+        const t = o.target ?? {};
+        const out = { op };
+        if (t.path != null)
+            out.path = scalar(t.path, `op ${i} target.path`);
+        if (t.protoId != null)
+            out.protoid = scalar(t.protoId, `op ${i} target.protoId`);
+        if (t.xliffId != null)
+            out.xliffid = scalar(t.xliffId, `op ${i} target.xliffId`);
+        if (!out.path && !out.protoid && !out.xliffid)
+            throw new Error(`correction: op ${i} has no target`);
+        for (const f of CORRECTION_FIELDS)
+            if (o[f] != null)
+                out[f.toLowerCase()] = scalar(o[f], `op ${i} ${f}`);
+        if (o.css != null) {
+            if (typeof o.css !== 'object' || Array.isArray(o.css))
+                throw new Error(`correction: op ${i} css must be an object`);
+            out.css = Object.entries(o.css)
+                .map(([k, v]) => {
+                const name = k.toLowerCase();
+                if (!CSS_NAMES.has(name))
+                    throw new Error(`correction: op ${i} CSS "${k.slice(0, 30)}" not allowed`);
+                const val = scalar(v, `op ${i} css ${k}`);
+                if (/[;:<>{}()"\\]/.test(val))
+                    throw new Error(`correction: op ${i} CSS ${k} value not allowed`);
+                return `${name}:${val}`;
+            })
+                .join(';');
+        }
+        return out;
+    });
+    const isStrict = strict ?? s.strict === true;
+    const json = JSON.stringify({ strict: isStrict, ops });
+    if (json.length > MAX_CORRECTION_CHARS)
+        throw new Error(`correction: more than ${MAX_CORRECTION_CHARS} characters once flattened`);
+    return { json, ops: ops.length, strict: isStrict };
+}
 /** SAP's SmartForm migration into new $TMP objects (ZMCP_FP_MIGRATE); the result and log go to a file too. */
-async function createAdobeFormFromSmartForm(connection, source, formName, interfaceName, senderCountry) {
+async function createAdobeFormFromSmartForm(connection, source, formName, interfaceName, senderCountry, correction) {
     const n = checkMigrationNames(source, formName, interfaceName);
     const country = String(senderCountry ?? '')
         .trim()
@@ -277,6 +478,7 @@ async function createAdobeFormFromSmartForm(connection, source, formName, interf
             interface: n.iface,
             preset: 'FULL',
             ...(country ? { sender_country: country } : {}),
+            ...(correction ? { correction: correction.json } : {}),
         });
     }
     catch (e) {
@@ -301,6 +503,9 @@ async function createAdobeFormFromSmartForm(connection, source, formName, interf
         adjusted: Array.isArray(res.adjusted) ? res.adjusted : [],
         log: Array.isArray(res.log) ? res.log : [],
         ...(res.cacheInfo ? { cacheInfo: String(res.cacheInfo) } : {}),
+        ...(res.correction && typeof res.correction === 'object'
+            ? { correction: res.correction }
+            : {}),
         complete: false,
         ...(r.message ? { message: String(r.message) } : {}),
         files: { result: '' },

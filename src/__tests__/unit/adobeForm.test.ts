@@ -18,8 +18,11 @@ import {
   createAdobeFormFromSmartForm,
   FP_INSTALL_HINT,
   getAdobeFormContent,
+  normalizeCorrection,
   normalizeFormName,
+  prepareXdp,
   renderAdobeForm,
+  renderAdobeXdp,
   summarizeXdp,
   translateFpError,
 } from '../../lib/adobeForm';
@@ -477,5 +480,324 @@ describe('adobeForm — CreateAdobeFormFromSmartForm', () => {
     expect(checkToolAllowed('CreateAdobeFormFromSmartForm', 'PRD')).toMatch(
       /mutates/,
     );
+  });
+});
+
+describe('adobeForm — RenderAdobeXdp', () => {
+  it('sends XDP + XML as RENDER_XDP and writes the PDF and the trace', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        form: 'ZF_CINE_TICKET',
+        pages: 1,
+        pdf: b64('%PDF-1.7 x'),
+        trace: 'ok',
+      },
+    });
+    const r = await renderAdobeXdp(
+      {} as any,
+      'zf_cine_ticket',
+      Buffer.from('<xdp/>'),
+      Buffer.from('<Form/>'),
+      'de_DE',
+    );
+    const [, action, p] = callDispatch.mock.calls[0];
+    expect(action).toBe('FP_CONTENT');
+    expect(p.part).toBe('RENDER_XDP');
+    expect(p.name).toBe('ZF_CINE_TICKET');
+    expect(JSON.parse(p.params)).toEqual({
+      xdp: b64('<xdp/>'),
+      xml: b64('<Form/>'),
+      locale: 'de_DE',
+      embedFonts: false,
+    });
+    expect(fs.readFileSync(r.files.pdf, 'latin1').startsWith('%PDF')).toBe(
+      true,
+    );
+    expect(fs.readFileSync(r.files.trace as string, 'utf8')).toBe('ok');
+  });
+
+  it('refuses other labels, bad locales and a non-PDF answer before / after the call', async () => {
+    await expect(
+      renderAdobeXdp(
+        {} as any,
+        'FP_TEST_00',
+        Buffer.from('a'),
+        Buffer.from('b'),
+      ),
+    ).rejects.toThrow(/form_name/);
+    await expect(
+      renderAdobeXdp(
+        {} as any,
+        'ZF_CINE_TICKET',
+        Buffer.from('a'),
+        Buffer.from('b'),
+        'en-US',
+      ),
+    ).rejects.toThrow(/locale/);
+    expect(callDispatch).not.toHaveBeenCalled();
+    callDispatch.mockResolvedValue({ result: { pdf: b64('nope') } });
+    await expect(
+      renderAdobeXdp(
+        {} as any,
+        'ZSC4SAP_T1',
+        Buffer.from('a'),
+        Buffer.from('b'),
+      ),
+    ).rejects.toThrow(/not a PDF/);
+  });
+
+  it('is read-only for the server guard (allowed on QA / PRD)', () => {
+    expect(checkToolAllowed('RenderAdobeXdp', 'PRD')).toBeNull();
+  });
+
+  it('takes out the designer data connection and refuses anything ADS could fetch', async () => {
+    const withCs = Buffer.from(
+      '<xdp><template><image contentType="image/png">AAAA</image></template><config><xsl><uri/></xsl></config>' +
+        '<connectionSet xmlns="x"><xmlConnection><uri>.\\data.xml</uri></xmlConnection></connectionSet></xdp>',
+    );
+    const p = prepareXdp(withCs);
+    expect(p.removed).toEqual(['connectionSet']);
+    expect(p.xdp.toString()).not.toMatch(/connectionSet|data\.xml/);
+    for (const bad of [
+      '<image href="http://evil/x.png"/>',
+      '<image href="file:///c:/x.png"/>',
+      "<img src='\\\\host\\share\\x.png'/>",
+      '<image href="/sap/bc/fp/graphics/x.bmp"/>',
+      '<div style="background: url(http://x)"/>',
+      '<xfa:uri>http://x/data.xml</xfa:uri>',
+      '<submit target="http://x"/>',
+      '<script>xfa.host.gotoURL("http://x")</script>',
+      '<connectionSet><uri>x</uri>',
+      '<subform usehref="frag.xdp#som($template.x)"/>',
+      '<script contentType="application/x-formcalc">Get("http://x")</script>',
+      '<script contentType="application/x-formcalc">post ("http://x", d)</script>',
+    ])
+      expect(() => prepareXdp(Buffer.from(`<xdp>${bad}</xdp>`))).toThrow(
+        /refused/,
+      );
+    expect(() =>
+      prepareXdp(
+        Buffer.from(
+          '<xdp><draw><value><exData><span xfa:embed="#som"/></exData></value></draw></xdp>',
+        ),
+      ),
+    ).not.toThrow();
+    callDispatch.mockResolvedValue({
+      result: { pages: 1, pdf: b64('%PDF-1.7') },
+    });
+    const r = await renderAdobeXdp(
+      {} as any,
+      'ZSC4SAP_T2',
+      withCs,
+      Buffer.from('<Form/>'),
+    );
+    expect(r.removed).toEqual(['connectionSet']);
+    const sent = Buffer.from(
+      JSON.parse(callDispatch.mock.calls[0][2].params).xdp,
+      'base64',
+    ).toString();
+    expect(sent).not.toMatch(/connectionSet/);
+    expect(() =>
+      prepareXdp(
+        Buffer.from(
+          '<xdp><subform usehref="#som($template.x)"/><script>this.getAttribute("x")</script></xdp>',
+        ),
+      ),
+    ).not.toThrow();
+  });
+
+  it('keeps the ADS trace when ADS fails', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        pages: 0,
+        pdf: '',
+        error: 'ADS: layout error',
+        trace: 'trace line 1',
+      },
+    });
+    await expect(
+      renderAdobeXdp(
+        {} as any,
+        'ZSC4SAP_T3',
+        Buffer.from('<xdp/>'),
+        Buffer.from('<Form/>'),
+      ),
+    ).rejects.toThrow(
+      /ADS error: ADS: layout error \(ADS trace: .*zsc4sap_t3\.xdp\.ads-trace\.txt\)/,
+    );
+    const f = path.join(
+      outDir,
+      'adobe',
+      'zsc4sap_t3',
+      'zsc4sap_t3.xdp.ads-trace.txt',
+    );
+    expect(fs.readFileSync(f, 'utf8')).toBe('trace line 1');
+  });
+});
+
+describe('adobeForm — migration layout correction', () => {
+  const spec = {
+    version: 1,
+    source: 'SF_EXAMPLE_01',
+    ops: [
+      {
+        op: 'layout',
+        target: { path: 'SF_EXAMPLE_01.MAIN' },
+        value: 'tb',
+        rule: 'R1',
+      },
+      {
+        op: 'geometry',
+        target: { protoId: 'FIRST_ADDRESS' },
+        y: '43.61mm',
+        rule: 'R2',
+        evidence: '4 texts dy 1.39',
+      },
+      {
+        op: 'margin',
+        target: { protoId: 'FIRST_INFO' },
+        topInset: 2.33,
+        rule: 'R2',
+      },
+      {
+        op: 'picture',
+        target: { protoId: 'FIRST_INFO', path: 'INFO_TEXT.SY.DATUM' },
+        format: 'date{MM/DD/YYYY}',
+      },
+      {
+        op: 'xhtml',
+        target: { xliffId: 'N1039-4' },
+        div: 0,
+        css: { 'Line-Height': '12pt', 'margin-left': '2mm' },
+      },
+    ],
+    notes: [],
+  };
+
+  it('flattens spec v1 for the FM and ignores unknown keys', () => {
+    const n = normalizeCorrection(spec);
+    expect(n).toMatchObject({ ops: 5, strict: false });
+    const j = JSON.parse(n.json);
+    expect(j.strict).toBe(false);
+    expect(j.ops[0]).toEqual({
+      op: 'layout',
+      path: 'SF_EXAMPLE_01.MAIN',
+      value: 'tb',
+      rule: 'R1',
+    });
+    expect(j.ops[1]).toEqual({
+      op: 'geometry',
+      protoid: 'FIRST_ADDRESS',
+      y: '43.61mm',
+      rule: 'R2',
+    });
+    expect(j.ops[2].topinset).toBe('2.33');
+    expect(j.ops[3]).toMatchObject({
+      protoid: 'FIRST_INFO',
+      path: 'INFO_TEXT.SY.DATUM',
+      format: 'date{MM/DD/YYYY}',
+    });
+    expect(j.ops[4]).toMatchObject({
+      xliffid: 'N1039-4',
+      div: '0',
+      css: 'line-height:12pt;margin-left:2mm',
+    });
+    expect(normalizeCorrection({ ...spec, strict: true }).strict).toBe(true);
+    expect(normalizeCorrection({ ...spec, strict: true }, false).strict).toBe(
+      false,
+    );
+  });
+
+  it('refuses bad specs before any SAP call', () => {
+    const bad = (s: unknown) =>
+      expect(() => normalizeCorrection(s)).toThrow(/correction/);
+    bad({ ops: [] });
+    bad({ version: 2, ops: spec.ops });
+    bad({ version: 1, ops: [] });
+    bad({ version: 1, ops: Array.from({ length: 501 }, () => spec.ops[0]) });
+    bad({ version: 1, ops: [{ op: 'script', target: { path: 'A' } }] });
+    bad({ version: 1, ops: [{ op: 'layout', value: 'tb' }] });
+    bad({
+      version: 1,
+      ops: [{ op: 'layout', target: { path: 'A' }, value: { x: 1 } }],
+    });
+    bad({
+      version: 1,
+      ops: [
+        {
+          op: 'xhtml',
+          target: { path: 'A' },
+          div: 0,
+          css: { background: 'red' },
+        },
+      ],
+    });
+    bad({
+      version: 1,
+      ops: [
+        {
+          op: 'xhtml',
+          target: { path: 'A' },
+          div: 0,
+          css: { 'font-family': 'x;y:url(z)' },
+        },
+      ],
+    });
+  });
+
+  it('sends the correction with FP_MIGRATE and returns the per-op report', async () => {
+    callDispatch.mockResolvedValue({
+      result: {
+        source: 'SF_EXAMPLE_01',
+        form: 'ZSC4SAP_AFM_C1',
+        interface: 'ZSC4SAP_AFM_C1I',
+        options: {},
+        raised: false,
+        saved: ['SFPI ZSC4SAP_AFM_C1I', 'SFPF ZSC4SAP_AFM_C1'],
+        left: [],
+        active: ['SFPI ZSC4SAP_AFM_C1I', 'SFPF ZSC4SAP_AFM_C1'],
+        renamed: [],
+        adjusted: [],
+        log: [],
+        correction: {
+          strict: false,
+          ops: 2,
+          applied: 1,
+          notFound: 1,
+          ambiguous: 0,
+          refused: 0,
+          partial: true,
+          warnings: [],
+          results: [
+            { i: 0, op: 'layout', rule: 'R1', status: 'applied', detail: '' },
+            {
+              i: 1,
+              op: 'geometry',
+              rule: 'R2',
+              status: 'not_found',
+              detail: '',
+            },
+          ],
+        },
+      },
+    });
+    const c = normalizeCorrection({ version: 1, ops: spec.ops.slice(0, 2) });
+    const r = await createAdobeFormFromSmartForm(
+      {} as any,
+      'SF_EXAMPLE_01',
+      'ZSC4SAP_AFM_C1',
+      'ZSC4SAP_AFM_C1I',
+      undefined,
+      c,
+    );
+    const [, action, params] = callDispatch.mock.calls[0];
+    expect(action).toBe('FP_MIGRATE');
+    expect(JSON.parse(params.correction).ops).toHaveLength(2);
+    expect(r.correction).toMatchObject({
+      partial: true,
+      applied: 1,
+      notFound: 1,
+    });
+    expect(r.complete).toBe(true);
   });
 });

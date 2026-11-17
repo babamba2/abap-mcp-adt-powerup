@@ -133,6 +133,10 @@ import {
   TOOL_DEFINITION as RenderAdobeForm_Tool,
 } from '../../../handlers/system/readonly/handleRenderAdobeForm';
 import {
+  handleRenderAdobeXdp,
+  TOOL_DEFINITION as RenderAdobeXdp_Tool,
+} from '../../../handlers/system/readonly/handleRenderAdobeXdp';
+import {
   handleRenderSmartForm,
   TOOL_DEFINITION as RenderSmartForm_Tool,
 } from '../../../handlers/system/readonly/handleRenderSmartForm';
@@ -245,6 +249,10 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: RenderAdobeForm_Tool,
         handler: (args: any) => handleRenderAdobeForm(this.context, args),
+      },
+      {
+        toolDefinition: RenderAdobeXdp_Tool,
+        handler: (args: any) => handleRenderAdobeXdp(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,

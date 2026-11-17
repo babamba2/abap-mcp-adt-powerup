@@ -33,9 +33,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAX_VALUES_BYTES = void 0;
+exports.MAX_FORM_INPUT_BYTES = exports.MAX_VALUES_BYTES = void 0;
 exports.valuesRoots = valuesRoots;
 exports.readValuesFile = readValuesFile;
+exports.readFormInputFile = readFormInputFile;
 /**
  * The `values_file` of the form render tools (RenderSmartForm, RenderAdobeForm):
  * a JSON file of invented sample values that is sent to SAP whole.
@@ -123,5 +124,44 @@ function readValuesFile(file) {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         throw new Error('values_file: a JSON object of parameter values is expected');
     return parsed;
+}
+exports.MAX_FORM_INPUT_BYTES = 5 * 1024 * 1024;
+/**
+ * Read a form input file (an XDP template or an XML data file for RenderAdobeXdp) under the same confinement
+ * as values_file: real path inside the MCP output directory or the profile work folder, no UNC / device paths,
+ * nothing that looks like a secret, only the given extensions, at most MAX_FORM_INPUT_BYTES. One message for a
+ * missing file and a file outside the allowed folders; the content is never echoed.
+ */
+function readFormInputFile(file, label, exts) {
+    const p = String(file ?? '').trim();
+    const notAllowed = `${label}: refused — no such ${exts.join(' / ')} file inside the MCP output directory or the profile work folder`;
+    if (!p)
+        throw new Error(`${label}: empty path`);
+    if (/^(\\\\|\/\/)/.test(p) || /^\\\\\?\\/.test(p) || /^[a-z]:[^\\/]/i.test(p))
+        throw new Error(`${label}: UNC and device paths are not allowed`);
+    if (SECRET_SEGMENT.test(p))
+        throw new Error(`${label}: refused (the path looks like a secret or profile file)`);
+    if (!exts.includes(path.extname(p).toLowerCase()))
+        throw new Error(`${label}: a ${exts.join(' / ')} file is expected`);
+    const roots = valuesRoots();
+    if (!roots.length)
+        throw new Error(`${label}: the MCP output directory does not exist yet`);
+    let real;
+    try {
+        real = fs.realpathSync(path.resolve(roots[0], p));
+    }
+    catch {
+        throw new Error(notAllowed);
+    }
+    if (!roots.some((r) => inside(r, real)))
+        throw new Error(notAllowed);
+    if (SECRET_SEGMENT.test(real))
+        throw new Error(`${label}: refused (the path looks like a secret or profile file)`);
+    const st = fs.statSync(real);
+    if (!st.isFile())
+        throw new Error(`${label}: not a file`);
+    if (st.size > exports.MAX_FORM_INPUT_BYTES)
+        throw new Error(`${label}: larger than ${exports.MAX_FORM_INPUT_BYTES} bytes`);
+    return fs.readFileSync(real);
 }
 //# sourceMappingURL=valuesFile.js.map
