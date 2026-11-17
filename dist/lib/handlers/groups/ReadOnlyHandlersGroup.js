@@ -34,6 +34,7 @@ const handleGetAreaMenu_1 = require("../../../handlers/system/readonly/handleGet
 const handleGetJobUsage_1 = require("../../../handlers/system/readonly/handleGetJobUsage");
 const handleGetSmartFormContent_1 = require("../../../handlers/system/readonly/handleGetSmartFormContent");
 const handleGetSmartFormLayout_1 = require("../../../handlers/system/readonly/handleGetSmartFormLayout");
+const handleGetStandardText_1 = require("../../../handlers/system/readonly/handleGetStandardText");
 const handleGetTcodeUsage_1 = require("../../../handlers/system/readonly/handleGetTcodeUsage");
 const handleRenderAdobeForm_1 = require("../../../handlers/system/readonly/handleRenderAdobeForm");
 const handleRenderAdobeXdp_1 = require("../../../handlers/system/readonly/handleRenderAdobeXdp");
@@ -128,6 +129,10 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleRenderAdobeXdp_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleRenderAdobeXdp_1.handleRenderAdobeXdp)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetStandardText_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetStandardText_1.handleGetStandardText)(this.context, args),
             },
             {
                 toolDefinition: handleGetTransport_1.TOOL_DEFINITION,

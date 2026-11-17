@@ -18,6 +18,7 @@
  *   RuntimeRunClassWithProfiling                ✓    ✗    ✗
  *   RuntimeCreateProfilerTraceParameters        ✓    ✗    ✗
  *   RenderSmartForm / RenderAdobeForm           ✓    ✗    ✗   (run the form's code)
+ *   GetStandardText                             ✓    ✗    ✗   (free text by name)
  *   RuntimeAnalyze* / RuntimeGet* / List*       ✓    ✓    ✓
  *   Get* / Read* / Search*                      ✓    ✓    ✓
  *   PreviewBusinessAction / ExecuteBusinessAction ✓  ✓    ✗   (business writes; SAP
@@ -74,6 +75,11 @@ const BUSINESS_WRITE_TOOLS: ReadonlySet<string> = new Set([
   'ExecuteBusinessAction',
 ]);
 
+/**
+ * Read tools that stay on development systems: they read free text by name
+ * (SO10 standard texts can carry business wording).
+ */
+const DEV_ONLY_READ_TOOLS: ReadonlySet<string> = new Set(['GetStandardText']);
 /** Tools that are allowed on QA despite being in RUNTIME_EXECUTION_TOOLS. */
 const QA_RUNTIME_ALLOWLIST: ReadonlySet<string> = new Set(['RunUnitTest']);
 
@@ -96,6 +102,9 @@ export function checkToolAllowed(toolName: string, tier: Tier): string | null {
 
   if (isMutation(toolName)) {
     return `${toolName} mutates SAP objects; only DEV profiles may mutate.`;
+  }
+  if (DEV_ONLY_READ_TOOLS.has(toolName)) {
+    return `${toolName} reads free text by name and is allowed on DEV profiles only.`;
   }
 
   if (RUNTIME_EXECUTION_TOOLS.has(toolName)) {

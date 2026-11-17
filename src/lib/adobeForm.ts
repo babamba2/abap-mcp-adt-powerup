@@ -524,7 +524,11 @@ const CORRECTION_OPS = new Set([
   'picture',
   'border',
   'presence',
+  // the only script edit: one DateFmt(<n>, $.locale) call in the field's initialize script → a fixed picture
+  'datePicture',
 ]);
+/** date{…} pictures datePicture may write: D / M / Y and . / - or space only. */
+const DATE_PICTURE_RE = /^date\{[DMY][DMY./ -]{0,19}\}$/;
 /** op fields passed on (spec name → the FM's lower-case key); anything else is ignored. */
 const CORRECTION_FIELDS = [
   'rule',
@@ -556,6 +560,7 @@ const CORRECTION_FIELDS = [
   'edge',
   'presence',
   'thickness',
+  'picture',
 ];
 const CSS_NAMES = new Set([
   'line-height',
@@ -613,6 +618,10 @@ export function normalizeCorrection(
       throw new Error(`correction: op ${i} has no target`);
     for (const f of CORRECTION_FIELDS)
       if (o[f] != null) out[f.toLowerCase()] = scalar(o[f], `op ${i} ${f}`);
+    if (op === 'datePicture' && !DATE_PICTURE_RE.test(out.picture ?? ''))
+      throw new Error(
+        `correction: op ${i} datePicture needs picture date{…} with D / M / Y and . / - or space only`,
+      );
     if (o.css != null) {
       if (typeof o.css !== 'object' || Array.isArray(o.css))
         throw new Error(`correction: op ${i} css must be an object`);

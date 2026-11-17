@@ -745,6 +745,30 @@ describe('adobeForm — migration layout correction', () => {
     });
   });
 
+  it('datePicture: passes a date{…} picture, refuses anything else', () => {
+    const dp = (picture: unknown) => ({
+      version: 1,
+      ops: [{ op: 'datePicture', target: { path: 'A.B.FLDATE' }, picture }],
+    });
+    const j = JSON.parse(normalizeCorrection(dp('date{MM/DD/YYYY}')).json);
+    expect(j.ops[0]).toEqual({
+      op: 'datePicture',
+      path: 'A.B.FLDATE',
+      picture: 'date{MM/DD/YYYY}',
+    });
+    expect(() => normalizeCorrection(dp('date{DD.MM.YY}'))).not.toThrow();
+    for (const p of [
+      undefined,
+      'MM/DD/YYYY',
+      'date{MM/DD/YYYY}|num{z}',
+      'date{MM"/DD}',
+      'date{HH:MM}',
+      'date{MM/DD/YYYY}") ; xfa.host.gotoURL("x',
+      'num{zzz9}',
+    ])
+      expect(() => normalizeCorrection(dp(p))).toThrow(/datePicture/);
+  });
+
   it('sends the correction with FP_MIGRATE and returns the per-op report', async () => {
     callDispatch.mockResolvedValue({
       result: {

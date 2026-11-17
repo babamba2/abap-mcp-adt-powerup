@@ -125,6 +125,10 @@ import {
   handleGetSmartFormLayout,
 } from '../../../handlers/system/readonly/handleGetSmartFormLayout';
 import {
+  TOOL_DEFINITION as GetStandardText_Tool,
+  handleGetStandardText,
+} from '../../../handlers/system/readonly/handleGetStandardText';
+import {
   TOOL_DEFINITION as GetTcodeUsage_Tool,
   handleGetTcodeUsage,
 } from '../../../handlers/system/readonly/handleGetTcodeUsage';
@@ -253,6 +257,10 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: RenderAdobeXdp_Tool,
         handler: (args: any) => handleRenderAdobeXdp(this.context, args),
+      },
+      {
+        toolDefinition: GetStandardText_Tool,
+        handler: (args: any) => handleGetStandardText(this.context, args),
       },
       {
         toolDefinition: GetTransport_Tool,

@@ -58,6 +58,7 @@ exports.translateSmartFormContentError = translateSmartFormContentError;
 exports.lineSymbols = lineSymbols;
 exports.symbolsOf = symbolsOf;
 exports.summarizeSmartFormContent = summarizeSmartFormContent;
+exports.getStandardText = getStandardText;
 exports.getSmartFormContent = getSmartFormContent;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
@@ -912,6 +913,43 @@ function summarizeSmartFormContent(c) {
         dynamicReferences: c.dynamicReferences,
         files: c.files,
         path: c.path,
+    };
+}
+/**
+ * Read one SAPscript standard text (SO10). Text object TEXT only — document texts of business objects (orders,
+ * invoices, …) are not reachable here. `language` is the 1-character SAP key (E, D, …); empty = logon language.
+ */
+async function getStandardText(connection, name, id = 'ST', language = '') {
+    const n = String(name ?? '').trim();
+    if (!n ||
+        n.length > 70 ||
+        /[*+%]/.test(n) ||
+        [...n].some((c) => c.charCodeAt(0) < 32))
+        throw new Error('name: the standard text name (≤ 70 characters, no wildcards)');
+    const i = String(id ?? 'ST')
+        .trim()
+        .toUpperCase();
+    if (!/^[A-Z0-9]{1,4}$/.test(i))
+        throw new Error('text_id: 1 to 4 letters / digits (default ST)');
+    const l = String(language ?? '').trim();
+    if (l && !/^[A-Za-z0-9]$/.test(l))
+        throw new Error('language: the 1-character SAP language key (E, D, …), not the ISO code');
+    const r = await part(connection, {
+        part: 'STDTEXT',
+        object: 'TEXT',
+        name: n,
+        id: i,
+        language: l.toUpperCase(),
+    });
+    return {
+        object: 'TEXT',
+        name: n,
+        id: i,
+        language: str(r.language),
+        lines: asArray(r.lines).map((x) => ({
+            format: trimmed(x?.f),
+            text: str(x?.l).replace(/\s+$/, ''),
+        })),
     };
 }
 async function getSmartFormContent(connection, formName, options = {}) {
