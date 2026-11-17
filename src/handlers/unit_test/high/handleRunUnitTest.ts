@@ -25,7 +25,8 @@ export const TOOL_DEFINITION = {
     '(run_id "legacy-sync" cannot be queried later), every test class of the container runs (test_class is not a filter), ' +
     'and container_type PROG/FUGR runs local test classes of a program / function group. ' +
     'On S/4HANA, PROG / FUGR containers also run synchronously (run_id "object-sync", result inline as run_result, ' +
-    'every test class of the container runs); CLAS containers start an asynchronous run.',
+    'every test class of the container runs); a batch with any PROG / FUGR container runs entirely this way, ' +
+    'its CLAS containers included. A batch of CLAS containers only starts an asynchronous run.',
   inputSchema: {
     type: 'object',
     properties: {
