@@ -113,6 +113,35 @@ describe('legacy table read (BASIS < 7.50 fallback)', () => {
     dispatch.mockClear();
   });
 
+  it('names customer tables in the refusal and passes a personal-data refusal through unchanged', async () => {
+    dispatch.mockRejectedValueOnce(
+      new Error('TABLE_READ: table EKKO is not allowed'),
+    );
+    await expect(
+      legacyTableRead({} as any, { table: 'EKKO', maxRows: 10 }),
+    ).rejects.toThrow(
+      /customer tables \(Z\*, Y\*, own namespaces\) of any class with your SE16 authority; SAP business tables and personal-data customer tables stay closed/,
+    );
+
+    // A customer table read goes to the dispatcher like any other (it decides).
+    dispatch.mockResolvedValueOnce({ result: { rows: [{ TOKEN: 'A' }] } });
+    const ok = await legacyTableRead({} as any, {
+      table: 'zmcp_biz_log',
+      maxRows: 1,
+    });
+    expect(dispatch.mock.calls[1][2].table_name).toBe('ZMCP_BIZ_LOG');
+    expect(dispatch.mock.calls[1][2].all_tables).toBeUndefined();
+    expect(ok.rows).toEqual([{ TOKEN: 'A' }]);
+
+    const personal =
+      'TABLE_READ: table ZHR_PAY holds HR / payroll data (personal data) and is not readable';
+    dispatch.mockRejectedValueOnce(new Error(personal));
+    await expect(
+      legacyTableRead({} as any, { table: 'ZHR_PAY', maxRows: 1 }),
+    ).rejects.toThrow(personal);
+    dispatch.mockClear();
+  });
+
   it('asks the dispatcher for all tables when the blocklist profile is off', async () => {
     const saved = process.env.MCP_BLOCKLIST_PROFILE;
     process.env.MCP_BLOCKLIST_PROFILE = 'off';

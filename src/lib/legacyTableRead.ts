@@ -130,7 +130,9 @@ export async function legacyTableRead(
   const table = req.table.toUpperCase();
   // The dispatcher decides which tables are readable: older installs accept
   // LEGACY_READABLE_TABLES only, newer ones any customizing / system table
-  // (delivery class C, G, E, S, W) except credential tables.
+  // (delivery class C, G, E, S, W) except credential tables, and since
+  // 2026-11-18 customer tables (Z*, Y*, own namespaces) of any class with the
+  // user's SE16 authority, personal-data tables excepted.
   // Ask for one row more than requested, so a full page is only reported as
   // truncated when more rows really exist. The ABAP side caps at
   // DISPATCH_MAX_ROWS; at that cap a full page still counts as truncated.
@@ -158,7 +160,7 @@ export async function legacyTableRead(
     }
     if (/is not allowed/i.test(msg)) {
       throw new Error(
-        `${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables only (delivery class C, G, E, S, W — W since the 2026-10-28 dispatcher; dispatchers installed before 2026-10 accept only ${LEGACY_READABLE_TABLES.join(', ')}).`,
+        `${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables (delivery class C, G, E, S, W — W since the 2026-10-28 dispatcher; dispatchers installed before 2026-10 accept only ${LEGACY_READABLE_TABLES.join(', ')}) and, since the 2026-11-18 dispatcher, customer tables (Z*, Y*, own namespaces) of any class with your SE16 authority; SAP business tables and personal-data customer tables stay closed.`,
       );
     }
     throw e;
