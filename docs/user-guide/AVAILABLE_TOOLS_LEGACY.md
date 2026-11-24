@@ -5,9 +5,9 @@ Generated from code in `src/handlers/**` (not from docs).
 Tools available on legacy SAP systems (BASIS < 7.50) connected via RFC.
 Legacy systems support a subset of tools — primarily Class, Interface, View, Program, Function Group/Module, Package (read/update/delete), Include, Unit Test, and common utilities.
 
-- Total tools: 171
-- Read-Only: 27
-- High-Level: 72
+- Total tools: 174
+- Read-Only: 29
+- High-Level: 73
 - Low-Level: 72
 
 ## Navigation
@@ -44,17 +44,20 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
     - [GetJobUsage](#getjobusage-read-only-system)
     - [GetSmartFormContent](#getsmartformcontent-read-only-system)
     - [GetSmartFormLayout](#getsmartformlayout-read-only-system)
+    - [GetStandardText](#getstandardtext-read-only-system)
     - [GetTcodeUsage](#gettcodeusage-read-only-system)
     - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
     - [RenderAdobeForm](#renderadobeform-read-only-system)
+    - [RenderAdobeXdp](#renderadobexdp-read-only-system)
     - [RenderSmartForm](#rendersmartform-read-only-system)
   - [View](#read-only-view)
     - [ReadView](#readview-read-only-view)
 - [High-Level Group](#high-level-group)
   - [Adobeform](#high-level-adobeform)
     - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
+    - [DeleteAdobeForm](#deleteadobeform-high-level-adobeform)
   - [Class](#high-level-class)
     - [CreateClass](#createclass-high-level-class)
     - [DeleteClass](#deleteclass-high-level-class)
@@ -550,6 +553,21 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
+<a id="getstandardtext-read-only-system"></a>
+#### GetStandardText (Read-Only / System)
+**Description:** [read-only, DEV profiles only] Read one SAPscript standard text (SO10, text object TEXT) — the lines with their paragraph formats, as READ_TEXT returns them. For include texts that forms print (e.g. an Adobe or SmartForm include text with a fixed name). Business document texts (other text objects) are not reachable. Needs the ZMCP_SSF_CONTENT FM and the SSF_CONTENT dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleGetStandardText.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `language` (string, optional) - 1-character SAP language key (E, D, …); empty = logon language.
+- `name` (string, required) - Standard text name as in SO10 (e.g. "SAPSCRIPT-DRUCKERTEST").
+- `text_id` (string, optional) - Text ID (default ST).
+
+---
+
 <a id="gettcodeusage-read-only-system"></a>
 #### GetTcodeUsage (Read-Only / System)
 **Description:** [read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. ECC-only (ZMCP_WL_TCODE_USAGE bridge FM).
@@ -634,6 +652,23 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
+<a id="renderadobexdp-read-only-system"></a>
+#### RenderAdobeXdp (Read-Only / System)
+**Description:** [read-only, no output] Render an Adobe XDP template with XML data in ADS (CL_FP_ADS_UTIL=>RENDER_PDF) and write the PDF under the MCP output directory (adobe/<name>/<name>.xdp.sap.pdf, plus the ADS trace). No SAP form object is used, no form code runs, nothing is printed, spooled or stored in SAP. For SAP form-template samples (ZF_CINE_TICKET, ZFORM_FDP_SCRATCH) and own ZSC4SAP_* templates. Needs the ZMCP_FP_CONTENT FM (part RENDER_XDP) and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeXdp.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `embed_fonts` (boolean, optional) - Embed the fonts in the PDF. Default false.
+- `form_name` (string, required) - Label of the template: ZF_CINE_TICKET, ZFORM_FDP_SCRATCH or ZSC4SAP_*.
+- `locale` (string, optional) - Locale language_COUNTRY, e.g. en_US (default) or de_DE.
+- `xdp_file` (string, required) - Path of the .xdp template inside the MCP output directory or the profile work folder (≤ 5 MB).
+- `xml_file` (string, required) - Path of the .xml data file inside the MCP output directory or the profile work folder (≤ 5 MB).
+
+---
+
 <a id="rendersmartform-read-only-system"></a>
 #### RenderSmartForm (Read-Only / System)
 **Description:** [runs the form, no output] The output of a SmartForm as SAP prints it, for given interface values: calls the generated function module with GETOTF (no dialog, no print, no spool) and writes the OTF (text: positions, fonts, strings) and the PDF under the MCP output directory (smartforms/<form>/<form>.sap.otf.txt / .sap.pdf). The form's own program lines run as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_SSF_RENDER FM and the SSF_RENDER dispatcher action.
@@ -677,17 +712,34 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 <a id="createadobeformfromsmartform-high-level-adobeform"></a>
 #### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
-**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Optional correction_file: a layout correction spec (version 1) applied to the migrated layout before it is saved — the result's `correction` reports every op (applied / not_found / ambiguous / refused), `partial` when not all applied; with strict nothing is saved unless every op applies. Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
 
 **Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
 
 **Available in:** `onprem`, `legacy`
 
 **Parameters:**
+- `correction_file` (string, optional) - Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence|datePicture|bind|embedLead","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}. bind: match "dataRef" + ref "$record…" ([0] / [*] only) or "none", with a basis. Model ops (no target, with a basis): {"op":"contextDeactivate","node":"CONTEXT/MAIN/<program lines>"} deactivates one program-lines node; {"op":"initSumByKey","source":"<table>","target":"<global table>","key":[…],"sum":[…]} adds a COLLECT loop to the interface initialization.
 - `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
 - `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
 - `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
 - `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+- `strict` (boolean, optional) - With correction_file: save nothing unless every op applies (overrides "strict" in the spec).
+
+---
+
+<a id="deleteadobeform-high-level-adobeform"></a>
+#### DeleteAdobeForm (High-Level / Adobeform)
+**Description:** [writes, destructive] Delete a Z/Y Adobe form (with its layout and generated function module) or form interface of package $TMP. Without confirm: true only reports what would be deleted (dry run). Objects of any other package are refused; an interface still used by a form is refused with the forms listed; a form delete keeps its interface (delete it afterwards with kind INTERFACE). Development clients only. Needs the ZMCP_FP_DELETE FM and the FP_DELETE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleDeleteAdobeForm.ts`
+
+**Available in:** `onprem`, `legacy`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `kind` (string, required) - FORM (SFPF) or INTERFACE (SFPI).
+- `name` (string, required) - Form or interface name, Z* or Y* (letters, digits, _ and /, at most 30 characters).
 
 ---
 
@@ -1226,6 +1278,7 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `function_group` (string, optional) - Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.
 - `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
 - `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
 - `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
@@ -1749,6 +1802,7 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 **Parameters:**
 - `context` (string, optional) - Optional context string shown in SAP tools.
 - `duration` (object, optional) - 
+- `result_format` (string, optional) - For a run that completes at once (programs / function groups, legacy systems): "full" (default) returns the raw run_result XML; "summary" returns run_summary = counts plus the failing methods and class-level alerts only (title + first details). Use "summary" when only pass / fail matters.
 - `risk_level` (object, optional) - 
 - `scope` (object, optional) - 
 - `tests` (array, required) - List of container/test class pairs to execute.
@@ -3064,4 +3118,4 @@ Legacy systems support a subset of tools — primarily Class, Interface, View, P
 
 ---
 
-*Last updated: 2026-11-17*
+*Last updated: 2026-11-24*

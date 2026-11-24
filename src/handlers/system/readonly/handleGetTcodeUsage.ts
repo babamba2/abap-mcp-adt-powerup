@@ -5,14 +5,17 @@
  * by ZMCP_WL_TCODE_USAGE (SWNC_COLLECTOR_GET_AGGREGATES, USERTCODE). User
  * names never leave SAP — the FM returns one boolean per transaction.
  *
- * Backend: ECC only — OData FunctionImport `WlTcodeUsage` on ZMCP_ADT_SRV.
+ * Backend: ECC — OData FunctionImport `WlTcodeUsage` on ZMCP_ADT_SRV (or NCo
+ * FM_PROXY). S/4HANA — the same FM through ZMCP_ADT_DISPATCH action FM_PROXY
+ * (lib/wlUsageS4.ts).
  *
  * Other system: `destination` (or SAP_USAGE_RFCDEST from the profile sap.env)
  * names an SM59 destination on the connected system; the FM then reads that
  * system's aggregates over RFC (DEV profile → QA / PRD business usage). The
  * destination is site-specific — it is never defaulted by the plugin.
  *
- * Companion ABAP source: sc4sap/abap/zmcp_wl_tcode_usage_ecc.abap
+ * Companion ABAP sources: sc4sap/abap/zmcp_wl_tcode_usage_ecc.abap (ECC),
+ * sc4sap/abap/zmcp_wl_tcode_usage_s4.abap (S/4HANA)
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
@@ -22,12 +25,17 @@ import {
   return_error,
   return_response,
 } from '../../../lib/utils';
+import {
+  callWlTcodeUsageS4,
+  isEccSystem,
+  S4_USAGE_PATH,
+} from '../../../lib/wlUsageS4';
 
 export const TOOL_DEFINITION = {
   name: 'GetTcodeUsage',
   available_in: ['onprem', 'legacy'] as const,
   description:
-    '[read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. ECC-only (ZMCP_WL_TCODE_USAGE bridge FM).',
+    '[read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. Reads ZMCP_WL_TCODE_USAGE: ECC through the OData / NCo bridge, S/4HANA through the ZMCP_ADT_DISPATCH FM_PROXY action.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -67,14 +75,7 @@ export async function handleGetTcodeUsage(
       );
     }
 
-    if (process.env.SAP_VERSION?.toUpperCase() !== 'ECC') {
-      return return_error(
-        new Error(
-          'GetTcodeUsage currently routes through the ECC bridge (ZMCP_WL_TCODE_USAGE via OData FunctionImport WlTcodeUsage). Set SAP_VERSION=ECC in .sc4sap/sap.env.',
-        ),
-      );
-    }
-
+    const ecc = isEccSystem();
     const months = Math.min(
       36,
       Math.max(1, Math.trunc(Number(args.months ?? 12)) || 12),
@@ -89,11 +90,10 @@ export async function handleGetTcodeUsage(
       `GetTcodeUsage: ${tcodes.length} tcodes, months=${months}, destination=${destination || '(local)'}`,
     );
 
-    const fm = await callWlTcodeUsage(connection, {
-      tcodes,
-      months,
-      rfcdest: destination,
-    });
+    const request = { tcodes, months, rfcdest: destination };
+    const fm = ecc
+      ? await callWlTcodeUsage(connection, request)
+      : await callWlTcodeUsageS4(connection, request);
     const used = tcodes.filter((t) => fm.result?.[t] === true);
     const unused = tcodes.filter((t) => fm.result?.[t] !== true);
 
@@ -101,7 +101,7 @@ export async function handleGetTcodeUsage(
       data: JSON.stringify(
         {
           success: fm.subrc === 0,
-          path: eccBridgePath(),
+          path: ecc ? eccBridgePath() : S4_USAGE_PATH,
           system: fm.sysid || null,
           destination: destination || null,
           message: fm.message,

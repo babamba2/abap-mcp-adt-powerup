@@ -7,12 +7,14 @@
  * Workflow: lock -> update source -> unlock -> (activate)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_DEFINITION = void 0;
+exports.TOOL_DEFINITION = exports.INCLUDE_STAGED_ADVICE = void 0;
 exports.functionGroupOf = functionGroupOf;
 exports.handleUpdateInclude = handleUpdateInclude;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
+/** Failed-activation advice; source_patches drops it after a successful undo (sourcePatchInput.withUndoNote). */
+exports.INCLUDE_STAGED_ADVICE = 'Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.';
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
     name: 'UpdateInclude',
@@ -248,7 +250,7 @@ async function handleUpdateInclude(context, params) {
                     const full = activationErrors
                         .map((e) => `${e.line ? `[L${e.line}] ` : ''}${e.text}`)
                         .join(' | ');
-                    const err = new Error(`Include ${includeName} activation failed (${activationErrors.length} error${activationErrors.length === 1 ? '' : 's'}): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`);
+                    const err = new Error(`Include ${includeName} activation failed (${activationErrors.length} error${activationErrors.length === 1 ? '' : 's'}): ${full}. ${exports.INCLUDE_STAGED_ADVICE}`);
                     err.isPreCheckFailure = true;
                     err.checkErrors = activationErrors;
                     err.checkWarnings = activationWarnings;
@@ -299,23 +301,9 @@ async function handleUpdateInclude(context, params) {
                 logger?.warn(`Failed to unlock include after error: ${unlockErr instanceof Error ? unlockErr.message : String(unlockErr)}`);
             }
         }
-        let errorMessage = error instanceof Error ? error.message : String(error);
-        try {
-            const parser = new fast_xml_parser_1.XMLParser({
-                ignoreAttributes: false,
-                attributeNamePrefix: '@_',
-            });
-            const errorData = error?.response?.data
-                ? parser.parse(error.response.data)
-                : null;
-            const errorMsg = errorData?.['exc:exception']?.message?.['#text'] ||
-                errorData?.['exc:exception']?.message;
-            if (errorMsg)
-                errorMessage = `SAP Error: ${errorMsg}`;
-        }
-        catch {
-            // ignore parse errors
-        }
+        // exc:exception text when present, else the raw SAP response body
+        // (e.g. a checkrun 400 that carries no exc:exception), else error.message.
+        const errorMessage = (0, utils_1.extractAdtErrorMessage)(error, error instanceof Error ? error.message : String(error));
         const statusCode = error.response?.status;
         const statusPart = statusCode ? ` [${statusCode}]` : '';
         logger?.error(`Error updating include ${includeName} at step=${currentStep}${statusPart}: ${errorMessage}`);

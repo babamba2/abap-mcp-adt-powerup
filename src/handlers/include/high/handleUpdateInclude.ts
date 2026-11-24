@@ -15,11 +15,16 @@ import {
 import {
   type AxiosResponse,
   encodeSapObjectName,
+  extractAdtErrorMessage,
   isCloudConnection,
   makeAdtRequestWithTimeout,
   return_error,
   return_response,
 } from '../../../lib/utils';
+
+/** Failed-activation advice; source_patches drops it after a successful undo (sourcePatchInput.withUndoNote). */
+export const INCLUDE_STAGED_ADVICE =
+  'Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.';
 
 const ACCEPT_LOCK =
   'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
@@ -364,7 +369,7 @@ export async function handleUpdateInclude(
           const err: any = new Error(
             `Include ${includeName} activation failed (${activationErrors.length} error${
               activationErrors.length === 1 ? '' : 's'
-            }): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`,
+            }): ${full}. ${INCLUDE_STAGED_ADVICE}`,
           );
           err.isPreCheckFailure = true;
           err.checkErrors = activationErrors;
@@ -426,22 +431,12 @@ export async function handleUpdateInclude(
       }
     }
 
-    let errorMessage = error instanceof Error ? error.message : String(error);
-    try {
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '@_',
-      });
-      const errorData = error?.response?.data
-        ? parser.parse(error.response.data)
-        : null;
-      const errorMsg =
-        errorData?.['exc:exception']?.message?.['#text'] ||
-        errorData?.['exc:exception']?.message;
-      if (errorMsg) errorMessage = `SAP Error: ${errorMsg}`;
-    } catch {
-      // ignore parse errors
-    }
+    // exc:exception text when present, else the raw SAP response body
+    // (e.g. a checkrun 400 that carries no exc:exception), else error.message.
+    const errorMessage = extractAdtErrorMessage(
+      error,
+      error instanceof Error ? error.message : String(error),
+    );
 
     const statusCode = error.response?.status;
     const statusPart = statusCode ? ` [${statusCode}]` : '';

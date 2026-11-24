@@ -116,7 +116,10 @@ async function handleActivateObjects(context, args) {
         });
     }
     catch (error) {
-        const message = error?.message || String(error);
+        // Keep SAP's response body: a bare "status code 500/403" hides why
+        // activation failed (e.g. object locked by another session).
+        const status = error?.response?.status;
+        const message = `${status ? `[${status}] ` : ''}${(0, utils_1.extractAdtErrorMessage)(error, error?.message || String(error))}`;
         logger?.error(`ActivateObjects failed: ${message}`);
         return (0, utils_1.return_error)(new Error(`ActivateObjects failed: ${message}`));
     }

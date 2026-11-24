@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HighLevelHandlersGroup = void 0;
 const handleCreateAdobeFormFromSmartForm_1 = require("../../../handlers/adobeform/high/handleCreateAdobeFormFromSmartForm");
+const handleDeleteAdobeForm_1 = require("../../../handlers/adobeform/high/handleDeleteAdobeForm");
 const handleCreateBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleCreateBehaviorDefinition");
 const handleDeleteBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleDeleteBehaviorDefinition");
 const handleGetBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleGetBehaviorDefinition");
@@ -565,6 +566,10 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleCreateAdobeFormFromSmartForm_1.TOOL_DEFINITION,
                 handler: withContext(handleCreateAdobeFormFromSmartForm_1.handleCreateAdobeFormFromSmartForm),
+            },
+            {
+                toolDefinition: handleDeleteAdobeForm_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteAdobeForm_1.handleDeleteAdobeForm),
             },
             {
                 toolDefinition: handleDeleteSmartForm_1.TOOL_DEFINITION,

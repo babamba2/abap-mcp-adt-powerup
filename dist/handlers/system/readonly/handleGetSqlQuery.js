@@ -46,6 +46,7 @@ const maskSecret_1 = require("../../../lib/policy/maskSecret");
 const personalMask_1 = require("../../../lib/policy/personalMask");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const sourceOutput_1 = require("../../../lib/sourceOutput");
+const sqlLineWrap_1 = require("../../../lib/sqlLineWrap");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
 const xmlEntities_1 = require("../../../lib/xmlEntities");
@@ -261,7 +262,12 @@ async function handleGetSqlQuery(context, args) {
         try {
             response = await client
                 .getUtils()
-                .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+                // Freestyle preview refuses lines > 255 chars (HTTP 400); the legacy
+                // fallback below keeps the original text.
+                .getSqlQuery({
+                sql_query: (0, sqlLineWrap_1.wrapSqlLines)(sqlQuery),
+                row_number: rowNumber,
+            });
         }
         catch (e) {
             // BASIS < 7.50 has no freestyle data preview: answer a single-table

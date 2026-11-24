@@ -20,6 +20,17 @@ import { CompositeHandlersRegistry } from '../lib/handlers/registry/CompositeHan
 import { jsonSchemaToZod } from '../lib/handlers/utils/schemaUtils.js';
 import { withLegacyLockHint } from '../lib/legacyLockHint.js';
 import type { LoadedProfile } from '../lib/profile.js';
+import { guardTool } from '../lib/readonlyGuard.js';
+import {
+  resolveSourceFileArg,
+  withSourceFileSchema,
+} from '../lib/sourceFileInput.js';
+import {
+  attachPatchedInfo,
+  resolveSourcePatchesArg,
+  runWithPatchRestore,
+  withSourcePatchesSchema,
+} from '../lib/sourcePatchInput.js';
 import {
   resetSystemContextCache,
   resolveSystemContext,
@@ -419,24 +430,42 @@ export abstract class BaseMcpServer extends McpServer {
           ) => Promise<unknown>;
           type HandlerFnArgsOnly = (args: unknown) => Promise<unknown>;
 
-          const wrappedHandler = async (args: unknown) => {
+          const wrappedHandler = async (rawArgs: unknown) => {
+            // Server-side readonly enforcement for non-DEV SAP profiles. This
+            // is the registration path every transport uses (stdio / SSE /
+            // HTTP), so the guard must fire here, before any SAP call.
+            guardTool(entry.toolDefinition.name);
+            // Patch mode: source_file → source_code (confined path, never echoed).
+            const fileArgs = resolveSourceFileArg(
+              entry.toolDefinition.name,
+              entry.toolDefinition.inputSchema,
+              rawArgs,
+            );
             // Get connection from context (this.connectionContext)
             // Token will be automatically refreshed via AuthBroker if needed
             const context: HandlerContext = {
               connection: await this.getConnection(),
               logger: this.logger,
             };
+            // Server-side patch: source_patches → full source (current source
+            // read here, exact replacements applied; refused = nothing uploaded).
+            const resolved = await resolveSourcePatchesArg(
+              entry.toolDefinition.name,
+              entry.toolDefinition.inputSchema,
+              fileArgs,
+              context,
+            );
+            const { patched } = resolved;
 
             // If handler expects context+args (preferred), pass both.
             // Otherwise, update group context and call with args only for backward compatibility.
             // NOTE: Always await the handler result to ensure we get the resolved value for normalization
-            let handlerPromise: Promise<unknown>;
-            if ((entry.handler as HandlerFnWithContext).length >= 2) {
-              handlerPromise = (entry.handler as HandlerFnWithContext)(
-                context,
-                args,
-              );
-            } else {
+            const invoke = (callArgs: any): Promise<unknown> => {
+              if ((entry.handler as HandlerFnWithContext).length >= 2) {
+                return Promise.resolve(
+                  (entry.handler as HandlerFnWithContext)(context, callArgs),
+                );
+              }
               try {
                 const contextAwareGroup = group as Partial<{
                   setContext: (ctx: HandlerContext) => void;
@@ -450,12 +479,20 @@ export abstract class BaseMcpServer extends McpServer {
               } catch {
                 // ignore if group doesn't expose context setter
               }
-              handlerPromise = (entry.handler as HandlerFnArgsOnly)(args);
-            }
+              return Promise.resolve(
+                (entry.handler as HandlerFnArgsOnly)(callArgs),
+              );
+            };
+            // A failed patch never leaves its source behind (undo inside).
+            const handlerPromise: Promise<unknown> = runWithPatchRestore(
+              resolved,
+              context,
+              invoke,
+            );
 
             let result: unknown;
             try {
-              result = await handlerPromise;
+              result = attachPatchedInfo(await handlerPromise, patched);
             } catch (error) {
               if (error instanceof Error) {
                 error.message = withLegacyLockHint(error.message);
@@ -519,13 +556,20 @@ export abstract class BaseMcpServer extends McpServer {
           };
 
           // Convert JSON Schema to Zod if needed, otherwise pass as-is
+          const inputSchema = withSourcePatchesSchema(
+            entry.toolDefinition.name,
+            withSourceFileSchema(
+              entry.toolDefinition.name,
+              entry.toolDefinition.inputSchema,
+            ),
+          );
           const zodSchema =
-            entry.toolDefinition.inputSchema &&
-            typeof entry.toolDefinition.inputSchema === 'object' &&
-            entry.toolDefinition.inputSchema.type === 'object' &&
-            entry.toolDefinition.inputSchema.properties
-              ? jsonSchemaToZod(entry.toolDefinition.inputSchema)
-              : entry.toolDefinition.inputSchema;
+            inputSchema &&
+            typeof inputSchema === 'object' &&
+            inputSchema.type === 'object' &&
+            inputSchema.properties
+              ? jsonSchemaToZod(inputSchema)
+              : inputSchema;
 
           // Skip tools not available in the current SAP environment
           const availableIn = entry.toolDefinition.available_in;

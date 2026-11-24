@@ -88,10 +88,114 @@ export const TOOL_DEFINITION = {
           long: { type: 'boolean' },
         },
       },
+      result_format: {
+        type: 'string',
+        enum: ['full', 'summary'],
+        description:
+          'For a run that completes at once (programs / function groups, legacy systems): "full" (default) returns the raw run_result XML; "summary" returns run_summary = counts plus the failing methods and class-level alerts only (title + first details). Use "summary" when only pass / fail matters.',
+      },
     },
     required: ['tests'],
   },
 } as const;
+
+const XML_ENTITIES: Record<string, string> = {
+  '&quot;': '"',
+  '&apos;': "'",
+  '&lt;': '<',
+  '&gt;': '>',
+  '&amp;': '&',
+};
+const decodeXml = (s: string) =>
+  s.replace(/&(quot|apos|lt|gt|amp);/g, (m) => XML_ENTITIES[m] ?? m).trim();
+const attr = (attrs: string, name: string) =>
+  decodeXml(new RegExp(`${name}="([^"]*)"`).exec(attrs)?.[1] ?? '');
+
+interface AlertSummary {
+  kind: string;
+  severity: string;
+  title: string;
+  details: string[];
+}
+
+function alertsIn(xml: string): AlertSummary[] {
+  const out: AlertSummary[] = [];
+  const re = /<(?:\w+:)?alert\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?alert>/g;
+  for (let m = re.exec(xml); m; m = re.exec(xml)) {
+    const details: string[] = [];
+    const dre = /<(?:\w+:)?detail\b[^>]*?\btext="([^"]*)"/g;
+    for (let d = dre.exec(m[2]); d && details.length < 3; d = dre.exec(m[2]))
+      details.push(decodeXml(d[1]));
+    out.push({
+      kind: attr(m[1], 'kind'),
+      severity: attr(m[1], 'severity'),
+      title: decodeXml(
+        /<(?:\w+:)?title>([\s\S]*?)<\/(?:\w+:)?title>/.exec(m[2])?.[1] ?? '',
+      ),
+      details,
+    });
+  }
+  return out;
+}
+
+/**
+ * Compact form of an ABAP Unit runResult (result_format "summary"): counts and
+ * the failing methods / class-level alerts only. A method fails when it has an
+ * alert of severity "critical" or "fatal" (tolerable / warning alerts pass).
+ */
+export function summarizeRunResult(runResult: unknown): {
+  classes: number;
+  methods: number;
+  passed: number;
+  failed: number;
+  failures: Array<{ class: string; method: string } & AlertSummary>;
+} {
+  const xml =
+    typeof runResult === 'string' ? runResult : JSON.stringify(runResult ?? '');
+  // same rule as the sc4sap evidence ledger: only critical / fatal alerts fail
+  const blocking = (a: AlertSummary) => /^(critical|fatal)$/i.test(a.severity);
+  const failures: Array<{ class: string; method: string } & AlertSummary> = [];
+  let classes = 0;
+  let methods = 0;
+  let failed = 0;
+  const cre =
+    /<(?:\w+:)?testClass\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?testClass>)/g;
+  for (let c = cre.exec(xml); c; c = cre.exec(xml)) {
+    classes++;
+    const cls = attr(c[1], 'adtcore:name');
+    const body = c[2] ?? '';
+    const mre =
+      /<(?:\w+:)?testMethod\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?testMethod>)/g;
+    for (let m = mre.exec(body); m; m = mre.exec(body)) {
+      methods++;
+      const bad = alertsIn(m[2] ?? '').filter(blocking);
+      if (bad.length) {
+        failed++;
+        for (const a of bad)
+          failures.push({
+            class: cls,
+            method: attr(m[1], 'adtcore:name'),
+            ...a,
+          });
+      }
+    }
+    // alerts of the class itself (setup / teardown, missing fixtures)
+    const own = body.replace(
+      /<(?:\w+:)?testMethods\b[\s\S]*?<\/(?:\w+:)?testMethods>/g,
+      '',
+    );
+    for (const a of alertsIn(own).filter(blocking))
+      failures.push({ class: cls, method: '', ...a });
+  }
+  return { classes, methods, passed: methods - failed, failed, failures };
+}
+
+/** run_result as asked: the raw XML, or its summary. */
+function runResultFields(runResult: unknown, format: string | undefined) {
+  return format === 'summary'
+    ? { run_summary: summarizeRunResult(runResult) }
+    : { run_result: runResult };
+}
 
 const LEGACY_SYNC_RUN_ID = 'legacy-sync';
 const OBJECT_SYNC_RUN_ID = 'object-sync';
@@ -218,6 +322,7 @@ interface RunUnitTestArgs {
     medium?: boolean;
     long?: boolean;
   };
+  result_format?: 'full' | 'summary';
 }
 
 /**
@@ -266,8 +371,8 @@ export async function handleRunUnitTest(
               success: true,
               run_id: OBJECT_SYNC_RUN_ID,
               message:
-                'ABAP Unit run completed (synchronous, by object). Result is in run_result.',
-              run_result: runResult,
+                'ABAP Unit run completed (synchronous, by object). Result is in run_result (run_summary with result_format "summary").',
+              ...runResultFields(runResult, args.result_format),
               ...(emptyRunWarning(runResult)
                 ? { methods: 0, warning: emptyRunWarning(runResult) }
                 : {}),
@@ -333,8 +438,8 @@ export async function handleRunUnitTest(
               success: true,
               run_id: createResult.runId,
               message:
-                'ABAP Unit run completed (legacy, synchronous). Result is in run_result.',
-              run_result: createResult.runResult,
+                'ABAP Unit run completed (legacy, synchronous). Result is in run_result (run_summary with result_format "summary").',
+              ...runResultFields(createResult.runResult, args.result_format),
               ...(emptyRunWarning(createResult.runResult)
                 ? {
                     methods: 0,

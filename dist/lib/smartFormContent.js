@@ -236,6 +236,26 @@ function cellsOf(v) {
         const fill = trimmed(b.FILLCOLOR?.USED) === 'X' && intensity > 0
             ? colorOf(b.FILLCOLOR, intensity)
             : undefined;
+        const sides = [
+            ['left', 'LLEFT', 'CLEFT'],
+            ['top', 'LTOP', 'CTOP'],
+            ['right', 'LRIGHT', 'CRIGHT'],
+            ['bottom', 'LBOTTOM', 'CBOTTOM'],
+        ];
+        // A side with a width but no colour (USED unset) still prints: SAP draws it in the pen colour left by the
+        // previous line (S4-DEV SF_TOTALS / SF_SUBTOTALS: header sides without a colour print, row bottoms after white
+        // sides print white). borders keeps the sides with a colour; bordersUnset lists the others for the renderer.
+        const unset = {};
+        const colors = {};
+        for (const [s, w, c] of sides) {
+            const mm = mmOf(b[w], b[`${w}_U`]) ?? 0;
+            if (!(mm > 0))
+                continue;
+            if (trimmed(b[c]?.USED) === 'X')
+                colors[s] = rgbHex(b[c]);
+            else
+                unset[s] = mm;
+        }
         return {
             ...(fill ? { fill } : {}),
             borders: {
@@ -244,6 +264,10 @@ function cellsOf(v) {
                 right: side('LRIGHT', 'CRIGHT'),
                 bottom: side('LBOTTOM', 'CBOTTOM'),
             },
+            ...(Object.values(colors).some((x) => x !== '#000000')
+                ? { borderColors: colors }
+                : {}),
+            ...(Object.keys(unset).length ? { bordersUnset: unset } : {}),
         };
     };
     return asArray(v?.item).map((it) => {
@@ -709,11 +733,14 @@ function dataDeclsOf(sf) {
         });
     }
     for (const it of asArray(sf.GDATA?.item)) {
+        // the start value of a global field (Form Builder "Default value", ABAP VALUE): SF_TOTALS G_ADDFLAG 'X'
+        const dv = trimmed(it?.DEFAULTVAL);
         out.push({
             name: trimmed(it?.NAME),
             scope: 'global',
             typing: trimmed(it?.TYPING),
             typeName: trimmed(it?.TYPENAME),
+            ...(dv ? { defaultValue: dv } : {}),
         });
     }
     return out.filter((d) => d.name);

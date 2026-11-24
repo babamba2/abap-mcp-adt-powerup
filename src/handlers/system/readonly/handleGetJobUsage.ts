@@ -7,9 +7,12 @@
  * cancelled inside the window. Dialog runs (SE38/SA38) do not count. No user
  * names leave SAP — the FM returns one boolean per program.
  *
- * Backend: ECC only — OData FunctionImport `WlJobUsage` on ZMCP_ADT_SRV.
+ * Backend: ECC — OData FunctionImport `WlJobUsage` on ZMCP_ADT_SRV (or NCo
+ * FM_PROXY). S/4HANA — the same FM through ZMCP_ADT_DISPATCH action FM_PROXY
+ * (lib/wlUsageS4.ts).
  *
- * Companion ABAP source: sc4sap/abap/zmcp_wl_job_usage_ecc.abap
+ * Companion ABAP sources: sc4sap/abap/zmcp_wl_job_usage_ecc.abap (ECC),
+ * sc4sap/abap/zmcp_wl_job_usage_s4.abap (S/4HANA)
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
@@ -19,12 +22,17 @@ import {
   return_error,
   return_response,
 } from '../../../lib/utils';
+import {
+  callWlJobUsageS4,
+  isEccSystem,
+  S4_USAGE_PATH,
+} from '../../../lib/wlUsageS4';
 
 export const TOOL_DEFINITION = {
   name: 'GetJobUsage',
   available_in: ['onprem', 'legacy'] as const,
   description:
-    '[read-only] Check whether programs are used as background job steps (SM37 jobs, TBTCO/TBTCP): true when the program is a step of a job that is scheduled now (released/ready/active, incl. periodic) or that finished/was cancelled in the last N months. SE38/SA38 dialog runs do not count. `oldest` = start date of the oldest finished job still kept; job reorganization deletes older ones, so when `complete` is false a false means "no job since <oldest>". No user names are returned. ECC-only (ZMCP_WL_JOB_USAGE bridge FM).',
+    '[read-only] Check whether programs are used as background job steps (SM37 jobs, TBTCO/TBTCP): true when the program is a step of a job that is scheduled now (released/ready/active, incl. periodic) or that finished/was cancelled in the last N months. SE38/SA38 dialog runs do not count. `oldest` = start date of the oldest finished job still kept; job reorganization deletes older ones, so when `complete` is false a false means "no job since <oldest>". No user names are returned. Reads ZMCP_WL_JOB_USAGE: ECC through the OData / NCo bridge, S/4HANA through the ZMCP_ADT_DISPATCH FM_PROXY action.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -65,21 +73,16 @@ export async function handleGetJobUsage(
       return return_error(new Error('programs must list at least one program'));
     }
 
-    if (process.env.SAP_VERSION?.toUpperCase() !== 'ECC') {
-      return return_error(
-        new Error(
-          'GetJobUsage currently routes through the ECC bridge (ZMCP_WL_JOB_USAGE via OData FunctionImport WlJobUsage). Set SAP_VERSION=ECC in .sc4sap/sap.env.',
-        ),
-      );
-    }
-
+    const ecc = isEccSystem();
     const months = Math.min(
       36,
       Math.max(1, Math.trunc(Number(args.months ?? 12)) || 12),
     );
     logger?.info(`GetJobUsage: ${programs.length} programs, months=${months}`);
 
-    const fm = await callWlJobUsage(connection, { programs, months });
+    const fm = ecc
+      ? await callWlJobUsage(connection, { programs, months })
+      : await callWlJobUsageS4(connection, { programs, months });
     const used = programs.filter((p) => fm.result?.[p] === true);
     const unused = programs.filter((p) => fm.result?.[p] !== true);
     const start = windowStart(months);
@@ -88,7 +91,7 @@ export async function handleGetJobUsage(
       data: JSON.stringify(
         {
           success: fm.subrc === 0,
-          path: eccBridgePath(),
+          path: ecc ? eccBridgePath() : S4_USAGE_PATH,
           message: fm.message,
           months,
           window_start: start,

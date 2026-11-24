@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseHandlerGroup = void 0;
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const readonlyGuard_js_1 = require("../../readonlyGuard.js");
+const sourceFileInput_js_1 = require("../../sourceFileInput.js");
+const sourcePatchInput_js_1 = require("../../sourcePatchInput.js");
 const schemaUtils_js_1 = require("../utils/schemaUtils.js");
 /**
  * Base class for handler groups
@@ -34,12 +36,13 @@ class BaseHandlerGroup {
      */
     registerToolOnServer(server, toolName, description, inputSchema, handler) {
         // Convert JSON Schema to Zod if needed, otherwise pass as-is
-        const zodSchema = inputSchema &&
-            typeof inputSchema === 'object' &&
-            inputSchema.type === 'object' &&
-            inputSchema.properties
-            ? (0, schemaUtils_js_1.jsonSchemaToZod)(inputSchema)
-            : inputSchema;
+        const schema = (0, sourcePatchInput_js_1.withSourcePatchesSchema)(toolName, (0, sourceFileInput_js_1.withSourceFileSchema)(toolName, inputSchema));
+        const zodSchema = schema &&
+            typeof schema === 'object' &&
+            schema.type === 'object' &&
+            schema.properties
+            ? (0, schemaUtils_js_1.jsonSchemaToZod)(schema)
+            : schema;
         server.registerTool(toolName, {
             description,
             inputSchema: zodSchema,
@@ -47,7 +50,9 @@ class BaseHandlerGroup {
             // Server-side readonly enforcement for non-DEV SAP profiles.
             // Fires BEFORE the handler runs so mutations never reach SAP.
             (0, readonlyGuard_js_1.guardTool)(toolName);
-            const result = await handler(this.context, args);
+            const resolved = await (0, sourcePatchInput_js_1.resolveSourcePatchesArg)(toolName, inputSchema, (0, sourceFileInput_js_1.resolveSourceFileArg)(toolName, inputSchema, args), this.context);
+            // A failed patch never leaves its source behind (undo inside).
+            const result = (0, sourcePatchInput_js_1.attachPatchedInfo)(await (0, sourcePatchInput_js_1.runWithPatchRestore)(resolved, this.context, (a) => Promise.resolve(handler(this.context, a))), resolved.patched);
             // If error, throw it
             if (result.isError) {
                 const errorText = result.content

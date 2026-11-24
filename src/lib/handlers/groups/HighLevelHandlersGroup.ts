@@ -3,6 +3,10 @@ import {
   handleCreateAdobeFormFromSmartForm,
 } from '../../../handlers/adobeform/high/handleCreateAdobeFormFromSmartForm';
 import {
+  TOOL_DEFINITION as DeleteAdobeForm_Tool,
+  handleDeleteAdobeForm,
+} from '../../../handlers/adobeform/high/handleDeleteAdobeForm';
+import {
   TOOL_DEFINITION as CreateBdef_Tool,
   handleCreateBehaviorDefinition,
 } from '../../../handlers/behavior_definition/high/handleCreateBehaviorDefinition';
@@ -910,6 +914,10 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: CreateAdobeFormFromSmartForm_Tool,
         handler: withContext(handleCreateAdobeFormFromSmartForm),
+      },
+      {
+        toolDefinition: DeleteAdobeForm_Tool,
+        handler: withContext(handleDeleteAdobeForm),
       },
       {
         toolDefinition: DeleteSmartForm_Tool,

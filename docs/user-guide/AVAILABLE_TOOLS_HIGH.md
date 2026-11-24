@@ -3,13 +3,14 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: High-Level
-- Total tools: 137
+- Total tools: 138
 
 ## Navigation
 
 - [High-Level Group](#high-level-group)
   - [Adobeform](#high-level-adobeform)
     - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
+    - [DeleteAdobeForm](#deleteadobeform-high-level-adobeform)
   - [Behavior Definition](#high-level-behavior-definition)
     - [CreateBehaviorDefinition](#createbehaviordefinition-high-level-behavior-definition)
     - [DeleteBehaviorDefinition](#deletebehaviordefinition-high-level-behavior-definition)
@@ -186,15 +187,30 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="createadobeformfromsmartform-high-level-adobeform"></a>
 #### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
-**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Optional correction_file: a layout correction spec (version 1) applied to the migrated layout before it is saved — the result's `correction` reports every op (applied / not_found / ambiguous / refused), `partial` when not all applied; with strict nothing is saved unless every op applies. Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
 
 **Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
 
 **Parameters:**
+- `correction_file` (string, optional) - Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence|datePicture|bind|embedLead","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}. bind: match "dataRef" + ref "$record…" ([0] / [*] only) or "none", with a basis. Model ops (no target, with a basis): {"op":"contextDeactivate","node":"CONTEXT/MAIN/<program lines>"} deactivates one program-lines node; {"op":"initSumByKey","source":"<table>","target":"<global table>","key":[…],"sum":[…]} adds a COLLECT loop to the interface initialization.
 - `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
 - `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
 - `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
 - `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+- `strict` (boolean, optional) - With correction_file: save nothing unless every op applies (overrides "strict" in the spec).
+
+---
+
+<a id="deleteadobeform-high-level-adobeform"></a>
+#### DeleteAdobeForm (High-Level / Adobeform)
+**Description:** [writes, destructive] Delete a Z/Y Adobe form (with its layout and generated function module) or form interface of package $TMP. Without confirm: true only reports what would be deleted (dry run). Objects of any other package are refused; an interface still used by a form is refused with the forms listed; a form delete keeps its interface (delete it afterwards with kind INTERFACE). Development clients only. Needs the ZMCP_FP_DELETE FM and the FP_DELETE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleDeleteAdobeForm.ts`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `kind` (string, required) - FORM (SFPF) or INTERFACE (SFPI).
+- `name` (string, required) - Form or interface name, Z* or Y* (letters, digits, _ and /, at most 30 characters).
 
 ---
 
@@ -1397,6 +1413,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `function_group` (string, optional) - Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.
 - `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
 - `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
 - `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
@@ -2234,6 +2251,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `context` (string, optional) - Optional context string shown in SAP tools.
 - `duration` (object, optional) - 
+- `result_format` (string, optional) - For a run that completes at once (programs / function groups, legacy systems): "full" (default) returns the raw run_result XML; "summary" returns run_summary = counts plus the failing methods and class-level alerts only (title + first details). Use "summary" when only pass / fail matters.
 - `risk_level` (object, optional) - 
 - `scope` (object, optional) - 
 - `tests` (array, required) - List of container/test class pairs to execute.
@@ -2320,4 +2338,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-11-17*
+*Last updated: 2026-11-24*

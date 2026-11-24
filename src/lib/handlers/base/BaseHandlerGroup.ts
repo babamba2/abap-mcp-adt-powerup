@@ -2,6 +2,16 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { HandlerContext } from '../../../handlers/interfaces.js';
 import { guardTool } from '../../readonlyGuard.js';
+import {
+  resolveSourceFileArg,
+  withSourceFileSchema,
+} from '../../sourceFileInput.js';
+import {
+  attachPatchedInfo,
+  resolveSourcePatchesArg,
+  runWithPatchRestore,
+  withSourcePatchesSchema,
+} from '../../sourcePatchInput.js';
 import type {
   HandlerEntry,
   IHandlerGroup,
@@ -61,13 +71,17 @@ export abstract class BaseHandlerGroup implements IHandlerGroup {
     handler: ToolHandler,
   ): void {
     // Convert JSON Schema to Zod if needed, otherwise pass as-is
+    const schema = withSourcePatchesSchema(
+      toolName,
+      withSourceFileSchema(toolName, inputSchema),
+    );
     const zodSchema =
-      inputSchema &&
-      typeof inputSchema === 'object' &&
-      inputSchema.type === 'object' &&
-      inputSchema.properties
-        ? jsonSchemaToZod(inputSchema)
-        : inputSchema;
+      schema &&
+      typeof schema === 'object' &&
+      schema.type === 'object' &&
+      schema.properties
+        ? jsonSchemaToZod(schema)
+        : schema;
 
     server.registerTool(
       toolName,
@@ -80,7 +94,19 @@ export abstract class BaseHandlerGroup implements IHandlerGroup {
         // Fires BEFORE the handler runs so mutations never reach SAP.
         guardTool(toolName);
 
-        const result = await handler(this.context, args);
+        const resolved = await resolveSourcePatchesArg(
+          toolName,
+          inputSchema,
+          resolveSourceFileArg(toolName, inputSchema, args),
+          this.context,
+        );
+        // A failed patch never leaves its source behind (undo inside).
+        const result = attachPatchedInfo(
+          await runWithPatchRestore(resolved, this.context, (a) =>
+            Promise.resolve(handler(this.context, a)),
+          ),
+          resolved.patched,
+        );
 
         // If error, throw it
         if (result.isError) {

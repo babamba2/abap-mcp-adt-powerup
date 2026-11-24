@@ -3,7 +3,7 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: Read-Only
-- Total tools: 71
+- Total tools: 73
 
 ## Navigation
 
@@ -73,6 +73,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetSmartFormContent](#getsmartformcontent-read-only-system)
     - [GetSmartFormLayout](#getsmartformlayout-read-only-system)
     - [GetSqlQuery](#getsqlquery-read-only-system)
+    - [GetStandardText](#getstandardtext-read-only-system)
     - [GetTcodeUsage](#gettcodeusage-read-only-system)
     - [GetTransaction](#gettransaction-read-only-system)
     - [GetTypeInfo](#gettypeinfo-read-only-system)
@@ -80,6 +81,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
     - [RenderAdobeForm](#renderadobeform-read-only-system)
+    - [RenderAdobeXdp](#renderadobexdp-read-only-system)
     - [RenderSmartForm](#rendersmartform-read-only-system)
     - [RuntimeAnalyzeDump](#runtimeanalyzedump-read-only-system)
     - [RuntimeAnalyzeProfilerTrace](#runtimeanalyzeprofilertrace-read-only-system)
@@ -721,9 +723,23 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.
+- `mask` (any, optional) - 
 - `output` (string, optional (default: inline)) - "inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.
 - `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
+
+---
+
+<a id="getstandardtext-read-only-system"></a>
+#### GetStandardText (Read-Only / System)
+**Description:** [read-only, DEV profiles only] Read one SAPscript standard text (SO10, text object TEXT) — the lines with their paragraph formats, as READ_TEXT returns them. For include texts that forms print (e.g. an Adobe or SmartForm include text with a fixed name). Business document texts (other text objects) are not reachable. Needs the ZMCP_SSF_CONTENT FM and the SSF_CONTENT dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleGetStandardText.ts`
+
+**Parameters:**
+- `language` (string, optional) - 1-character SAP language key (E, D, …); empty = logon language.
+- `name` (string, required) - Standard text name as in SO10 (e.g. "SAPSCRIPT-DRUCKERTEST").
+- `text_id` (string, optional) - Text ID (default ST).
 
 ---
 
@@ -822,6 +838,21 @@ Generated from code in `src/handlers/**` (not from docs).
 - `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
 - `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
 - `values_file` (string, optional) - Path of a JSON file with the same content as values (for large tables): a .json file inside the MCP output directory or the profile work folder, at most 1 MB.
+
+---
+
+<a id="renderadobexdp-read-only-system"></a>
+#### RenderAdobeXdp (Read-Only / System)
+**Description:** [read-only, no output] Render an Adobe XDP template with XML data in ADS (CL_FP_ADS_UTIL=>RENDER_PDF) and write the PDF under the MCP output directory (adobe/<name>/<name>.xdp.sap.pdf, plus the ADS trace). No SAP form object is used, no form code runs, nothing is printed, spooled or stored in SAP. For SAP form-template samples (ZF_CINE_TICKET, ZFORM_FDP_SCRATCH) and own ZSC4SAP_* templates. Needs the ZMCP_FP_CONTENT FM (part RENDER_XDP) and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeXdp.ts`
+
+**Parameters:**
+- `embed_fonts` (boolean, optional) - Embed the fonts in the PDF. Default false.
+- `form_name` (string, required) - Label of the template: ZF_CINE_TICKET, ZFORM_FDP_SCRATCH or ZSC4SAP_*.
+- `locale` (string, optional) - Locale language_COUNTRY, e.g. en_US (default) or de_DE.
+- `xdp_file` (string, required) - Path of the .xdp template inside the MCP output directory or the profile work folder (≤ 5 MB).
+- `xml_file` (string, required) - Path of the .xml data file inside the MCP output directory or the profile work folder (≤ 5 MB).
 
 ---
 
@@ -1127,4 +1158,4 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
-*Last updated: 2026-11-17*
+*Last updated: 2026-11-24*
