@@ -143,7 +143,11 @@ function summarizeRunResult(runResult) {
             if (bad.length) {
                 failed++;
                 for (const a of bad)
-                    failures.push({ class: cls, method: attr(m[1], 'adtcore:name'), ...a });
+                    failures.push({
+                        class: cls,
+                        method: attr(m[1], 'adtcore:name'),
+                        ...a,
+                    });
             }
         }
         // alerts of the class itself (setup / teardown, missing fixtures)

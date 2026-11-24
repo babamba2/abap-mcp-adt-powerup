@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [4.15.0] - 2026-11-24
+
+### Added
+- **`source_patches` on the source-patch tools** (`UpdateProgram`, `UpdateInclude`, `UpdateClass`, `UpdateInterface`, `UpdateFunctionModule`, `UpdateLocalTypes`, `UpdateLocalDefinitions`, `UpdateLocalMacros`, `UpdateLocalTestClass`): exact `old_string` → `new_string` replacements applied on the server to the newest saved source, so an unchanged source never travels through the model. A replacement that is missing or not unique is refused and nothing is uploaded; sources of test classes (local test classes, `FOR TESTING`) are refused. `source_file` (on the `Create*` and `Update*` source tools) uploads a whole source from a file instead.
+- **Undo of a failed patch**: when a `source_patches` call fails after the upload (for example at activation), the previous source is saved again — and activated again when the object had no inactive version before the patch; otherwise it stays the inactive version it was (ECC and S/4HANA). The answer says whether the undo was confirmed.
+- **`RunUnitTest` `result_format`**: `"summary"` returns the counts plus only the failing methods and class alerts; `"full"` (default) keeps the whole result. Applies to runs that finish in one call (programs, function groups, legacy systems).
+- **`DeleteAdobeForm`**: deletes an Adobe form (SFP) in `$TMP` through the sc4sap helper `ZMCP_FP_DELETE`; dry run by default, refused while an interface is still in use by another form.
+- **`GetTcodeUsage` / `GetJobUsage` on S/4HANA** through the dispatcher's FM proxy (helper FMs of function group `ZMCP_WL`).
+
+### Changed
+- **`GetSqlQuery`**: lines longer than 255 characters are wrapped for the ADT freestyle preview (it answered HTTP 400 on S/4HANA); the result, the policy checks and the legacy `TABLE_READ` fallback keep the original statement.
+- **`GetSmartFormContent`**: a cell side with a width but no colour is reported in `bordersUnset` (SAP prints it in the pen colour of the side before); `borderColors` lists side colours that are not black; global fields carry their default value.
+- Legacy `TABLE_READ` refusals name the paths the dispatcher allows (customer tables behind the SE16 check) and the personal-data refusal.
+- `ActivateObjects` and ADT write errors return the error body detail.
+
 ## [4.14.0] - 2026-11-17
 
 ### Added
@@ -280,7 +295,7 @@
 ## [4.8.4] - 2026-04-29
 
 ### Added
-- ECC 7.40 DDIC **read** fallback via OData RFC. 4 handlers (`GetTable / GetStructure / GetDataElement / GetDomain`) activate on `SAP_VERSION=ECC`, routing DDIC reads through server-side FMs (`ZMCP_ADT_DDIC_TABL_READ / _DTEL_READ / _DOMA_READ`) invoked via OData FunctionImports on `ZMCP_ADT_SRV`. `TABL_READ` covers both Table and Structure (TABL/STRU share TABL DDIC category). Validated 2026-04-29 on HKT-DEV (path=ecc-odata-rfc).
+- ECC 7.40 DDIC **read** fallback via OData RFC. 4 handlers (`GetTable / GetStructure / GetDataElement / GetDomain`) activate on `SAP_VERSION=ECC`, routing DDIC reads through server-side FMs (`ZMCP_ADT_DDIC_TABL_READ / _DTEL_READ / _DOMA_READ`) invoked via OData FunctionImports on `ZMCP_ADT_SRV`. `TABL_READ` covers both Table and Structure (TABL/STRU share TABL DDIC category). Validated 2026-04-29 on an ECC 7.40 development system (path=ecc-odata-rfc).
 - `GetBadiImplementations` — new read-only handler to find Z/Y implementations of classic BAdI definitions. ECC-only: routes through `ZMCP_ADT_DDIC_BADI` bridge FM (SXS_ATTR-based lookup). Returns `kind=classic` with implementation list (`impl_name`, `impl_class`, `package`, `methods_redefined`) or `kind=unknown` for kernel BAdIs / non-existent definitions. Use during symptom analysis when a standard BAdI is implicated.
 - `lib/odataRfc.ts`: 4 new adapters (`callDdicTablRead / DdicDtelRead / DdicDomaRead / DdicBadi`) + `DdicReadResult` / `DdicBadiResult` types.
 - `lib/rfcBackend.ts`: 4 new wrappers + informative error for non-odata backends.

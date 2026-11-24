@@ -69,7 +69,8 @@ async function handleDeleteAdobeForm(context, args) {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            if (/Unknown action:\s*FP_DELETE/i.test(msg) || /ZMCP_FP_DELETE[\s\S]*not found/i.test(msg))
+            if (/Unknown action:\s*FP_DELETE/i.test(msg) ||
+                /ZMCP_FP_DELETE[\s\S]*not found/i.test(msg))
                 throw new Error(`${exports.FP_DELETE_INSTALL_HINT} (SAP said: ${msg})`);
             throw error;
         }

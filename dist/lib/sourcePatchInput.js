@@ -50,7 +50,9 @@ const handleUpdateInclude_1 = require("../handlers/include/high/handleUpdateIncl
 const clients_1 = require("./clients");
 const utils_1 = require("./utils");
 exports.MAX_SOURCE_PATCHES = 50;
-const up = (v) => String(v ?? '').trim().toUpperCase();
+const up = (v) => String(v ?? '')
+    .trim()
+    .toUpperCase();
 /** readResult.data → text, like the Get* handlers do. */
 function dataText(readResult) {
     if (!readResult || !readResult.readResult)
@@ -159,7 +161,7 @@ function patchTargetOf(toolName, inputSchema) {
         return undefined;
     return t;
 }
-const PATCHES_DESCRIPTION = 'Server-side patch: exact replacements applied to the object\'s current source (newest saved version — inactive if one exists, else active), then uploaded. Use instead of the full source when you know the exact current text of the lines you change. Each old_string must occur exactly once (or set replace_all); otherwise nothing is uploaded. Line endings are normalised for matching. Not together with the full source or source_file. Business code only: a source with test classes (FOR TESTING) or a local test class part is refused — send the full source.';
+const PATCHES_DESCRIPTION = "Server-side patch: exact replacements applied to the object's current source (newest saved version — inactive if one exists, else active), then uploaded. Use instead of the full source when you know the exact current text of the lines you change. Each old_string must occur exactly once (or set replace_all); otherwise nothing is uploaded. Line endings are normalised for matching. Not together with the full source or source_file. Business code only: a source with test classes (FOR TESTING) or a local test class part is refused — send the full source.";
 /**
  * Schema with `source_patches` added and the source field no longer required
  * (one of the inputs is checked at call time). Other tools pass unchanged.
@@ -180,9 +182,18 @@ function withSourcePatchesSchema(toolName, inputSchema) {
                 items: {
                     type: 'object',
                     properties: {
-                        old_string: { type: 'string', description: 'Exact current text (non-empty).' },
-                        new_string: { type: 'string', description: 'Replacement text (may be empty).' },
-                        replace_all: { type: 'boolean', description: 'Replace every occurrence. Default false.' },
+                        old_string: {
+                            type: 'string',
+                            description: 'Exact current text (non-empty).',
+                        },
+                        new_string: {
+                            type: 'string',
+                            description: 'Replacement text (may be empty).',
+                        },
+                        replace_all: {
+                            type: 'boolean',
+                            description: 'Replace every occurrence. Default false.',
+                        },
                     },
                     required: ['old_string', 'new_string'],
                 },
@@ -232,7 +243,11 @@ function parseSourcePatches(raw) {
             throw new Error(`source_patches[${i}].replace_all must be a boolean`);
         if (nl(p.old_string) === nl(p.new_string))
             throw new Error(`source_patches[${i}]: old_string and new_string are the same`);
-        return { old_string: p.old_string, new_string: p.new_string, replace_all: p.replace_all === true };
+        return {
+            old_string: p.old_string,
+            new_string: p.new_string,
+            replace_all: p.replace_all === true,
+        };
     });
 }
 /**
@@ -264,7 +279,10 @@ function applySourcePatches(source, patches) {
         text = parts.join(newS);
         replacements += parts.length - 1;
     });
-    return { text: style === 'crlf' ? text.replace(/\n/g, '\r\n') : text, replacements };
+    return {
+        text: style === 'crlf' ? text.replace(/\n/g, '\r\n') : text,
+        replacements,
+    };
 }
 /**
  * ABAP source without comments and literal text — a character scanner, the
@@ -389,7 +407,7 @@ function isReadChannel(toolName, source) {
         return true;
     // Colon chaining (`FOR: TESTING`) splits keywords: the colon is a separator here.
     const clean = stripAbapComments(source).replace(/:/g, ' ');
-    return /\bFOR\s+TESTING\b/i.test(clean) || hasOrphanClassImplementation(clean);
+    return (/\bFOR\s+TESTING\b/i.test(clean) || hasOrphanClassImplementation(clean));
 }
 exports.TEST_CODE_REFUSAL = 'source_patches refused — this source contains test classes (FOR TESTING, or a class implementation whose definition is in another include); nothing uploaded. Send the full source_code so the blocklist hook can check it.';
 /**
@@ -446,7 +464,7 @@ async function readNewestSource(t, ctx, args) {
             return {
                 text: inactive,
                 hadInactive: true,
-                unsure: 'activating it would also activate the other parts of the object, which may hold someone else\'s inactive changes',
+                unsure: "activating it would also activate the other parts of the object, which may hold someone else's inactive changes",
             };
         return { text: inactive, hadInactive: false };
     }
@@ -473,7 +491,7 @@ async function resolveSourcePatchesArg(toolName, inputSchema, args, ctx) {
         throw new Error(`${toolName} does not take source_patches (supported: ${exports.SOURCE_PATCH_TOOLS.join(', ')})`);
     // Any presence of the source field or source_file (even "" or null) is a
     // mix: the hooks would scan that field, not the patches.
-    const has = (k) => Object.prototype.hasOwnProperty.call(args, k);
+    const has = (k) => Object.hasOwn(args, k);
     if (has(t.codeField) || has('source_file'))
         throw new Error(`give source_patches alone — not together with ${t.codeField} or source_file`);
     const patches = parseSourcePatches(args.source_patches);
@@ -488,7 +506,11 @@ async function resolveSourcePatchesArg(toolName, inputSchema, args, ctx) {
     let hadInactive;
     let unsure;
     try {
-        ({ text: current, hadInactive, unsure } = await readNewestSource(t, context, args));
+        ({
+            text: current,
+            hadInactive,
+            unsure,
+        } = await readNewestSource(t, context, args));
     }
     catch (e) {
         throw new Error(`source_patches: cannot read the current source of ${t.nameFields.map((f) => up(args[f])).join('/')} — nothing uploaded (${e?.message || String(e)})`);
@@ -504,7 +526,14 @@ async function resolveSourcePatchesArg(toolName, inputSchema, args, ctx) {
             bytes: Buffer.byteLength(text, 'utf8'),
             source_sha256: (0, node_crypto_1.createHash)('sha256').update(text, 'utf8').digest('hex'),
         },
-        restore: { target: t, codeField: t.codeField, before: current, after: text, hadInactive, ...(unsure ? { unsure } : {}) },
+        restore: {
+            target: t,
+            codeField: t.codeField,
+            before: current,
+            after: text,
+            hadInactive,
+            ...(unsure ? { unsure } : {}),
+        },
     };
 }
 /**
@@ -520,7 +549,11 @@ function sameSource(a, b) {
     return norm(a) === norm(b);
 }
 const resultText = (r) => (Array.isArray(r?.content) ? r.content : [])
-    .map((c) => (typeof c?.text === 'string' ? c.text : c?.json !== undefined ? JSON.stringify(c.json) : ''))
+    .map((c) => typeof c?.text === 'string'
+    ? c.text
+    : c?.json !== undefined
+        ? JSON.stringify(c.json)
+        : '')
     .join('\n');
 /**
  * A failed patched call must not leave the patched source behind (e.g. an
@@ -545,7 +578,11 @@ async function restoreAfterFailedPatch(r, args, ctx, invoke) {
         return 'source_patches: NOT UNDONE — the saved source is neither the patched nor the pre-patch text (SAP may have changed it on save); check the object.';
     const activateField = r.target.activateField || 'activate';
     try {
-        const res = await invoke({ ...args, [r.codeField]: r.before, [activateField]: !r.hadInactive });
+        const res = await invoke({
+            ...args,
+            [r.codeField]: r.before,
+            [activateField]: !r.hadInactive,
+        });
         if (res?.isError)
             throw new Error(resultText(res) || 'error result');
     }
@@ -588,10 +625,16 @@ const UNDONE_NOTE = 'source_patches: the failed patch was undone';
  * the undo note, so it is dropped. The handler builds its message from the
  * same constant, so the two cannot drift apart.
  */
-const dropStagedAdvice = (s) => s.split(` ${handleUpdateInclude_1.INCLUDE_STAGED_ADVICE}`).join('').split(handleUpdateInclude_1.INCLUDE_STAGED_ADVICE).join('');
+const dropStagedAdvice = (s) => s
+    .split(` ${handleUpdateInclude_1.INCLUDE_STAGED_ADVICE}`)
+    .join('')
+    .split(handleUpdateInclude_1.INCLUDE_STAGED_ADVICE)
+    .join('');
 /** Failure text plus the undo note; stale staged-source advice removed when the undo succeeded. */
 function withUndoNote(message, note) {
-    const base = note.startsWith(UNDONE_NOTE) ? dropStagedAdvice(message) : message;
+    const base = note.startsWith(UNDONE_NOTE)
+        ? dropStagedAdvice(message)
+        : message;
     return `${base}\n${note}`;
 }
 /**
@@ -636,7 +679,10 @@ function attachPatchedInfo(result, patched) {
         try {
             const obj = JSON.parse(content[idx].text);
             if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-                content[idx] = { ...content[idx], text: JSON.stringify({ ...obj, patched }, null, 2) };
+                content[idx] = {
+                    ...content[idx],
+                    text: JSON.stringify({ ...obj, patched }, null, 2),
+                };
                 return { ...r, content };
             }
         }

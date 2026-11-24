@@ -23,8 +23,7 @@ exports.SOURCE_FILE_EXTS = ['.abap', '.asddls', '.asbdef', '.txt'];
 const SOURCE_FILE_DESCRIPTION = 'Patch mode: path of a source file (saved by a read tool with output "file", then edited) to upload instead of source_code. Inside the MCP output directory or the profile work folder; .abap / .asddls / .asbdef / .txt. Give source_code or source_file, not both.';
 /** True for a tool that takes its source as `source_code` and writes it to SAP. */
 function takesSourceFile(toolName, inputSchema) {
-    return (/^(Create|Update)/.test(toolName) &&
-        !!inputSchema?.properties?.source_code);
+    return (/^(Create|Update)/.test(toolName) && !!inputSchema?.properties?.source_code);
 }
 /**
  * Schema with `source_file` added and `source_code` no longer required (one of
