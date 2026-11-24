@@ -524,12 +524,7 @@
       "XCPDK",
       "XFELD"
     ],
-    "clear_datatypes": [
-      "CUKY",
-      "CURR",
-      "QUAN",
-      "UNIT"
-    ]
+    "clear_datatypes": ["CUKY", "CURR", "QUAN", "UNIT"]
   },
   "refused_tables": [
     {
@@ -582,16 +577,7 @@
       "sql": "SELECT kunnr, name1 AS n FROM kna1 WHERE land1 = 'KR' UP TO 5 ROWS",
       "ok": true,
       "table": "KNA1",
-      "columns": [
-        [
-          "KUNNR",
-          "KUNNR"
-        ],
-        [
-          "N",
-          "NAME1"
-        ]
-      ],
+      "columns": [["KUNNR", "KUNNR"], ["N", "NAME1"]],
       "star": false
     },
     {
@@ -605,40 +591,21 @@
       "sql": "SELECT SINGLE kunnr name1 AS n FROM kna1",
       "ok": true,
       "table": "KNA1",
-      "columns": [
-        [
-          "KUNNR",
-          "KUNNR"
-        ],
-        [
-          "N",
-          "NAME1"
-        ]
-      ],
+      "columns": [["KUNNR", "KUNNR"], ["N", "NAME1"]],
       "star": false
     },
     {
       "sql": "SELECT a~kunnr FROM kna1 AS a WHERE a~kunnr IN ( '1', '2' ) ORDER BY kunnr",
       "ok": true,
       "table": "KNA1",
-      "columns": [
-        [
-          "KUNNR",
-          "KUNNR"
-        ]
-      ],
+      "columns": [["KUNNR", "KUNNR"]],
       "star": false
     },
     {
       "sql": "SELECT kunnr FROM kna1 WHERE name1 = 'a'' UNION SELECT name1 FROM kna1 --'",
       "ok": true,
       "table": "KNA1",
-      "columns": [
-        [
-          "KUNNR",
-          "KUNNR"
-        ]
-      ],
+      "columns": [["KUNNR", "KUNNR"]],
       "star": false
     },
     {
@@ -689,11 +656,7 @@
   "tables_in_sql": [
     {
       "sql": "SELECT a~kunnr FROM kna1 AS a INNER JOIN usr02 AS b ON b~bname = a~ernam WHERE x IN ( SELECT y FROM pa0002 )",
-      "tables": [
-        "KNA1",
-        "USR02",
-        "PA0002"
-      ]
+      "tables": ["KNA1", "USR02", "PA0002"]
     }
   ],
   "ddic": {
@@ -720,9 +683,7 @@
   },
   "mask_rows_select": {
     "sql": "SELECT kunnr, name1 AS n, land1, zzcontact, zzowner FROM kna1",
-    "extra": [
-      "ZZOWNER"
-    ],
+    "extra": ["ZZOWNER"],
     "rows": [
       {
         "KUNNR": "0000001",
@@ -740,12 +701,7 @@
         "ZZOWNER": "Lee"
       }
     ],
-    "expected_masked": [
-      "EXTRA",
-      "N",
-      "ZZCONTACT",
-      "ZZOWNER"
-    ]
+    "expected_masked": ["EXTRA", "N", "ZZCONTACT", "ZZOWNER"]
   },
   "mask_rows_plain": {
     "rows": [
@@ -756,10 +712,7 @@
         "UNKNOWN": "x"
       }
     ],
-    "expected_masked": [
-      "NAME1",
-      "UNKNOWN"
-    ]
+    "expected_masked": ["NAME1", "UNKNOWN"]
   },
   "patterns": {
     "name": [
