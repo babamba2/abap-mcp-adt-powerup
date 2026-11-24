@@ -30,6 +30,7 @@ import {
   extractTablesFromSql,
 } from '../../../lib/policy/tableBlocklist';
 import { safeOutputPath } from '../../../lib/sourceOutput';
+import { wrapSqlLines } from '../../../lib/sqlLineWrap';
 import { ErrorCode, McpError } from '../../../lib/utils';
 import { writeResultToFile } from '../../../lib/writeResultToFile';
 import { decodeXmlEntities } from '../../../lib/xmlEntities';
@@ -335,7 +336,12 @@ export async function handleGetSqlQuery(context: HandlerContext, args: any) {
     try {
       response = await client
         .getUtils()
-        .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+        // Freestyle preview refuses lines > 255 chars (HTTP 400); the legacy
+        // fallback below keeps the original text.
+        .getSqlQuery({
+          sql_query: wrapSqlLines(sqlQuery),
+          row_number: rowNumber,
+        });
     } catch (e) {
       // BASIS < 7.50 has no freestyle data preview: answer a single-table
       // SELECT on an allow-listed table through ZMCP_ADT_DISPATCH TABLE_READ.
