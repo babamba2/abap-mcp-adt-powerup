@@ -7,7 +7,11 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicDtel } from '../../../lib/rfcBackend';
+import {
+  callDdicDtel,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -173,8 +177,8 @@ async function handleDeleteDataElementEcc(
           success: true,
           data_element_name: dataElementName,
           transport_request: transportRequest || null,
-          message: `Data element ${dataElementName} deleted successfully (ECC fallback via OData).`,
-          path: 'ecc-odata-rfc',
+          message: `Data element ${dataElementName} deleted successfully (ECC fallback via ${eccBridgeVia()}).`,
+          path: eccBridgePath(),
         },
         null,
         2,

@@ -29,11 +29,33 @@ export function outputRoot(): string {
 export function safeOutputPath(p: string): string {
   const root = outputRoot();
   const resolved = path.resolve(root, p);
-  const rel = path.relative(root, resolved);
-  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error(
+  const refuse = () =>
+    new Error(
       `Refusing to write outside the MCP output directory (${root}): ${p}`,
     );
+  const outside = (base: string, q: string) => {
+    const rel = path.relative(base, q);
+    return rel.startsWith('..') || path.isAbsolute(rel);
+  };
+  const rel = path.relative(root, resolved);
+  if (rel === '' || outside(root, resolved)) throw refuse();
+  // the real path of the nearest existing ancestor (and of the file itself when
+  // it exists) must stay inside the real root: a symlink or junction below the
+  // root must not lead out of it
+  let realRoot: string;
+  try {
+    realRoot = fs.realpathSync(root);
+  } catch {
+    return resolved; // the root does not exist yet: nothing inside can point out
+  }
+  let dir = path.dirname(resolved);
+  while (!fs.existsSync(dir) && path.dirname(dir) !== dir)
+    dir = path.dirname(dir);
+  const realDir = fs.realpathSync(dir);
+  if (realDir !== realRoot && outside(realRoot, realDir)) throw refuse();
+  if (fs.existsSync(resolved)) {
+    const realFile = fs.realpathSync(resolved);
+    if (realFile === realRoot || outside(realRoot, realFile)) throw refuse();
   }
   return resolved;
 }

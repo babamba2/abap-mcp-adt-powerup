@@ -335,9 +335,9 @@ async function handleUpdateDataElementEcc(context, args, dataElementName) {
                 transport_request: args.transport_request,
                 data_type: args.data_type || null,
                 status: shouldActivate ? 'active' : 'inactive',
-                message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+                message: `Data element ${dataElementName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
                 data_element_details: null,
-                path: 'ecc-odata-rfc',
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }),
         });
     }

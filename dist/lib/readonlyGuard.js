@@ -18,8 +18,12 @@
  *   RuntimeRunProgramWithProfiling              ✓    ✗    ✗
  *   RuntimeRunClassWithProfiling                ✓    ✗    ✗
  *   RuntimeCreateProfilerTraceParameters        ✓    ✗    ✗
+ *   RenderSmartForm / RenderAdobeForm           ✓    ✗    ✗   (run the form's code)
+ *   GetStandardText                             ✓    ✗    ✗   (free text by name)
  *   RuntimeAnalyze* / RuntimeGet* / List*       ✓    ✓    ✓
  *   Get* / Read* / Search*                      ✓    ✓    ✓
+ *   PreviewBusinessAction / ExecuteBusinessAction ✓  ✓    ✗   (business writes; SAP
+ *                                                   also refuses a production client)
  *
  * Known unguarded vector (deliberately NOT blocked, tracked separately):
  * `RuntimeCallDispatch` invokes an arbitrary ZMCP_ADT_DISPATCH action. The
@@ -57,7 +61,24 @@ const RUNTIME_EXECUTION_TOOLS = new Set([
     // Configures a server-side profiler trace. Grouped with the runs it sets up,
     // which are already blocked on QA/PRD — so no usable capability is lost.
     'RuntimeCreateProfilerTraceParameters',
+    // Run a form's generated function module (its context / initialization code
+    // may read the database) — only on development systems.
+    'RenderSmartForm',
+    'RenderAdobeForm',
 ]);
+/**
+ * Business-action tools that change business data in SAP (ZMCP_BIZ_EXECUTE
+ * PREVIEW / EXECUTE). Allowed on DEV and QA (test documents), never on PRD.
+ */
+const BUSINESS_WRITE_TOOLS = new Set([
+    'PreviewBusinessAction',
+    'ExecuteBusinessAction',
+]);
+/**
+ * Read tools that stay on development systems: they read free text by name
+ * (SO10 standard texts can carry business wording).
+ */
+const DEV_ONLY_READ_TOOLS = new Set(['GetStandardText']);
 /** Tools that are allowed on QA despite being in RUNTIME_EXECUTION_TOOLS. */
 const QA_RUNTIME_ALLOWLIST = new Set(['RunUnitTest']);
 function isMutation(toolName) {
@@ -70,8 +91,16 @@ function isMutation(toolName) {
 function checkToolAllowed(toolName, tier) {
     if (tier === 'DEV')
         return null;
+    if (BUSINESS_WRITE_TOOLS.has(toolName)) {
+        return tier === 'PRD'
+            ? `${toolName} changes business data and is blocked on PRD profiles.`
+            : null;
+    }
     if (isMutation(toolName)) {
         return `${toolName} mutates SAP objects; only DEV profiles may mutate.`;
+    }
+    if (DEV_ONLY_READ_TOOLS.has(toolName)) {
+        return `${toolName} reads free text by name and is allowed on DEV profiles only.`;
     }
     if (RUNTIME_EXECUTION_TOOLS.has(toolName)) {
         if (tier === 'QA' && QA_RUNTIME_ALLOWLIST.has(toolName)) {

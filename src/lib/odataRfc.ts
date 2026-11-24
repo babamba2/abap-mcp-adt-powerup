@@ -7,7 +7,7 @@
  * ICF node but keep the modern OData Gateway active — the typical
  * shape of a "hardened" SAP Gateway install.
  *
- * Contract-compatible with soapRfc.ts / nativeRfc.ts / gatewayRfc.ts —
+ * Contract-compatible with soapRfc.ts —
  * same DispatchResult / TextpoolResult shapes. Handlers only import
  * from ./rfcBackend, never directly from here.
  *
@@ -46,6 +46,7 @@
  */
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
+import { isNcoBackend, ncoFunctionImport } from './ncoRfc';
 import { registerProfileChangeHook } from './profileEvents';
 import type { DispatchResult, TextpoolResult } from './soapRfc';
 
@@ -246,6 +247,8 @@ async function postFunctionImport(
   actionName: string,
   params: Record<string, string>,
 ): Promise<any> {
+  // SAP_RFC_BACKEND=nco: same FunctionImport contract, sent over RFC (NCo).
+  if (isNcoBackend()) return ncoFunctionImport(actionName, params);
   const base = normaliseBaseUrl(required('SAP_RFC_ODATA_SERVICE_URL'));
   const path = buildFunctionImportQuery(actionName, params);
   const url = withSapClient(`${base}/${path}`);
@@ -393,7 +396,7 @@ export interface DdicResult {
 }
 
 async function callDdicObject(
-  functionImport: 'DdicTabl' | 'DdicDtel' | 'DdicDoma',
+  functionImport: 'DdicTabl' | 'DdicDtel' | 'DdicDoma' | 'DdicTtyp',
   action: 'CREATE' | 'UPDATE' | 'DELETE',
   params: {
     name: string;
@@ -461,9 +464,23 @@ export async function callDdicDoma(
   return callDdicObject('DdicDoma', action, params);
 }
 
+/** Table type (TTYP) writes through ZMCP_ADT_DDIC_TTYP (FunctionImport DdicTtyp). */
+export async function callDdicTtyp(
+  _connection: IAbapConnection,
+  action: 'CREATE' | 'UPDATE' | 'DELETE',
+  params: {
+    name: string;
+    devclass?: string;
+    transport?: string;
+    payload_json?: string;
+  },
+): Promise<DdicResult> {
+  return callDdicObject('DdicTtyp', action, params);
+}
+
 export async function callDdicActivate(
   _connection: IAbapConnection,
-  type: 'TABL' | 'DTEL' | 'DOMA',
+  type: 'TABL' | 'DTEL' | 'DOMA' | 'TTYP',
   name: string,
 ): Promise<DdicResult> {
   const raw = await postFunctionImport('DdicActivate', {

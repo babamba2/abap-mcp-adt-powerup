@@ -39,6 +39,9 @@ exports.handleGetTableContents = handleGetTableContents;
 const z = __importStar(require("zod"));
 const clients_1 = require("../../../lib/clients");
 const legacyTableRead_1 = require("../../../lib/legacyTableRead");
+const maskedRead_1 = require("../../../lib/policy/maskedRead");
+const maskSecret_1 = require("../../../lib/policy/maskSecret");
+const personalMask_1 = require("../../../lib/policy/personalMask");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const utils_1 = require("../../../lib/utils");
 const handleGetSqlQuery_1 = require("../../system/readonly/handleGetSqlQuery");
@@ -65,6 +68,7 @@ exports.TOOL_DEFINITION = {
             .boolean()
             .optional()
             .describe("Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables."),
+        mask: maskedRead_1.maskZod,
     },
 };
 /**
@@ -126,6 +130,20 @@ async function handleGetTableContents(context, args) {
             process.stderr.write(`[mcp-abap-adt][blocklist] AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}\n`);
             logger?.warn(`AUDIT: user-acknowledged GetTableContents on ${verdict.tables.join(',')}`);
         }
+        // Test-data mode: DDIC first, so a failure returns no rows at all.
+        const mask = (0, personalMask_1.maskSpecFrom)(args.mask);
+        if (typeof mask === 'string')
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, mask);
+        let ddic = null;
+        let secret = null;
+        if (mask) {
+            (0, maskedRead_1.refuseMaskedTables)([String(tableName)]);
+            secret = (0, maskSecret_1.loadMaskSecret)();
+            ddic = await (0, maskedRead_1.resolveTableDdic)(connection, String(tableName).toUpperCase(), logger);
+        }
+        const finish = (payload) => mask && ddic && secret
+            ? (0, maskedRead_1.maskPayload)(payload, mask, ddic, null, String(tableName).toUpperCase(), secret)
+            : payload;
         logger?.info(`Reading table contents: ${tableName} (max_rows=${maxRows})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
         let response;
@@ -153,10 +171,10 @@ async function handleGetTableContents(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify({
+                        text: JSON.stringify(finish({
                             ...compact,
                             path: 'ecc-dispatch-table-read',
-                        }),
+                        })),
                     },
                 ],
             };
@@ -174,7 +192,7 @@ async function handleGetTableContents(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: JSON.stringify(compact),
+                        text: JSON.stringify(finish(compact)),
                     },
                 ],
             };

@@ -37,7 +37,7 @@ export const TOOL_DEFINITION = {
       date_from: {
         type: 'string',
         description:
-          'Start date (YYYYMMDD or YYYY-MM-DD). On ECC a date older than 24 hours (or an empty feed) adds the ST22 list for date_from..date_to under `st22`.',
+          'Start date (YYYYMMDD or YYYY-MM-DD). The ADT feed is followed back page by page (its `next` cursor) until it reaches this day — `paging.reached` says whether an entry older than this day was seen, `paging.oldest` the oldest day read (max 20 pages). On ECC a date older than 24 hours (or an empty feed) also adds the ST22 list for date_from..date_to under `st22`.',
       },
       date_to: {
         type: 'string',
@@ -97,6 +97,96 @@ export function stripDumpSummaries(payload: unknown): unknown {
   };
 }
 
+const entriesOf = (parsed: unknown): any[] => {
+  const e = (parsed as any)?.['atom:feed']?.['atom:entry'];
+  return Array.isArray(e) ? e : e ? [e] : [];
+};
+
+/**
+ * The `to` cursor of the feed's `next` link (`…/dumps?$top=100&to=20261114154628`).
+ * The ADT dump feed pages by time, not by `$skip` (measured on S/4HANA 2026-11-16:
+ * `$skip` and `$orderby` are ignored and every call returns the newest page).
+ */
+export function nextFeedCursor(parsed: unknown): string | null {
+  const links = (parsed as any)?.['atom:feed']?.['atom:link'];
+  const list = Array.isArray(links) ? links : links ? [links] : [];
+  const next = list.find((l: any) => l?.rel === 'next')?.href;
+  if (typeof next !== 'string') return null;
+  const m = /[?&]to=(\d{14})/.exec(next);
+  return m ? m[1] : null;
+}
+
+/** YYYYMMDD of a date_from given as YYYYMMDD or YYYY-MM-DD, or null. */
+const dayOf = (d?: string): string | null => {
+  const s = String(d || '').replace(/-/g, '');
+  return /^\d{8}$/.test(s) ? s : null;
+};
+
+/**
+ * Walk the feed back from the first page until an entry is older than `dateFrom`
+ * (YYYYMMDD), the feed ends, or `maxPages` pages were read. Entries are merged into
+ * the first page's feed (deduplicated by id); `complete` says whether `dateFrom`
+ * was reached.
+ */
+export async function pageFeedBack(
+  first: unknown,
+  dateFrom: string,
+  fetchPage: (cursor: string) => Promise<unknown>,
+  maxPages = 20,
+): Promise<{
+  parsed: unknown;
+  pages: number;
+  complete: boolean;
+  reached: boolean;
+  oldest: string;
+}> {
+  const all = entriesOf(first);
+  const seen = new Set(all.map((e) => e?.['atom:id']));
+  const older = (es: any[]) =>
+    es.some(
+      (e) =>
+        String(e?.['atom:published'] || '')
+          .replace(/-/g, '')
+          .slice(0, 8) < dateFrom,
+    );
+  let cursor = nextFeedCursor(first);
+  let pages = 1;
+  let complete = !cursor || older(all);
+  while (!complete && cursor && pages < maxPages) {
+    const page = await fetchPage(cursor);
+    pages += 1;
+    const es = entriesOf(page);
+    const fresh = es.filter((e) => !seen.has(e?.['atom:id']));
+    for (const e of fresh) seen.add(e?.['atom:id']);
+    all.push(...fresh);
+    const nextCursor = nextFeedCursor(page);
+    complete = fresh.length === 0 || older(es) || !nextCursor;
+    cursor = nextCursor === cursor ? null : nextCursor;
+    if (!cursor) complete = true;
+  }
+  const feed = (first as any)?.['atom:feed'] || {};
+  // `reached`: an entry older than dateFrom was seen. A feed that simply ends
+  // before that (retention deleted older dumps) is complete, but not reached.
+  const days = all
+    .map((e) =>
+      String(e?.['atom:published'] || '')
+        .replace(/-/g, '')
+        .slice(0, 8),
+    )
+    .filter((d) => /^\d{8}$/.test(d))
+    .sort();
+  return {
+    parsed: {
+      ...(first as object),
+      'atom:feed': { ...feed, 'atom:entry': all },
+    },
+    pages,
+    complete,
+    reached: older(all),
+    oldest: days[0] || '',
+  };
+}
+
 export async function handleRuntimeListDumps(
   context: HandlerContext,
   args: RuntimeListDumpsArgs,
@@ -122,7 +212,34 @@ export async function handleRuntimeListDumps(
           orderby,
         });
 
-    const parsed = parseRuntimePayloadToJson(response.data);
+    let parsed = parseRuntimePayloadToJson(response.data);
+    // date_from on a feed that pages by time: follow its `next` cursor back to that day.
+    let paging:
+      | { pages: number; complete: boolean; reached: boolean; oldest: string }
+      | undefined;
+    const from = dayOf(args?.date_from);
+    if (from && skip === undefined) {
+      const walked = await pageFeedBack(parsed, from, async (cursor) => {
+        const params = new URLSearchParams();
+        if (user) params.set('$query', `and( equals( user, ${user.trim()} ) )`);
+        if (top) params.set('$top', String(top));
+        params.set('to', cursor);
+        const page = await connection.makeAdtRequest({
+          url: `/sap/bc/adt/runtime/dumps?${params.toString()}`,
+          method: 'GET',
+          timeout: 30000,
+          headers: { Accept: 'application/atom+xml;type=feed' },
+        });
+        return parseRuntimePayloadToJson(page.data);
+      });
+      parsed = walked.parsed;
+      paging = {
+        pages: walked.pages,
+        complete: walked.complete,
+        reached: walked.reached,
+        oldest: walked.oldest,
+      };
+    }
     const feedEntries = (parsed as any)?.['atom:feed']?.['atom:entry'];
     const feedCount = Array.isArray(feedEntries)
       ? feedEntries.length
@@ -143,6 +260,7 @@ export async function handleRuntimeListDumps(
           user_filter: user || null,
           status: response.status,
           payload: include_summary ? parsed : stripDumpSummaries(parsed),
+          ...(paging ? { paging } : {}),
           ...(st22 ? { st22 } : {}),
         },
         null,

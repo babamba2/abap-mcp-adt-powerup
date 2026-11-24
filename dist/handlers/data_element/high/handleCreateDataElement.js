@@ -287,8 +287,8 @@ async function handleCreateDataElementEcc(context, args, dataElementName) {
                 transport_request: args.transport_request,
                 data_type: args.data_type || null,
                 status: shouldActivate ? 'active' : 'inactive',
-                message: `Data element ${dataElementName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
-                path: 'ecc-odata-rfc',
+                message: `Data element ${dataElementName} created${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }, null, 2),
         });
     }

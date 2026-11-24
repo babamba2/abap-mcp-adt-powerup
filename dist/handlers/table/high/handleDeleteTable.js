@@ -125,8 +125,8 @@ async function handleDeleteTableEcc(context, tableName, transportRequest) {
                 success: true,
                 table_name: tableName,
                 transport_request: transportRequest || null,
-                message: `Table ${tableName} deleted successfully (ECC fallback via OData).`,
-                path: 'ecc-odata-rfc',
+                message: `Table ${tableName} deleted successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()}).`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }, null, 2),
         });
     }

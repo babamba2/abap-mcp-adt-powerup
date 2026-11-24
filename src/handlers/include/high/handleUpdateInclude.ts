@@ -15,11 +15,16 @@ import {
 import {
   type AxiosResponse,
   encodeSapObjectName,
+  extractAdtErrorMessage,
   isCloudConnection,
   makeAdtRequestWithTimeout,
   return_error,
   return_response,
 } from '../../../lib/utils';
+
+/** Failed-activation advice; source_patches drops it after a successful undo (sourcePatchInput.withUndoNote). */
+export const INCLUDE_STAGED_ADVICE =
+  'Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.';
 
 const ACCEPT_LOCK =
   'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
@@ -47,6 +52,11 @@ export const TOOL_DEFINITION = {
         description:
           'Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.',
       },
+      function_group: {
+        type: 'string',
+        description:
+          'Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.',
+      },
       transport_request: {
         type: 'string',
         description:
@@ -66,8 +76,22 @@ interface UpdateIncludeArgs {
   include_name: string;
   source_code: string;
   main_program?: string;
+  function_group?: string;
   transport_request?: string;
   activate?: boolean;
+}
+
+/** The function group of a function-group include: explicit, or from main_program SAPL<group>. */
+export function functionGroupOf(args: {
+  function_group?: string;
+  main_program?: string;
+}): string | null {
+  const explicit = String(args.function_group ?? '').trim();
+  if (explicit) return explicit.toUpperCase();
+  const main = String(args.main_program ?? '')
+    .trim()
+    .toUpperCase();
+  return main.startsWith('SAPL') && main.length > 4 ? main.slice(4) : null;
 }
 
 export async function handleUpdateInclude(
@@ -93,7 +117,12 @@ export async function handleUpdateInclude(
 
   const includeName = args.include_name.toUpperCase();
   const encodedName = encodeSapObjectName(includeName);
-  const baseUrl = `/sap/bc/adt/programs/includes/${encodedName}`;
+  // A function-group include lives under its group (/functions/groups/<fg>/includes/<inc>);
+  // locking it through /programs/includes fails ("This syntax cannot be used for an object name").
+  const functionGroup = functionGroupOf(args);
+  const baseUrl = functionGroup
+    ? `/sap/bc/adt/functions/groups/${encodeSapObjectName(functionGroup).toLowerCase()}/includes/${encodedName.toLowerCase()}`
+    : `/sap/bc/adt/programs/includes/${encodedName}`;
   const shouldActivate = args.activate === true;
 
   logger?.info(
@@ -115,7 +144,8 @@ export async function handleUpdateInclude(
     // in a single SAP call and returns ALL errors it can detect (with
     // line numbers), without writing anything to the server. Only fires
     // when main_program is provided.
-    if (args.main_program) {
+    // (function-group includes: activation below is the check)
+    if (args.main_program && !functionGroup) {
       currentStep = 'check_new_code';
       const mainProgram = args.main_program.toUpperCase();
       const programUri = `/sap/bc/adt/programs/programs/${encodeSapObjectName(mainProgram).toLowerCase()}`;
@@ -339,7 +369,7 @@ export async function handleUpdateInclude(
           const err: any = new Error(
             `Include ${includeName} activation failed (${activationErrors.length} error${
               activationErrors.length === 1 ? '' : 's'
-            }): ${full}. Active version on SAP is unchanged; broken source is staged as inactive and must be replaced via a second UpdateInclude call.`,
+            }): ${full}. ${INCLUDE_STAGED_ADVICE}`,
           );
           err.isPreCheckFailure = true;
           err.checkErrors = activationErrors;
@@ -401,22 +431,12 @@ export async function handleUpdateInclude(
       }
     }
 
-    let errorMessage = error instanceof Error ? error.message : String(error);
-    try {
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '@_',
-      });
-      const errorData = error?.response?.data
-        ? parser.parse(error.response.data)
-        : null;
-      const errorMsg =
-        errorData?.['exc:exception']?.message?.['#text'] ||
-        errorData?.['exc:exception']?.message;
-      if (errorMsg) errorMessage = `SAP Error: ${errorMsg}`;
-    } catch {
-      // ignore parse errors
-    }
+    // exc:exception text when present, else the raw SAP response body
+    // (e.g. a checkrun 400 that carries no exc:exception), else error.message.
+    const errorMessage = extractAdtErrorMessage(
+      error,
+      error instanceof Error ? error.message : String(error),
+    );
 
     const statusCode = error.response?.status;
     const statusPart = statusCode ? ` [${statusCode}]` : '';

@@ -19,7 +19,11 @@ import {
   type ActivationObjectInput,
   activateObjectsLocal,
 } from '../../../lib/localGroupActivation';
-import { return_error, return_response } from '../../../lib/utils';
+import {
+  extractAdtErrorMessage,
+  return_error,
+  return_response,
+} from '../../../lib/utils';
 
 export const TOOL_DEFINITION = {
   name: 'ActivateObjects',
@@ -154,7 +158,13 @@ export async function handleActivateObjects(
       config: {} as any,
     });
   } catch (error: any) {
-    const message = error?.message || String(error);
+    // Keep SAP's response body: a bare "status code 500/403" hides why
+    // activation failed (e.g. object locked by another session).
+    const status = error?.response?.status;
+    const message = `${status ? `[${status}] ` : ''}${extractAdtErrorMessage(
+      error,
+      error?.message || String(error),
+    )}`;
     logger?.error(`ActivateObjects failed: ${message}`);
     return return_error(new Error(`ActivateObjects failed: ${message}`));
   }

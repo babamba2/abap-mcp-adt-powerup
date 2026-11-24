@@ -6,24 +6,28 @@
  * by ZMCP_WL_TCODE_USAGE (SWNC_COLLECTOR_GET_AGGREGATES, USERTCODE). User
  * names never leave SAP — the FM returns one boolean per transaction.
  *
- * Backend: ECC only — OData FunctionImport `WlTcodeUsage` on ZMCP_ADT_SRV.
+ * Backend: ECC — OData FunctionImport `WlTcodeUsage` on ZMCP_ADT_SRV (or NCo
+ * FM_PROXY). S/4HANA — the same FM through ZMCP_ADT_DISPATCH action FM_PROXY
+ * (lib/wlUsageS4.ts).
  *
  * Other system: `destination` (or SAP_USAGE_RFCDEST from the profile sap.env)
  * names an SM59 destination on the connected system; the FM then reads that
  * system's aggregates over RFC (DEV profile → QA / PRD business usage). The
  * destination is site-specific — it is never defaulted by the plugin.
  *
- * Companion ABAP source: sc4sap/abap/zmcp_wl_tcode_usage_ecc.abap
+ * Companion ABAP sources: sc4sap/abap/zmcp_wl_tcode_usage_ecc.abap (ECC),
+ * sc4sap/abap/zmcp_wl_tcode_usage_s4.abap (S/4HANA)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleGetTcodeUsage = handleGetTcodeUsage;
 const rfcBackend_1 = require("../../../lib/rfcBackend");
 const utils_1 = require("../../../lib/utils");
+const wlUsageS4_1 = require("../../../lib/wlUsageS4");
 exports.TOOL_DEFINITION = {
     name: 'GetTcodeUsage',
     available_in: ['onprem', 'legacy'],
-    description: '[read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. ECC-only (ZMCP_WL_TCODE_USAGE bridge FM).',
+    description: '[read-only] Check whether transactions were used in the last N months, from the ST03N workload monthly aggregates. Returns one boolean per transaction plus `coverage` = months that actually hold workload data; when coverage < months, false means "not used in the last <coverage> months". No user names are returned. Reads ZMCP_WL_TCODE_USAGE: ECC through the OData / NCo bridge, S/4HANA through the ZMCP_ADT_DISPATCH FM_PROXY action.',
     inputSchema: {
         type: 'object',
         properties: {
@@ -54,26 +58,23 @@ async function handleGetTcodeUsage(context, args) {
         if (tcodes.length === 0) {
             return (0, utils_1.return_error)(new Error('tcodes must list at least one transaction'));
         }
-        if (process.env.SAP_VERSION?.toUpperCase() !== 'ECC') {
-            return (0, utils_1.return_error)(new Error('GetTcodeUsage currently routes through the ECC bridge (ZMCP_WL_TCODE_USAGE via OData FunctionImport WlTcodeUsage). Set SAP_VERSION=ECC in .sc4sap/sap.env.'));
-        }
+        const ecc = (0, wlUsageS4_1.isEccSystem)();
         const months = Math.min(36, Math.max(1, Math.trunc(Number(args.months ?? 12)) || 12));
         const rawDest = args.destination !== undefined
             ? String(args.destination)
             : (process.env.SAP_USAGE_RFCDEST ?? '');
         const destination = rawDest.trim().toUpperCase() === 'LOCAL' ? '' : rawDest.trim();
         logger?.info(`GetTcodeUsage: ${tcodes.length} tcodes, months=${months}, destination=${destination || '(local)'}`);
-        const fm = await (0, rfcBackend_1.callWlTcodeUsage)(connection, {
-            tcodes,
-            months,
-            rfcdest: destination,
-        });
+        const request = { tcodes, months, rfcdest: destination };
+        const fm = ecc
+            ? await (0, rfcBackend_1.callWlTcodeUsage)(connection, request)
+            : await (0, wlUsageS4_1.callWlTcodeUsageS4)(connection, request);
         const used = tcodes.filter((t) => fm.result?.[t] === true);
         const unused = tcodes.filter((t) => fm.result?.[t] !== true);
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: fm.subrc === 0,
-                path: 'ecc-odata-rfc',
+                path: ecc ? (0, rfcBackend_1.eccBridgePath)() : wlUsageS4_1.S4_USAGE_PATH,
                 system: fm.sysid || null,
                 destination: destination || null,
                 message: fm.message,

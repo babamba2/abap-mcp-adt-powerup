@@ -288,9 +288,9 @@ async function handleUpdateDomainEcc(context, args, domainName) {
                 package: args.package_name,
                 transport_request: args.transport_request,
                 status: shouldActivate ? 'active' : 'inactive',
-                message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via OData)`,
+                message: `Domain ${domainName} updated${shouldActivate ? ' and activated' : ''} successfully (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
                 domain_details: null,
-                path: 'ecc-odata-rfc',
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }),
         });
     }

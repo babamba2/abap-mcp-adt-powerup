@@ -10,7 +10,6 @@
  * Companion ABAP source: sc4sap/abap/zmcp_ssf_render.abap
  */
 
-import * as fs from 'node:fs';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { renderSmartForm } from '../../../lib/smartFormRender';
 import {
@@ -18,6 +17,7 @@ import {
   return_error,
   return_response,
 } from '../../../lib/utils';
+import { readValuesFile } from '../../../lib/valuesFile';
 
 export const TOOL_DEFINITION = {
   name: 'RenderSmartForm',
@@ -39,7 +39,7 @@ export const TOOL_DEFINITION = {
       values_file: {
         type: 'string',
         description:
-          'Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.',
+          'Path of a JSON file with the same object as `values` (for large interfaces): a .json file inside the MCP output directory or the profile work folder, at most 1 MB. Ignored when `values` is given.',
       },
       device: {
         type: 'string',
@@ -80,8 +80,7 @@ export async function handleRenderSmartForm(
       .toUpperCase();
     if (!formName) return return_error(new Error('form_name is required'));
     let values = args?.values;
-    if (!values && args?.values_file)
-      values = JSON.parse(fs.readFileSync(args.values_file, 'utf8'));
+    if (!values && args?.values_file) values = readValuesFile(args.values_file);
     logger?.info(`RenderSmartForm: ${formName}`);
     const result = await renderSmartForm(
       connection,

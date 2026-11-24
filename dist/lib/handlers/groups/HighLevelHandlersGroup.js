@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HighLevelHandlersGroup = void 0;
+const handleCreateAdobeFormFromSmartForm_1 = require("../../../handlers/adobeform/high/handleCreateAdobeFormFromSmartForm");
+const handleDeleteAdobeForm_1 = require("../../../handlers/adobeform/high/handleDeleteAdobeForm");
 const handleCreateBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleCreateBehaviorDefinition");
 const handleDeleteBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleDeleteBehaviorDefinition");
 const handleGetBehaviorDefinition_1 = require("../../../handlers/behavior_definition/high/handleGetBehaviorDefinition");
@@ -92,6 +94,8 @@ const handleCreateTable_1 = require("../../../handlers/table/high/handleCreateTa
 const handleDeleteTable_1 = require("../../../handlers/table/high/handleDeleteTable");
 const handleGetTable_1 = require("../../../handlers/table/high/handleGetTable");
 const handleUpdateTable_1 = require("../../../handlers/table/high/handleUpdateTable");
+const handleCreateTableType_1 = require("../../../handlers/table_type/high/handleCreateTableType");
+const handleDeleteTableType_1 = require("../../../handlers/table_type/high/handleDeleteTableType");
 // Import high-level handlers - Text Element (TEXTPOOL)
 const handleCreateTextElement_1 = require("../../../handlers/text_element/high/handleCreateTextElement");
 const handleDeleteTextElement_1 = require("../../../handlers/text_element/high/handleDeleteTextElement");
@@ -207,6 +211,14 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleDeleteStructure_1.TOOL_DEFINITION,
                 handler: withContext(handleDeleteStructure_1.handleDeleteStructure),
+            },
+            {
+                toolDefinition: handleCreateTableType_1.TOOL_DEFINITION,
+                handler: withContext(handleCreateTableType_1.handleCreateTableType),
+            },
+            {
+                toolDefinition: handleDeleteTableType_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteTableType_1.handleDeleteTableType),
             },
             {
                 toolDefinition: handleCreateView_1.TOOL_DEFINITION,
@@ -550,6 +562,14 @@ class HighLevelHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleCreateSmartForm_1.TOOL_DEFINITION,
                 handler: withContext(handleCreateSmartForm_1.handleCreateSmartForm),
+            },
+            {
+                toolDefinition: handleCreateAdobeFormFromSmartForm_1.TOOL_DEFINITION,
+                handler: withContext(handleCreateAdobeFormFromSmartForm_1.handleCreateAdobeFormFromSmartForm),
+            },
+            {
+                toolDefinition: handleDeleteAdobeForm_1.TOOL_DEFINITION,
+                handler: withContext(handleDeleteAdobeForm_1.handleDeleteAdobeForm),
             },
             {
                 toolDefinition: handleDeleteSmartForm_1.TOOL_DEFINITION,

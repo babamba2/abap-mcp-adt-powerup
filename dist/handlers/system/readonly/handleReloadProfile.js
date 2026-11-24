@@ -17,6 +17,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleReloadProfile = handleReloadProfile;
 const profile_1 = require("../../../lib/profile");
 const profileEvents_1 = require("../../../lib/profileEvents");
+const removedTransports_1 = require("../../../lib/removedTransports");
 const utils_1 = require("../../../lib/utils");
 exports.TOOL_DEFINITION = {
     name: 'ReloadProfile',
@@ -35,6 +36,10 @@ async function handleReloadProfile(context, _args) {
         (0, utils_1.invalidateConnectionCache)();
         // Rebind what was captured at boot (stdio connection params, RFC sessions).
         const rebindErrors = (0, profileEvents_1.notifyProfileChanged)(loaded);
+        // A profile that selects a removed transport (4.10.0) cannot run.
+        const removedTransport = (0, removedTransports_1.findRemovedTransport)(process.env);
+        if (removedTransport)
+            rebindErrors.push(new Error(removedTransport));
         const host = loaded.envVars.SAP_URL ?? '';
         const client = loaded.envVars.SAP_CLIENT ?? '';
         const description = loaded.envVars.SAP_DESCRIPTION ?? '';

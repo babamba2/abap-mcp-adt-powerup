@@ -23,7 +23,7 @@
  */
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicBadi } from '../../../lib/rfcBackend';
+import { callDdicBadi, eccBridgePath } from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -131,7 +131,7 @@ export async function handleGetBadiImplementations(
       data: JSON.stringify(
         {
           success: true,
-          path: 'ecc-odata-rfc',
+          path: eccBridgePath(),
           message: fmResult.message,
           badi_definition: parsed.badi_definition ?? badi_definition,
           kind: parsed.kind ?? 'unknown',

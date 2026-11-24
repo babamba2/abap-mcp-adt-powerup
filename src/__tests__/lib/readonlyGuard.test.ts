@@ -18,6 +18,7 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
     'DeleteStructure',
     'CreateSmartForm',
     'DeleteSmartForm',
+    'DeleteAdobeForm',
     // These three mutate SAP but match none of Create/Update/Delete. They were
     // reachable on QA and PRD until the prefix list grew to cover them.
     'ActivateObjects',
@@ -88,6 +89,14 @@ describe('readonlyGuard — checkToolAllowed (pure matrix)', () => {
 
   it('PRD tier blocks runtime execution tools', () => {
     for (const t of runtimeExec) {
+      expect(checkToolAllowed(t, 'PRD')).toMatch(/executes ABAP code/);
+    }
+  });
+
+  it('form renders run the form code: DEV only', () => {
+    for (const t of ['RenderSmartForm', 'RenderAdobeForm']) {
+      expect(checkToolAllowed(t, 'DEV')).toBeNull();
+      expect(checkToolAllowed(t, 'QA')).toMatch(/executes ABAP code/);
       expect(checkToolAllowed(t, 'PRD')).toMatch(/executes ABAP code/);
     }
   });
@@ -193,4 +202,22 @@ describe('readonlyGuard — guardTool (uses active profile state)', () => {
     const { guardTool } = require('../../lib/readonlyGuard');
     expect(() => guardTool('CreateClass')).toThrow(/\(legacy\)/);
   });
+});
+
+describe('readonlyGuard — business-action tools', () => {
+  const { checkToolAllowed } = require('../../lib/readonlyGuard');
+  it.each(['PreviewBusinessAction', 'ExecuteBusinessAction'])(
+    '%s: allowed on DEV and QA, blocked on PRD',
+    (tool) => {
+      expect(checkToolAllowed(tool, 'DEV')).toBeNull();
+      expect(checkToolAllowed(tool, 'QA')).toBeNull();
+      expect(checkToolAllowed(tool, 'PRD')).toMatch(/blocked on PRD/);
+    },
+  );
+  it.each(['ListBusinessActions', 'RunBusinessQuery'])(
+    '%s: allowed on PRD',
+    (tool) => {
+      expect(checkToolAllowed(tool, 'PRD')).toBeNull();
+    },
+  );
 });

@@ -3,11 +3,14 @@
 Generated from code in `src/handlers/**` (not from docs).
 
 - Level: High-Level
-- Total tools: 134
+- Total tools: 138
 
 ## Navigation
 
 - [High-Level Group](#high-level-group)
+  - [Adobeform](#high-level-adobeform)
+    - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
+    - [DeleteAdobeForm](#deleteadobeform-high-level-adobeform)
   - [Behavior Definition](#high-level-behavior-definition)
     - [CreateBehaviorDefinition](#createbehaviordefinition-high-level-behavior-definition)
     - [DeleteBehaviorDefinition](#deletebehaviordefinition-high-level-behavior-definition)
@@ -142,6 +145,9 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteTable](#deletetable-high-level-table)
     - [GetTable](#gettable-high-level-table)
     - [UpdateTable](#updatetable-high-level-table)
+  - [Table Type](#high-level-table-type)
+    - [CreateTableType](#createtabletype-high-level-table-type)
+    - [DeleteTableType](#deletetabletype-high-level-table-type)
   - [Text Element](#high-level-text-element)
     - [CreateTextElement](#createtextelement-high-level-text-element)
     - [DeleteTextElement](#deletetextelement-high-level-text-element)
@@ -175,6 +181,38 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="high-level-group"></a>
 ## High-Level Group
+
+<a id="high-level-adobeform"></a>
+### High-Level / Adobeform
+
+<a id="createadobeformfromsmartform-high-level-adobeform"></a>
+#### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Optional correction_file: a layout correction spec (version 1) applied to the migrated layout before it is saved — the result's `correction` reports every op (applied / not_found / ambiguous / refused), `partial` when not all applied; with strict nothing is saved unless every op applies. Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
+
+**Parameters:**
+- `correction_file` (string, optional) - Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence|datePicture|bind|embedLead","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}. bind: match "dataRef" + ref "$record…" ([0] / [*] only) or "none", with a basis. Model ops (no target, with a basis): {"op":"contextDeactivate","node":"CONTEXT/MAIN/<program lines>"} deactivates one program-lines node; {"op":"initSumByKey","source":"<table>","target":"<global table>","key":[…],"sum":[…]} adds a COLLECT loop to the interface initialization.
+- `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
+- `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
+- `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
+- `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+- `strict` (boolean, optional) - With correction_file: save nothing unless every op applies (overrides "strict" in the spec).
+
+---
+
+<a id="deleteadobeform-high-level-adobeform"></a>
+#### DeleteAdobeForm (High-Level / Adobeform)
+**Description:** [writes, destructive] Delete a Z/Y Adobe form (with its layout and generated function module) or form interface of package $TMP. Without confirm: true only reports what would be deleted (dry run). Objects of any other package are refused; an interface still used by a form is refused with the forms listed; a form delete keeps its interface (delete it afterwards with kind INTERFACE). Development clients only. Needs the ZMCP_FP_DELETE FM and the FP_DELETE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleDeleteAdobeForm.ts`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `kind` (string, required) - FORM (SFPF) or INTERFACE (SFPI).
+- `name` (string, required) - Form or interface name, Z* or Y* (letters, digits, _ and /, at most 30 characters).
+
+---
 
 <a id="high-level-behavior-definition"></a>
 ### High-Level / Behavior Definition
@@ -1375,6 +1413,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `function_group` (string, optional) - Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.
 - `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
 - `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
 - `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
@@ -1799,6 +1838,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `activate` (boolean, optional) - Activate structure after creation. Default: true. Set to false for batch operations (activate multiple objects later).
 - `description` (string, optional) - Structure description. If not provided, structure_name will be used.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when the structure has includes or structure_ref / table_ref components (it does not activate as 1), else 1.
 - `fields` (array, required (default: 0)) - Array of structure fields
 - `includes` (array, optional) - Include other structures in this structure
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
@@ -1868,13 +1908,20 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 <a id="createtable-high-level-table"></a>
 #### CreateTable (High-Level / Table)
-**Description:** Create a new ABAP table via the ADT API. Creates the table object in initial state. Use UpdateTable to set DDL code afterwards.
+**Description:** Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
 
 **Source:** `src/handlers/table/high/handleCreateTable.ts`
 
 **Parameters:**
+- `activate` (boolean, optional) - ECC only. Activate after create (default true).
+- `data_class` (string, optional) - ECC only. Data class TABART (default APPL1). Some systems enforce a customer class (e.g. USER / USER1) — the SAP message says so.
+- `delivery_class` (string, optional) - ECC only. Delivery class (default A).
 - `description` (string, optional) - Table description for validation and creation.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when "includes" are given, else 1.
+- `fields` (array, optional) - ECC only (SAP_VERSION=ECC): the full field list. ECC has no DDL source, so the table is created from these rows (DD03P) in one call and activated. First field must be a key (MANDT for client tables). Ignored on S/4HANA — use UpdateTable with DDL there.
+- `includes` (array, optional) - ECC only. Structures appended as .INCLUDE rows after the fields (e.g. a create/change info structure).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
+- `size_category` (string, optional) - ECC only. Size category TABKAT (default 0).
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Must follow SAP naming conventions.
 - `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
@@ -1915,6 +1962,42 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 - `ddl_code` (string, required) - Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key ('key mandt : mandt not null'), NOT 'abap.clnt' (that's CDS-view syntax). Standard SAP tables (MARA, T001, VBAK, …) all use MANDT. The annotation block CreateTable seeded must be preserved verbatim: #NOT_EXTENSIBLE enhancement category, #TRANSPARENT tableCategory, #A deliveryClass, #RESTRICTED dataMaintenance. Example: '@EndUserText.label : \'My Table\' @AbapCatalog.enhancement.category : #NOT_EXTENSIBLE @AbapCatalog.tableCategory : #TRANSPARENT @AbapCatalog.deliveryClass : #A @AbapCatalog.dataMaintenance : #RESTRICTED define table ztst_table { key mandt : mandt not null; key id : abap.char(10); name : abap.char(255); }'
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Table must already exist.
 - `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-table-type"></a>
+### High-Level / Table Type
+
+<a id="createtabletype-high-level-table-type"></a>
+#### CreateTableType (High-Level / Table Type)
+**Description:** Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
+
+**Source:** `src/handlers/table_type/high/handleCreateTableType.ts`
+
+**Parameters:**
+- `access_type` (string, optional) - Access mode. Default standard.
+- `activate` (boolean, optional) - Activate after create. Default true.
+- `description` (string, optional) - Short text (max 60 characters).
+- `key_components` (array, optional) - Key fields of the row type, in order. Only with key_definition=key_components (ECC).
+- `key_definition` (string, optional) - Primary key definition. Default standard (standard key).
+- `key_kind` (string, optional) - Primary key category. Default non_unique; hashed tables need unique.
+- `package_name` (string, required) - Package ($TMP for local objects).
+- `row_kind` (string, optional) - What row_type is. Default structure.
+- `row_type` (string, required) - Row type name: a structure / table, a data element, or another table type.
+- `table_type_name` (string, required) - Table type name (e.g., ZSD_T_ORDER_ITEMS). Z/Y namespace, max 30 characters.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
+
+---
+
+<a id="deletetabletype-high-level-table-type"></a>
+#### DeleteTableType (High-Level / Table Type)
+**Description:** Delete a DDIC table type (TTYP). Transport request optional for $TMP objects.
+
+**Source:** `src/handlers/table_type/high/handleDeleteTableType.ts`
+
+**Parameters:**
+- `table_type_name` (string, required) - Table type name.
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -2168,6 +2251,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `context` (string, optional) - Optional context string shown in SAP tools.
 - `duration` (object, optional) - 
+- `result_format` (string, optional) - For a run that completes at once (programs / function groups, legacy systems): "full" (default) returns the raw run_result XML; "summary" returns run_summary = counts plus the failing methods and class-level alerts only (title + first details). Use "summary" when only pass / fail matters.
 - `risk_level` (object, optional) - 
 - `scope` (object, optional) - 
 - `tests` (array, required) - List of container/test class pairs to execute.
@@ -2254,4 +2338,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-11-11*
+*Last updated: 2026-11-24*

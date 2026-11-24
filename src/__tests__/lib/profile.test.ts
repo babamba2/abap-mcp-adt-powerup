@@ -291,7 +291,7 @@ describe('profile — load and apply', () => {
       process.env.SAP_RFC_ODATA_SERVICE_URL =
         'http://old/sap/opu/odata/sap/zmcp_adt_srv';
       process.env.SAP_RFC_ODATA_CSRF_TTL_SEC = '600';
-      process.env.SAP_RFC_ZRFC_BASE_URL = 'http://old/zrfc';
+      process.env.SAP_RFC_SOAP_EXTRA = 'stale';
       writeProfile(
         home,
         'X',
@@ -307,7 +307,7 @@ describe('profile — load and apply', () => {
       expect(process.env.SAP_RFC_BACKEND).toBe('soap');
       expect(process.env.SAP_RFC_ODATA_SERVICE_URL).toBeUndefined();
       expect(process.env.SAP_RFC_ODATA_CSRF_TTL_SEC).toBeUndefined();
-      expect(process.env.SAP_RFC_ZRFC_BASE_URL).toBeUndefined();
+      expect(process.env.SAP_RFC_SOAP_EXTRA).toBeUndefined();
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }

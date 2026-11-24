@@ -15,12 +15,16 @@ import {
   return_response,
 } from '../../../lib/utils';
 import { validateTransportRequest } from '../../../utils/transportValidation.js';
+import {
+  type EccCreateTableArgs,
+  handleCreateTableEcc,
+} from './handleCreateTableEcc';
 
 export const TOOL_DEFINITION = {
   name: 'CreateTable',
   available_in: ['onprem', 'cloud'] as const,
   description:
-    'Create a new ABAP table via the ADT API. Creates the table object in initial state. Use UpdateTable to set DDL code afterwards.',
+    'Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -41,12 +45,91 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'Transport request. Required for transportable packages.',
       },
+      fields: {
+        type: 'array',
+        description:
+          'ECC only (SAP_VERSION=ECC): the full field list. ECC has no DDL source, so the table is created from these rows (DD03P) in one call and activated. First field must be a key (MANDT for client tables). Ignored on S/4HANA — use UpdateTable with DDL there.',
+        items: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Field name (max 16 characters)',
+            },
+            key: { type: 'boolean', description: 'Key field (keys first)' },
+            not_null: {
+              type: 'boolean',
+              description: 'Initial values flag (keys always set)',
+            },
+            data_element: {
+              type: 'string',
+              description: 'Data element (preferred)',
+            },
+            data_type: {
+              type: 'string',
+              description:
+                'Built-in type (CHAR, NUMC, DATS, QUAN, …) when no data element fits',
+            },
+            length: { type: 'number' },
+            decimals: { type: 'number' },
+            description: {
+              type: 'string',
+              description: 'Short text for data_type fields',
+            },
+            reference_table: {
+              type: 'string',
+              description:
+                'Reference table for a QUAN / CURR field (defaults to this table)',
+            },
+            reference_field: {
+              type: 'string',
+              description:
+                'Reference field (unit / currency key) for a QUAN / CURR field, e.g. VRKME',
+            },
+          },
+          required: ['name'],
+        },
+      },
+      includes: {
+        type: 'array',
+        description:
+          'ECC only. Structures appended as .INCLUDE rows after the fields (e.g. a create/change info structure).',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Include structure name' },
+          },
+          required: ['name'],
+        },
+      },
+      delivery_class: {
+        type: 'string',
+        description: 'ECC only. Delivery class (default A).',
+      },
+      enhancement_category: {
+        type: 'string',
+        description:
+          'ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when "includes" are given, else 1.',
+      },
+      data_class: {
+        type: 'string',
+        description:
+          'ECC only. Data class TABART (default APPL1). Some systems enforce a customer class (e.g. USER / USER1) — the SAP message says so.',
+      },
+      size_category: {
+        type: 'string',
+        description: 'ECC only. Size category TABKAT (default 0).',
+      },
+      activate: {
+        type: 'boolean',
+        description: 'ECC only. Activate after create (default true).',
+      },
     },
     required: ['table_name', 'package_name'],
   },
 } as const;
 
-interface CreateTableArgs {
+interface CreateTableArgs extends EccCreateTableArgs {
   table_name: string;
   description?: string;
   package_name: string;
@@ -80,24 +163,11 @@ export async function handleCreateTable(
 
     const tableName = createTableArgs.table_name.toUpperCase();
 
-    // ECC fallback — the S/4HANA ADT path here builds a CDS-style DDL
-    // skeleton (`define table ... { key mandt : mandt not null; }`),
-    // which ECC's DDIC write layer does not accept (ECC DD02V/DD03P
-    // is row-based, not CDS-source-based). A full CDS-DDL → DD03P
-    // translator would be non-trivial, so CreateTable on ECC is
-    // deliberately not implemented. Users should call the OData
-    // DdicTabl FunctionImport directly with a DD02V+DD03P JSON
-    // payload (see sc4sap/abap/zmcp_adt_ddic_tabl_ecc.abap header
-    // for schema).
+    // ECC: no ADT DDIC endpoint and no DDL source. The table is built
+    // from the `fields` list as DD02V/DD03P/DD09L rows and written by
+    // ZMCP_ADT_DDIC_TABL (OData DdicTabl), then activated.
     if (process.env.SAP_VERSION?.toUpperCase() === 'ECC') {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `CreateTable is not supported on ECC via this MCP tool. ` +
-          `ECC's DDIC write layer is row-based (DD02V + DD03P) and does not accept ` +
-          `the S/4HANA CDS-style DDL skeleton this handler generates. ` +
-          `Call the OData FunctionImport /DdicTabl on ZMCP_ADT_SRV directly with ` +
-          `IV_ACTION='CREATE' and IV_PAYLOAD_JSON = '{"dd02v":{...},"dd03p":[...]}'.`,
-      );
+      return await handleCreateTableEcc(context, createTableArgs);
     }
 
     logger?.info(`Starting table creation: ${tableName}`);

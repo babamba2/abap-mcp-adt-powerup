@@ -1,0 +1,1 @@
+{"version":3,"file":"connectionType.js","sourceRoot":"","sources":["../../src/lib/connectionType.ts"],"names":[],"mappings":";;AAYA,4DAMC;AAlBD;;;;;;;;;;;GAWG;AACH,SAAgB,wBAAwB,CACtC,MAAyB,OAAO,CAAC,GAAG;IAEpC,OAAO,CAAC,GAAG,CAAC,mBAAmB,IAAI,EAAE,CAAC,CAAC,IAAI,EAAE,CAAC,WAAW,EAAE,KAAK,KAAK;QACnE,CAAC,CAAC,KAAK;QACP,CAAC,CAAC,SAAS,CAAC;AAChB,CAAC"}

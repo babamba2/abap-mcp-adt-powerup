@@ -10,45 +10,12 @@
  * Backend: ZMCP_ADT_DISPATCH action SSF_RENDER → FM ZMCP_SSF_RENDER.
  * Companion ABAP source: sc4sap/abap/zmcp_ssf_render.abap
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleRenderSmartForm = handleRenderSmartForm;
-const fs = __importStar(require("node:fs"));
 const smartFormRender_1 = require("../../../lib/smartFormRender");
 const utils_1 = require("../../../lib/utils");
+const valuesFile_1 = require("../../../lib/valuesFile");
 exports.TOOL_DEFINITION = {
     name: 'RenderSmartForm',
     available_in: ['onprem', 'legacy'],
@@ -66,7 +33,7 @@ exports.TOOL_DEFINITION = {
             },
             values_file: {
                 type: 'string',
-                description: 'Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.',
+                description: 'Path of a JSON file with the same object as `values` (for large interfaces): a .json file inside the MCP output directory or the profile work folder, at most 1 MB. Ignored when `values` is given.',
             },
             device: {
                 type: 'string',
@@ -95,7 +62,7 @@ async function handleRenderSmartForm(context, args) {
             return (0, utils_1.return_error)(new Error('form_name is required'));
         let values = args?.values;
         if (!values && args?.values_file)
-            values = JSON.parse(fs.readFileSync(args.values_file, 'utf8'));
+            values = (0, valuesFile_1.readValuesFile)(args.values_file);
         logger?.info(`RenderSmartForm: ${formName}`);
         const result = await (0, smartFormRender_1.renderSmartForm)(connection, formName, values ?? {}, args?.language?.trim() || undefined, args?.device?.trim() || undefined, Array.isArray(args?.families) ? args.families : undefined);
         return (0, utils_1.return_response)({

@@ -29,12 +29,17 @@ const handleReadScreen_1 = require("../../../handlers/screen/readonly/handleRead
 const handleReadServiceBinding_1 = require("../../../handlers/service_binding/readonly/handleReadServiceBinding");
 const handleReadServiceDefinition_1 = require("../../../handlers/service_definition/readonly/handleReadServiceDefinition");
 const handleReadStructure_1 = require("../../../handlers/structure/readonly/handleReadStructure");
+const handleGetAdobeFormContent_1 = require("../../../handlers/system/readonly/handleGetAdobeFormContent");
 const handleGetAreaMenu_1 = require("../../../handlers/system/readonly/handleGetAreaMenu");
 const handleGetJobUsage_1 = require("../../../handlers/system/readonly/handleGetJobUsage");
 const handleGetSmartFormContent_1 = require("../../../handlers/system/readonly/handleGetSmartFormContent");
 const handleGetSmartFormLayout_1 = require("../../../handlers/system/readonly/handleGetSmartFormLayout");
+const handleGetStandardText_1 = require("../../../handlers/system/readonly/handleGetStandardText");
 const handleGetTcodeUsage_1 = require("../../../handlers/system/readonly/handleGetTcodeUsage");
+const handleRenderAdobeForm_1 = require("../../../handlers/system/readonly/handleRenderAdobeForm");
+const handleRenderAdobeXdp_1 = require("../../../handlers/system/readonly/handleRenderAdobeXdp");
 const handleRenderSmartForm_1 = require("../../../handlers/system/readonly/handleRenderSmartForm");
+const handleGetRemoteTableContents_1 = require("../../../handlers/table/readonly/handleGetRemoteTableContents");
 const handleGetTableContents_1 = require("../../../handlers/table/readonly/handleGetTableContents");
 const handleReadTable_1 = require("../../../handlers/table/readonly/handleReadTable");
 const handleGetTransport_1 = require("../../../handlers/transport/readonly/handleGetTransport");
@@ -56,6 +61,10 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetTableContents_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetTableContents_1.handleGetTableContents)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetRemoteTableContents_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetRemoteTableContents_1.handleGetRemoteTableContents)(this.context, args),
             },
             {
                 toolDefinition: handleGetPackageContents_1.TOOL_DEFINITION,
@@ -108,6 +117,22 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleRenderSmartForm_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleRenderSmartForm_1.handleRenderSmartForm)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetAdobeFormContent_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetAdobeFormContent_1.handleGetAdobeFormContent)(this.context, args),
+            },
+            {
+                toolDefinition: handleRenderAdobeForm_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleRenderAdobeForm_1.handleRenderAdobeForm)(this.context, args),
+            },
+            {
+                toolDefinition: handleRenderAdobeXdp_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleRenderAdobeXdp_1.handleRenderAdobeXdp)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetStandardText_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetStandardText_1.handleGetStandardText)(this.context, args),
             },
             {
                 toolDefinition: handleGetTransport_1.TOOL_DEFINITION,

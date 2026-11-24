@@ -84,7 +84,7 @@ async function handleGetBadiImplementations(context, args) {
         return (0, utils_1.return_response)({
             data: JSON.stringify({
                 success: true,
-                path: 'ecc-odata-rfc',
+                path: (0, rfcBackend_1.eccBridgePath)(),
                 message: fmResult.message,
                 badi_definition: parsed.badi_definition ?? badi_definition,
                 kind: parsed.kind ?? 'unknown',

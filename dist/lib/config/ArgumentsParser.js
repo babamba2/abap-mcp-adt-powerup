@@ -41,6 +41,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArgumentsParser = void 0;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
+const removedTransports_1 = require("../removedTransports");
 const envResolver_1 = require("./envResolver");
 class ArgumentsParser {
     /**
@@ -151,10 +152,11 @@ class ArgumentsParser {
         // Parse --auth-broker
         result.useAuthBroker =
             hasFlag('--auth-broker') || process.env.MCP_USE_AUTH_BROKER === 'true';
-        // Parse --connection-type (http or rfc)
-        const connType = getArgValue('--connection-type') || process.env.SAP_CONNECTION_TYPE;
+        // --connection-type=rfc (node-rfc) was removed in 4.10.0 — refuse it
+        // instead of silently connecting over HTTP.
+        const connType = getArgValue('--connection-type');
         if (connType?.trim().toLowerCase() === 'rfc') {
-            result.connectionType = 'rfc';
+            throw new Error((0, removedTransports_1.removedConnectionTypeMessage)());
         }
         // Parse --system-type (onprem | cloud | legacy)
         const sysType = (getArgValue('--system-type') || process.env.SAP_SYSTEM_TYPE)

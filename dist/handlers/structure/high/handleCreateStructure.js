@@ -111,6 +111,10 @@ exports.TOOL_DEFINITION = {
                     required: ['name'],
                 },
             },
+            enhancement_category: {
+                type: 'string',
+                description: 'ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when the structure has includes or structure_ref / table_ref components (it does not activate as 1), else 1.',
+            },
             activate: {
                 type: 'boolean',
                 description: 'Activate structure after creation. Default: true. Set to false for batch operations (activate multiple objects later).',
@@ -281,18 +285,27 @@ const ECC_FIXED_LENGTHS = {
  * Exported for unit tests.
  */
 function buildEccStructurePayload(args, structureName) {
-    if (args.includes && args.includes.length > 0) {
-        throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'CreateStructure on ECC does not support "includes" yet. List the fields explicitly or type a field with structure_ref.');
+    const includes = args.includes ?? [];
+    if (includes.some((inc) => inc.suffix)) {
+        throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'CreateStructure on ECC does not support include suffixes. Drop "suffix" or add the fields explicitly.');
     }
     const pad4 = (n) => String(n).padStart(4, '0');
     const pad6 = (n) => String(n).padStart(6, '0');
+    // Enhancement category: a structure with includes or nested structure /
+    // table-type components does not activate as 1 (cannot be enhanced).
+    const hasDeep = includes.length > 0 ||
+        args.fields.some((f) => f.structure_ref || f.table_ref);
+    const exclass = args.enhancement_category || (hasDeep ? '4' : '1');
+    if (!/^[1-4]$/.test(exclass)) {
+        throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `enhancement_category must be 1, 2, 3 or 4 (got "${exclass}").`);
+    }
     const dd02v = {
         TABNAME: structureName,
         DDLANGUAGE: 'E',
         TABCLASS: 'INTTAB',
         DDTEXT: args.description || structureName,
         MASTERLANG: 'E',
-        EXCLASS: '1',
+        EXCLASS: exclass,
     };
     const dd03p = args.fields.map((field, index) => {
         const fieldName = field.name.toUpperCase();
@@ -338,6 +351,24 @@ function buildEccStructurePayload(args, structureName) {
         }
         return row;
     });
+    // Includes are appended after the fields as .INCLUDE rows (same row shape
+    // as CreateTable's ECC branch, verified on ECC 7.40).
+    for (const inc of includes) {
+        const incName = (inc?.name ?? '').toUpperCase();
+        if (!/^[A-Z/][A-Z0-9_/]{0,29}$/.test(incName)) {
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `Invalid include name "${inc?.name}".`);
+        }
+        dd03p.push({
+            TABNAME: structureName,
+            FIELDNAME: '.INCLUDE',
+            POSITION: pad4(dd03p.length + 1),
+            DDLANGUAGE: 'E',
+            PRECFIELD: incName,
+            COMPTYPE: 'S',
+            DATATYPE: 'STRU',
+            MASK: '      S',
+        });
+    }
     return { dd02v, dd03p };
 }
 /**
@@ -375,8 +406,8 @@ async function handleCreateStructureEcc(context, args, structureName) {
                 activated: shouldActivate,
                 activation_rc: shouldActivate ? activationRc : null,
                 activation_message: activationMessage || undefined,
-                message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via OData)`,
-                path: 'ecc-odata-rfc',
+                message: `Structure ${structureName} created${shouldActivate ? ` and activated${warn}` : ' (inactive)'} (ECC fallback via ${(0, rfcBackend_1.eccBridgeVia)()})`,
+                path: (0, rfcBackend_1.eccBridgePath)(),
             }),
         });
     }

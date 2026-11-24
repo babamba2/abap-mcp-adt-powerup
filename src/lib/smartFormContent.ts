@@ -231,11 +231,14 @@ export interface SmartFormContent {
   /** printer assumed for the fonts: device, device type, its fonts [family, size 1/10 pt, bold, italic], family substitutes */
   printer?: any;
   includeTexts: Array<{
+    /** TEXT (SO10 / READ_TEXT) or TEXTMODULE (a SmartForm text module, TTYPE R: its name = REF_NAME) */
     object: string;
     name: string;
     id: string;
     language: string;
     lines?: TextLine[];
+    /** text module: the style of its text */
+    style?: string;
     error?: string;
   }>;
   /** Form interface (minus SAP's standard parameters) and global data — the types behind the &symbols&. */
@@ -362,6 +365,23 @@ function cellsOf(v: unknown) {
       trimmed(b.FILLCOLOR?.USED) === 'X' && intensity > 0
         ? colorOf(b.FILLCOLOR, intensity)
         : undefined;
+    const sides: [string, string, string][] = [
+      ['left', 'LLEFT', 'CLEFT'],
+      ['top', 'LTOP', 'CTOP'],
+      ['right', 'LRIGHT', 'CRIGHT'],
+      ['bottom', 'LBOTTOM', 'CBOTTOM'],
+    ];
+    // A side with a width but no colour (USED unset) still prints: SAP draws it in the pen colour left by the
+    // previous line (S4-DEV SF_TOTALS / SF_SUBTOTALS: header sides without a colour print, row bottoms after white
+    // sides print white). borders keeps the sides with a colour; bordersUnset lists the others for the renderer.
+    const unset: Record<string, number> = {};
+    const colors: Record<string, string> = {};
+    for (const [s, w, c] of sides) {
+      const mm = mmOf(b[w], b[`${w}_U`]) ?? 0;
+      if (!(mm > 0)) continue;
+      if (trimmed(b[c]?.USED) === 'X') colors[s] = rgbHex(b[c] as Raw);
+      else unset[s] = mm;
+    }
     return {
       ...(fill ? { fill } : {}),
       borders: {
@@ -370,6 +390,10 @@ function cellsOf(v: unknown) {
         right: side('LRIGHT', 'CRIGHT'),
         bottom: side('LBOTTOM', 'CBOTTOM'),
       },
+      ...(Object.values(colors).some((x) => x !== '#000000')
+        ? { borderColors: colors }
+        : {}),
+      ...(Object.keys(unset).length ? { bordersUnset: unset } : {}),
     };
   };
   return asArray((v as Raw)?.item).map((it: Raw) => {
@@ -667,14 +691,25 @@ class Walker {
           out.lines = textLines(obj.TEXT);
         if (tt === 'I' || tt === 'R') {
           const k = (obj.TKEY ?? {}) as Raw;
-          const key = {
-            object: trimmed(k.OBJECT) || 'TEXT',
-            name: trimmed(k.NAME),
-            id: trimmed(k.ID) || 'ST',
-            language: trimmed(k.LANG),
-            resolved: false,
-          };
-          if (tt === 'R') key.name = key.name || trimmed(obj.REF_NAME);
+          // a text module (R) is named by REF_NAME alone: Form Builder keeps the TKEY of an earlier
+          // include text when the type is switched (SF_EXAMPLE_01 FOOTER_INCL: TKEY ADRS_FOOTER, an
+          // SO10 text; REF_NAME SF_ADRS_FOOTER, the text module SAP prints)
+          const key =
+            tt === 'R'
+              ? {
+                  object: 'TEXTMODULE',
+                  name: trimmed(obj.REF_NAME),
+                  id: '',
+                  language: '',
+                  resolved: false,
+                }
+              : {
+                  object: trimmed(k.OBJECT) || 'TEXT',
+                  name: trimmed(k.NAME),
+                  id: trimmed(k.ID) || 'ST',
+                  language: trimmed(k.LANG),
+                  resolved: false,
+                };
           out.include = key;
           const dyn = [key.object, key.name, key.id, key.language].some(
             hasSymbol,
@@ -687,6 +722,11 @@ class Walker {
           } else if (key.name) {
             this.dynamic.push(
               `text ${out.name}: ${key.object} ${key.name} ${key.id} ${key.language}`,
+            );
+          } else if (tt === 'R') {
+            // a text module node without REF_NAME prints nothing in SAP; say so (a TKEY it keeps is not used)
+            this.dynamic.push(
+              `text ${out.name}: text module without REF_NAME${trimmed(k.NAME) ? ` (TKEY ${trimmed(k.NAME)} ignored)` : ''}`,
             );
           }
         }
@@ -780,6 +820,9 @@ class Walker {
       default: {
         const s = scalars(obj);
         delete s.INAME;
+        // a command's target page (NEWPAGE to %PAGE3): PAGENAME is a name object, not a scalar
+        const page = trimmed((obj?.PAGENAME as Raw | undefined)?.INAME);
+        if (page) s.PAGENAME = page;
         if (Object.keys(s).length) out.attrs = s;
       }
     }
@@ -811,6 +854,8 @@ export interface SmartFormDataDecl {
   /** TYPE / LIKE / TYPE REF TO … as written in Form Builder. */
   typing: string;
   typeName: string;
+  /** Global data only: the default value as written (ABAP literal, e.g. 'X' or 10). */
+  defaultValue?: string;
 }
 
 export interface ParsedSmartForm {
@@ -822,6 +867,8 @@ export interface ParsedSmartForm {
   textKeys: NonNullable<ContentNode['include']>[];
   styles: string[];
   dynamic: string[];
+  /** A text module (HEADER FORMTYPE T): the lines and style of its text. */
+  textModule?: { lines: TextLine[]; style: string };
 }
 
 const IO_SCOPE: Record<string, SmartFormDataDecl['scope']> = {
@@ -845,11 +892,14 @@ function dataDeclsOf(sf: Raw): SmartFormDataDecl[] {
     });
   }
   for (const it of asArray((sf.GDATA as Raw)?.item) as Raw[]) {
+    // the start value of a global field (Form Builder "Default value", ABAP VALUE): SF_TOTALS G_ADDFLAG 'X'
+    const dv = trimmed(it?.DEFAULTVAL);
     out.push({
       name: trimmed(it?.NAME),
       scope: 'global',
       typing: trimmed(it?.TYPING),
       typeName: trimmed(it?.TYPENAME),
+      ...(dv ? { defaultValue: dv } : {}),
     });
   }
   return out.filter((d) => d.name);
@@ -873,6 +923,19 @@ export function parseSmartFormXml(xml: string): ParsedSmartForm {
   const pages: ContentPage[] = [];
   const stdStyles: string[] = [];
   const variants = asArray((sf.VARHEADER as Raw)?.item);
+  // a text module: no pages, one text node (%TEXT1) in the page tree
+  const isModule = trimmed((sf.HEADER as Raw)?.FORMTYPE) === 'T';
+  let textModule: ParsedSmartForm['textModule'];
+  const firstText = (node: Raw, depth: number): Raw | null => {
+    if (depth > 40) return null;
+    const ob = objectOf(node);
+    if (ob?.kind === 'TEXT') return ob.obj;
+    for (const c of walker.succ(node)) {
+      const t = firstText(c, depth + 1);
+      if (t) return t;
+    }
+    return null;
+  };
   for (const v of variants) {
     const lpi = Number(trimmed(v.LPI)) || DEFAULT_LPI;
     const cpi = Number(trimmed(v.CPI)) || DEFAULT_CPI;
@@ -882,6 +945,19 @@ export function parseSmartFormXml(xml: string): ParsedSmartForm {
     const roots = asArray((tree?.NODE ?? tree) as Raw).map((n) =>
       walker.resolve(n),
     );
+    if (isModule && !textModule) {
+      for (const r of roots) {
+        const t = firstText(r, 0);
+        if (t) {
+          textModule = {
+            lines:
+              t.TEXT && typeof t.TEXT === 'object' ? textLines(t.TEXT) : [],
+            style: trimmed(t.STYLE_NAME) || std,
+          };
+          break;
+        }
+      }
+    }
 
     const visit = (node: Raw, depth: number): void => {
       if (depth > 40) return;
@@ -960,6 +1036,7 @@ export function parseSmartFormXml(xml: string): ParsedSmartForm {
     textKeys: [...walker.textKeys.values()],
     styles: [...walker.styles],
     dynamic: walker.dynamic,
+    ...(textModule ? { textModule } : {}),
   };
 }
 
@@ -1016,13 +1093,30 @@ function writeOut(rel: string, data: Buffer | string): string {
   return abs;
 }
 
+/**
+ * Symbol names of one SAPscript text line, without output options and offsets.
+ * `<(>…<)>` protects its content (`<(>&<)>` is a literal '&', no symbol starts there);
+ * `&'pre'NAME(opts)'post'&` prints NAME between two literal texts; `&&` is a literal '&'.
+ */
+export function lineSymbols(text: string): string[] {
+  const out: string[] = [];
+  const plain = String(text).replace(/<\(>[\s\S]*?<\)>/g, ' ');
+  for (const m of plain.matchAll(
+    /&(?:'[^']*')?([^&'\s(]+)(?:\([^)]*\))?(?:'[^']*')?&/g,
+  )) {
+    const name = m[1].replace(/\+\d+$/, '').trim();
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
 /** Every &symbol& printed by text lines of the form (system symbols included), sorted. */
 export function symbolsOf(pages: ContentPage[]): string[] {
   const set = new Set<string>();
   const visit = (n: ContentNode) => {
     for (const l of n.lines ?? [])
-      for (const m of l.text.matchAll(/&([^&\s][^&]*?)&/g))
-        set.add(m[1].replace(/\(.*\)$/, '').trim());
+      if (l.format !== '/*')
+        for (const name of lineSymbols(l.text)) set.add(name);
     for (const c of n.children ?? []) visit(c);
   };
   for (const p of pages)
@@ -1078,6 +1172,100 @@ export interface SmartFormContentOptions {
   device?: string;
   /** Sample values for &symbols& in graphic keys (e.g. { IM_SIGN: 'ZSIGN' }): those graphics are fetched too. */
   values?: Record<string, string>;
+}
+
+/** A SAPscript standard text (SO10, text object TEXT) read with READ_TEXT through SSF_CONTENT part STDTEXT. */
+export interface StandardText {
+  object: string;
+  name: string;
+  id: string;
+  language: string;
+  lines: { format: string; text: string }[];
+}
+
+/**
+ * Read one SAPscript standard text (SO10). Text object TEXT only — document texts of business objects (orders,
+ * invoices, …) are not reachable here. `language` is the 1-character SAP key (E, D, …); empty = logon language.
+ */
+export async function getStandardText(
+  connection: IAbapConnection,
+  name: string,
+  id = 'ST',
+  language = '',
+): Promise<StandardText> {
+  const n = String(name ?? '').trim();
+  if (
+    !n ||
+    n.length > 70 ||
+    /[*+%]/.test(n) ||
+    [...n].some((c) => c.charCodeAt(0) < 32)
+  )
+    throw new Error(
+      'name: the standard text name (≤ 70 characters, no wildcards)',
+    );
+  const i = String(id ?? 'ST')
+    .trim()
+    .toUpperCase();
+  if (!/^[A-Z0-9]{1,4}$/.test(i))
+    throw new Error('text_id: 1 to 4 letters / digits (default ST)');
+  const l = String(language ?? '').trim();
+  if (l && !/^[A-Za-z0-9]$/.test(l))
+    throw new Error(
+      'language: the 1-character SAP language key (E, D, …), not the ISO code',
+    );
+  const r = await part(connection, {
+    part: 'STDTEXT',
+    object: 'TEXT',
+    name: n,
+    id: i,
+    language: l.toUpperCase(),
+  });
+  return {
+    object: 'TEXT',
+    name: n,
+    id: i,
+    language: str(r.language),
+    lines: asArray(r.lines as Raw[]).map((x) => ({
+      format: trimmed(x?.f),
+      text: str(x?.l).replace(/\s+$/, ''),
+    })),
+  };
+}
+
+/** The text of a SmartForm text module (TTYPE R target): its Form Builder XML, the first text node. An empty
+ *  text in the asked language is taken from the module's master language. */
+async function textModuleOf(
+  connection: IAbapConnection,
+  name: string,
+  language: string,
+): Promise<{ lines: TextLine[]; style: string }> {
+  const read = async (lang?: string) => {
+    const r = await part(connection, {
+      part: 'FORM',
+      form_name: name,
+      ...(lang ? { language: lang } : {}),
+    });
+    const xml = Buffer.from(String(r.xml ?? ''), 'base64').toString('utf8');
+    if (!xml.trim())
+      throw new Error(`text module ${name}: SSF_CONTENT FORM returned no XML`);
+    return { xml, parsed: parseSmartFormXml(xml) };
+  };
+  const first = await read(language || undefined);
+  if (!first.parsed.textModule)
+    throw new Error(`${name} is not a text module (FORMTYPE T)`);
+  let tm = first.parsed.textModule;
+  const master = (
+    /<MASTERLANG>([^<]*)<\/MASTERLANG>/.exec(first.xml)?.[1] ?? ''
+  ).trim();
+  if (!tm.lines.length && master && master !== language) {
+    try {
+      const m = (await read(master)).parsed.textModule;
+      if (m?.lines.length) tm = m;
+    } catch {
+      // keep the empty text of the asked language
+    }
+  }
+  return tm;
 }
 
 export async function getSmartFormContent(
@@ -1289,18 +1477,27 @@ export async function getSmartFormContent(
         language: lang,
       };
       try {
-        const r = await part(connection, {
-          part: 'STDTEXT',
-          object: t.object,
-          name: t.name,
-          id: t.id,
-          language: lang,
-        });
-        entry.lines = asArray(r.lines as Raw[]).map((l) => ({
-          format: trimmed(l?.f),
-          text: str(l?.l).replace(/\s+$/, ''),
-        }));
-        t.resolved = true;
+        if (t.object === 'TEXTMODULE') {
+          // a SmartForm text module: its own Form Builder XML (FORMTYPE T), in the form's language,
+          // else its master language (as for the form's own texts)
+          const tm = await textModuleOf(connection, t.name, lang);
+          entry.lines = tm.lines;
+          if (tm.style) entry.style = tm.style;
+          t.resolved = true;
+        } else {
+          const r = await part(connection, {
+            part: 'STDTEXT',
+            object: t.object,
+            name: t.name,
+            id: t.id,
+            language: lang,
+          });
+          entry.lines = asArray(r.lines as Raw[]).map((l) => ({
+            format: trimmed(l?.f),
+            text: str(l?.l).replace(/\s+$/, ''),
+          }));
+          t.resolved = true;
+        }
       } catch (e) {
         entry.error = e instanceof Error ? e.message : String(e);
       }

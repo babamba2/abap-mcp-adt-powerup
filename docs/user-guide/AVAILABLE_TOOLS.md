@@ -4,9 +4,9 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ## Summary
 
-- Total tools: 336
-- Read-only tools: 68
-- High-level tools: 134
+- Total tools: 345
+- Read-only tools: 73
+- High-level tools: 138
 - Low-level tools: 134
 
 - Compact tools: 22 (included in High-level group)
@@ -75,6 +75,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetAbapAST](#getabapast-read-only-system)
     - [GetAbapSemanticAnalysis](#getabapsemanticanalysis-read-only-system)
     - [GetAbapSystemSymbols](#getabapsystemsymbols-read-only-system)
+    - [GetAdobeFormContent](#getadobeformcontent-read-only-system)
     - [GetAdtTypes](#getadttypes-read-only-system)
     - [GetAreaMenu](#getareamenu-read-only-system)
     - [GetInactiveObjects](#getinactiveobjects-read-only-system)
@@ -86,12 +87,15 @@ Generated from code in `src/handlers/**` (not from docs).
     - [GetSmartFormContent](#getsmartformcontent-read-only-system)
     - [GetSmartFormLayout](#getsmartformlayout-read-only-system)
     - [GetSqlQuery](#getsqlquery-read-only-system)
+    - [GetStandardText](#getstandardtext-read-only-system)
     - [GetTcodeUsage](#gettcodeusage-read-only-system)
     - [GetTransaction](#gettransaction-read-only-system)
     - [GetTypeInfo](#gettypeinfo-read-only-system)
     - [GetUsageSnippets](#getusagesnippets-read-only-system)
     - [GetWhereUsed](#getwhereused-read-only-system)
     - [ReloadProfile](#reloadprofile-read-only-system)
+    - [RenderAdobeForm](#renderadobeform-read-only-system)
+    - [RenderAdobeXdp](#renderadobexdp-read-only-system)
     - [RenderSmartForm](#rendersmartform-read-only-system)
     - [RuntimeAnalyzeDump](#runtimeanalyzedump-read-only-system)
     - [RuntimeAnalyzeProfilerTrace](#runtimeanalyzeprofilertrace-read-only-system)
@@ -106,6 +110,7 @@ Generated from code in `src/handlers/**` (not from docs).
     - [RuntimeRunClassWithProfiling](#runtimerunclasswithprofiling-read-only-system)
     - [RuntimeRunProgramWithProfiling](#runtimerunprogramwithprofiling-read-only-system)
   - [Table](#read-only-table)
+    - [GetRemoteTableContents](#getremotetablecontents-read-only-table)
     - [GetTableContents](#gettablecontents-read-only-table)
     - [ReadTable](#readtable-read-only-table)
   - [Transport](#read-only-transport)
@@ -114,6 +119,9 @@ Generated from code in `src/handlers/**` (not from docs).
   - [View](#read-only-view)
     - [ReadView](#readview-read-only-view)
 - [High-Level Group](#high-level-group)
+  - [Adobeform](#high-level-adobeform)
+    - [CreateAdobeFormFromSmartForm](#createadobeformfromsmartform-high-level-adobeform)
+    - [DeleteAdobeForm](#deleteadobeform-high-level-adobeform)
   - [Behavior Definition](#high-level-behavior-definition)
     - [CreateBehaviorDefinition](#createbehaviordefinition-high-level-behavior-definition)
     - [DeleteBehaviorDefinition](#deletebehaviordefinition-high-level-behavior-definition)
@@ -248,6 +256,9 @@ Generated from code in `src/handlers/**` (not from docs).
     - [DeleteTable](#deletetable-high-level-table)
     - [GetTable](#gettable-high-level-table)
     - [UpdateTable](#updatetable-high-level-table)
+  - [Table Type](#high-level-table-type)
+    - [CreateTableType](#createtabletype-high-level-table-type)
+    - [DeleteTableType](#deletetabletype-high-level-table-type)
   - [Text Element](#high-level-text-element)
     - [CreateTextElement](#createtextelement-high-level-text-element)
     - [DeleteTextElement](#deletetextelement-high-level-text-element)
@@ -897,6 +908,20 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="getadobeformcontent-read-only-system"></a>
+#### GetAdobeFormContent (Read-Only / System)
+**Description:** [read-only] Read an Adobe form (transaction SFP) for a preview: the header (interface, form type, layout technology), the whole form as XML (SFP download format: context tree, texts, layout), the layout alone as XDP / XFA template and the form interface as XML — written as files under the MCP output directory (adobe/<form>/: <form>.form.json, <form>.form.xml, <form>.layout.xdp, <interface>.interface.xml) — and counts from the XDP (page areas, subforms, fields, draws, data bindings, scripts). Active version. Needs the ZMCP_FP_CONTENT FM and the FP_CONTENT dispatcher action (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleGetAdobeFormContent.ts`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `include_check` (boolean, optional) - Also run SAP's own form check (what SFP's Check shows: errors / warnings with message id and text) on the inactive version if there is one, else the active one; read-only, nothing is saved, activated or corrected. Written as <form>.check.json. Default false.
+- `include_interface` (boolean, optional) - Also read the form interface XML. Default true.
+- `language` (string, optional) - Text language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+
+---
+
 <a id="getadttypes-read-only-system"></a>
 #### GetAdtTypes (Read-Only / System)
 **Description:** [read-only] Retrieve all valid ADT object types (CLAS, TABL, PROG, DEVC, FUGR, INTF, DDLS, DTEL, DOMA, SRVD, SRVB, BDEF, DDLX, etc.) or validate a specific type name.
@@ -1034,9 +1059,23 @@ Generated from code in `src/handlers/**` (not from docs).
 
 **Parameters:**
 - `acknowledge_risk` (boolean, optional (default: false)) - Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.
+- `mask` (any, optional) - 
 - `output` (string, optional (default: inline)) - "inline" (default) returns the rows. "file" writes the rows as JSON under the MCP output dir (sql/<table>-<time>.json) and returns only the path, row count, column names and the truncated flag. Prefer "file" for large result sets.
 - `row_number` (number, optional (default: 100)) - Maximum number of rows to return
 - `sql_query` (string, required) - SQL query to execute
+
+---
+
+<a id="getstandardtext-read-only-system"></a>
+#### GetStandardText (Read-Only / System)
+**Description:** [read-only, DEV profiles only] Read one SAPscript standard text (SO10, text object TEXT) — the lines with their paragraph formats, as READ_TEXT returns them. For include texts that forms print (e.g. an Adobe or SmartForm include text with a fixed name). Business document texts (other text objects) are not reachable. Needs the ZMCP_SSF_CONTENT FM and the SSF_CONTENT dispatcher action.
+
+**Source:** `src/handlers/system/readonly/handleGetStandardText.ts`
+
+**Parameters:**
+- `language` (string, optional) - 1-character SAP language key (E, D, …); empty = logon language.
+- `name` (string, required) - Standard text name as in SO10 (e.g. "SAPSCRIPT-DRUCKERTEST").
+- `text_id` (string, optional) - Text ID (default ST).
 
 ---
 
@@ -1123,6 +1162,36 @@ Generated from code in `src/handlers/**` (not from docs).
 
 ---
 
+<a id="renderadobeform-read-only-system"></a>
+#### RenderAdobeForm (Read-Only / System)
+**Description:** [runs the form, no output] The PDF of an active Adobe form (SFP) as ADS produces it, for given interface values: calls the generated function module with FP_JOB_OPEN GETPDF (no dialog, no print, no spool) and writes the PDF under the MCP output directory (adobe/<form>/<form>.sap.pdf). The form's own context coding runs as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_FP_CONTENT FM, the FP_RENDER dispatcher action and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeForm.ts`
+
+**Parameters:**
+- `form_name` (string, required) - Adobe form name (e.g. "FP_TEST_00").
+- `get_xml` (boolean, optional) - Also return the data XML the form hands ADS (adobe/<form>/<form>.sap.data.xml) — for checking a preview value by value. Default false.
+- `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
+- `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
+- `values_file` (string, optional) - Path of a JSON file with the same content as values (for large tables): a .json file inside the MCP output directory or the profile work folder, at most 1 MB.
+
+---
+
+<a id="renderadobexdp-read-only-system"></a>
+#### RenderAdobeXdp (Read-Only / System)
+**Description:** [read-only, no output] Render an Adobe XDP template with XML data in ADS (CL_FP_ADS_UTIL=>RENDER_PDF) and write the PDF under the MCP output directory (adobe/<name>/<name>.xdp.sap.pdf, plus the ADS trace). No SAP form object is used, no form code runs, nothing is printed, spooled or stored in SAP. For SAP form-template samples (ZF_CINE_TICKET, ZFORM_FDP_SCRATCH) and own ZSC4SAP_* templates. Needs the ZMCP_FP_CONTENT FM (part RENDER_XDP) and a working ADS connection (development clients only).
+
+**Source:** `src/handlers/system/readonly/handleRenderAdobeXdp.ts`
+
+**Parameters:**
+- `embed_fonts` (boolean, optional) - Embed the fonts in the PDF. Default false.
+- `form_name` (string, required) - Label of the template: ZF_CINE_TICKET, ZFORM_FDP_SCRATCH or ZSC4SAP_*.
+- `locale` (string, optional) - Locale language_COUNTRY, e.g. en_US (default) or de_DE.
+- `xdp_file` (string, required) - Path of the .xdp template inside the MCP output directory or the profile work folder (≤ 5 MB).
+- `xml_file` (string, required) - Path of the .xml data file inside the MCP output directory or the profile work folder (≤ 5 MB).
+
+---
+
 <a id="rendersmartform-read-only-system"></a>
 #### RenderSmartForm (Read-Only / System)
 **Description:** [runs the form, no output] The output of a SmartForm as SAP prints it, for given interface values: calls the generated function module with GETOTF (no dialog, no print, no spool) and writes the OTF (text: positions, fonts, strings) and the PDF under the MCP output directory (smartforms/<form>/<form>.sap.otf.txt / .sap.pdf). The form's own program lines run as in a real print and may read the database — pass invented sample values only. Needs the ZMCP_SSF_RENDER FM and the SSF_RENDER dispatcher action.
@@ -1135,7 +1204,7 @@ Generated from code in `src/handlers/**` (not from docs).
 - `form_name` (string, required) - SmartForm name (e.g. "ZMY_FORM").
 - `language` (string, optional) - Output language: 1-char SAP key or 2-letter ISO code. Default: logon language.
 - `values` (object, optional) - Interface parameter → value, in internal format: structures as objects with the ABAP component names, TABLES parameters / table types as arrays, dates "2026-10-16", times "14:00:00", amounts and quantities as numbers. Parameters left out are passed initial.
-- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces). Ignored when `values` is given.
+- `values_file` (string, optional) - Path of a JSON file with the same object as `values` (for large interfaces): a .json file inside the MCP output directory or the profile work folder, at most 1 MB. Ignored when `values` is given.
 
 ---
 
@@ -1243,7 +1312,7 @@ Generated from code in `src/handlers/**` (not from docs).
 **Source:** `src/handlers/system/readonly/handleRuntimeListDumps.ts`
 
 **Parameters:**
-- `date_from` (string, optional) - Start date (YYYYMMDD or YYYY-MM-DD). On ECC a date older than 24 hours (or an empty feed) adds the ST22 list for date_from..date_to under `st22`.
+- `date_from` (string, optional) - Start date (YYYYMMDD or YYYY-MM-DD). The ADT feed is followed back page by page (its `next` cursor) until it reaches this day — `paging.reached` says whether an entry older than this day was seen, `paging.oldest` the oldest day read (max 20 pages). On ECC a date older than 24 hours (or an empty feed) also adds the ST22 list for date_from..date_to under `st22`.
 - `date_to` (string, optional) - End date (YYYYMMDD or YYYY-MM-DD). Default: today.
 - `include_summary` (boolean, optional) - Keep each entry's HTML summary (atom:summary). Default false — it is ~96% of the payload and duplicates what RuntimeGetDumpById returns.
 - `inlinecount` (string, optional) - Include total count metadata.
@@ -1347,6 +1416,17 @@ Generated from code in `src/handlers/**` (not from docs).
 <a id="read-only-table"></a>
 ### Read-Only / Table
 
+<a id="getremotetablecontents-read-only-table"></a>
+#### GetRemoteTableContents (Read-Only / Table)
+**Description:** [read-only; needs the REMOTE_READ action in ZMCP_ADT_DISPATCH] Read rows of one table in another 
+
+**Source:** `src/handlers/table/readonly/handleGetRemoteTableContents.ts`
+
+**Parameters:**
+- None
+
+---
+
 <a id="gettablecontents-read-only-table"></a>
 #### GetTableContents (Read-Only / Table)
 **Description:** [read-only] Retrieve contents (data preview) of an ABAP database table or CDS view, like SE16. Compact by default: column names only, empty cell values left out of each row, 20 rows. Use fields to keep only some columns and include_metadata for column types/descriptions.
@@ -1416,6 +1496,38 @@ Generated from code in `src/handlers/**` (not from docs).
 
 <a id="high-level-group"></a>
 ## High-Level Group
+
+<a id="high-level-adobeform"></a>
+### High-Level / Adobeform
+
+<a id="createadobeformfromsmartform-high-level-adobeform"></a>
+#### CreateAdobeFormFromSmartForm (High-Level / Adobeform)
+**Description:** [writes, DEV only] Migrate a SAP-delivered SmartForm into a NEW Adobe form and interface with SAP's own migration (CL_SSF_MIGRATION steps, all options except 'alternative: true branch' and 'text placeholder'), in package $TMP, activated. Target names must match ZSC4SAP_AFM_* and must not exist — nothing is overwritten or deleted. Returns SAP's migration log, the options used and what was saved / activated; `complete` is true only when both objects are active (otherwise `message` says what is not). When SAP's migration raises, the tool fails and its error names the objects left behind (delete them only with the user's approval). Optional correction_file: a layout correction spec (version 1) applied to the migrated layout before it is saved — the result's `correction` reports every op (applied / not_found / ambiguous / refused), `partial` when not all applied; with strict nothing is saved unless every op applies. Needs the ZMCP_FP_MIGRATE FM and the FP_MIGRATE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleCreateAdobeFormFromSmartForm.ts`
+
+**Parameters:**
+- `correction_file` (string, optional) - Optional .json file (inside the MCP output directory or the profile work folder) with a layout correction spec: {"version":1,"strict"?:bool,"ops":[{"op":"layout|geometry|margin|font|para|xhtml|picture|border|presence|datePicture|bind|embedLead","target":{"path"|"protoId"[+"path"]|"xliffId"},...}]}. bind: match "dataRef" + ref "$record…" ([0] / [*] only) or "none", with a basis. Model ops (no target, with a basis): {"op":"contextDeactivate","node":"CONTEXT/MAIN/<program lines>"} deactivates one program-lines node; {"op":"initSumByKey","source":"<table>","target":"<global table>","key":[…],"sum":[…]} adds a COLLECT loop to the interface initialization.
+- `form_name` (string, required) - New Adobe form name, ZSC4SAP_AFM_* (≤ 30).
+- `interface_name` (string, required) - New form interface name, ZSC4SAP_AFM_* (≤ 30).
+- `sender_country` (string, optional) - Optional country key (T005, e.g. "DE") set as sender country on address nodes that have none — the Adobe check requires one, SmartForms did not. Without it nothing is changed and the check reports the address nodes.
+- `source` (string, required) - SAP SmartForm to migrate (e.g. "SF_EXAMPLE_01"); customer forms are refused.
+- `strict` (boolean, optional) - With correction_file: save nothing unless every op applies (overrides "strict" in the spec).
+
+---
+
+<a id="deleteadobeform-high-level-adobeform"></a>
+#### DeleteAdobeForm (High-Level / Adobeform)
+**Description:** [writes, destructive] Delete a Z/Y Adobe form (with its layout and generated function module) or form interface of package $TMP. Without confirm: true only reports what would be deleted (dry run). Objects of any other package are refused; an interface still used by a form is refused with the forms listed; a form delete keeps its interface (delete it afterwards with kind INTERFACE). Development clients only. Needs the ZMCP_FP_DELETE FM and the FP_DELETE dispatcher action.
+
+**Source:** `src/handlers/adobeform/high/handleDeleteAdobeForm.ts`
+
+**Parameters:**
+- `confirm` (boolean, optional) - true = really delete. Default false (dry run).
+- `kind` (string, required) - FORM (SFPF) or INTERFACE (SFPI).
+- `name` (string, required) - Form or interface name, Z* or Y* (letters, digits, _ and /, at most 30 characters).
+
+---
 
 <a id="high-level-behavior-definition"></a>
 ### High-Level / Behavior Definition
@@ -2616,6 +2728,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 **Parameters:**
 - `activate` (boolean, optional) - Activate include after source update. Default: false. Set to true to activate immediately.
+- `function_group` (string, optional) - Function group that owns the include (e.g. ZMM_FG for LZMM_FGTOP). Needed for function-group includes; taken from main_program when that is SAPL<group>.
 - `include_name` (string, required) - Include program name. Must already exist as Type I include in SAP.
 - `main_program` (string, optional) - Name of the parent/master program that contains this include. When provided, a program-wide syntax check is run after the source is uploaded to catch ABAP errors in the new include code. Highly recommended.
 - `source_code` (string, required) - Complete ABAP include source code. Do NOT include a REPORT statement — include programs start directly with code or comments.
@@ -3040,6 +3153,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `activate` (boolean, optional) - Activate structure after creation. Default: true. Set to false for batch operations (activate multiple objects later).
 - `description` (string, optional) - Structure description. If not provided, structure_name will be used.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when the structure has includes or structure_ref / table_ref components (it does not activate as 1), else 1.
 - `fields` (array, required (default: 0)) - Array of structure fields
 - `includes` (array, optional) - Include other structures in this structure
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
@@ -3109,13 +3223,20 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 <a id="createtable-high-level-table"></a>
 #### CreateTable (High-Level / Table)
-**Description:** Create a new ABAP table via the ADT API. Creates the table object in initial state. Use UpdateTable to set DDL code afterwards.
+**Description:** Create a new ABAP table. S/4HANA: creates the table object in initial state via ADT; use UpdateTable to set DDL code afterwards. ECC (SAP_VERSION=ECC): pass "fields" (+ optional "includes") and the table is created and activated in one call through ZMCP_ADT_DDIC_TABL (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
 
 **Source:** `src/handlers/table/high/handleCreateTable.ts`
 
 **Parameters:**
+- `activate` (boolean, optional) - ECC only. Activate after create (default true).
+- `data_class` (string, optional) - ECC only. Data class TABART (default APPL1). Some systems enforce a customer class (e.g. USER / USER1) — the SAP message says so.
+- `delivery_class` (string, optional) - ECC only. Delivery class (default A).
 - `description` (string, optional) - Table description for validation and creation.
+- `enhancement_category` (string, optional) - ECC only. EXCLASS: 1 cannot be enhanced, 2 character-like, 3 character-like or numeric, 4 deep. Default 4 when "includes" are given, else 1.
+- `fields` (array, optional) - ECC only (SAP_VERSION=ECC): the full field list. ECC has no DDL source, so the table is created from these rows (DD03P) in one call and activated. First field must be a key (MANDT for client tables). Ignored on S/4HANA — use UpdateTable with DDL there.
+- `includes` (array, optional) - ECC only. Structures appended as .INCLUDE rows after the fields (e.g. a create/change info structure).
 - `package_name` (string, required) - Package name (e.g., ZOK_LOCAL, $TMP for local objects)
+- `size_category` (string, optional) - ECC only. Size category TABKAT (default 0).
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Must follow SAP naming conventions.
 - `transport_request` (string, optional) - Transport request. Required for transportable packages.
 
@@ -3156,6 +3277,42 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 - `ddl_code` (string, required) - Complete DDL source code for a TRANSPARENT TABLE. IMPORTANT — use the MANDT data element for the client key ('key mandt : mandt not null'), NOT 'abap.clnt' (that's CDS-view syntax). Standard SAP tables (MARA, T001, VBAK, …) all use MANDT. The annotation block CreateTable seeded must be preserved verbatim: #NOT_EXTENSIBLE enhancement category, #TRANSPARENT tableCategory, #A deliveryClass, #RESTRICTED dataMaintenance. Example: '@EndUserText.label : \'My Table\' @AbapCatalog.enhancement.category : #NOT_EXTENSIBLE @AbapCatalog.tableCategory : #TRANSPARENT @AbapCatalog.deliveryClass : #A @AbapCatalog.dataMaintenance : #RESTRICTED define table ztst_table { key mandt : mandt not null; key id : abap.char(10); name : abap.char(255); }'
 - `table_name` (string, required) - Table name (e.g., ZZ_TEST_TABLE_001). Table must already exist.
 - `transport_request` (string, optional) - Transport request. Optional if the object is local or already in one.
+
+---
+
+<a id="high-level-table-type"></a>
+### High-Level / Table Type
+
+<a id="createtabletype-high-level-table-type"></a>
+#### CreateTableType (High-Level / Table Type)
+**Description:** Create a DDIC table type (TTYP) with its row type, access mode and primary key, and activate it. S/4HANA via ADT; ECC via ZMCP_ADT_DDIC_TTYP (needs the ECC DDIC FMs from setup and SAP_RFC_BACKEND=odata or nco).
+
+**Source:** `src/handlers/table_type/high/handleCreateTableType.ts`
+
+**Parameters:**
+- `access_type` (string, optional) - Access mode. Default standard.
+- `activate` (boolean, optional) - Activate after create. Default true.
+- `description` (string, optional) - Short text (max 60 characters).
+- `key_components` (array, optional) - Key fields of the row type, in order. Only with key_definition=key_components (ECC).
+- `key_definition` (string, optional) - Primary key definition. Default standard (standard key).
+- `key_kind` (string, optional) - Primary key category. Default non_unique; hashed tables need unique.
+- `package_name` (string, required) - Package ($TMP for local objects).
+- `row_kind` (string, optional) - What row_type is. Default structure.
+- `row_type` (string, required) - Row type name: a structure / table, a data element, or another table type.
+- `table_type_name` (string, required) - Table type name (e.g., ZSD_T_ORDER_ITEMS). Z/Y namespace, max 30 characters.
+- `transport_request` (string, optional) - Transport request. Required for transportable packages.
+
+---
+
+<a id="deletetabletype-high-level-table-type"></a>
+#### DeleteTableType (High-Level / Table Type)
+**Description:** Delete a DDIC table type (TTYP). Transport request optional for $TMP objects.
+
+**Source:** `src/handlers/table_type/high/handleDeleteTableType.ts`
+
+**Parameters:**
+- `table_type_name` (string, required) - Table type name.
+- `transport_request` (string, optional) - Transport request. Required unless the object is local ($TMP).
 
 ---
 
@@ -3409,6 +3566,7 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 **Parameters:**
 - `context` (string, optional) - Optional context string shown in SAP tools.
 - `duration` (object, optional) - 
+- `result_format` (string, optional) - For a run that completes at once (programs / function groups, legacy systems): "full" (default) returns the raw run_result XML; "summary" returns run_summary = counts plus the failing methods and class-level alerts only (title + first details). Use "summary" when only pass / fail matters.
 - `risk_level` (object, optional) - 
 - `scope` (object, optional) - 
 - `tests` (array, required) - List of container/test class pairs to execute.
@@ -5499,4 +5657,4 @@ Note: All provided parameters completely replace existing values. Use GetDomain 
 
 ---
 
-*Last updated: 2026-11-11*
+*Last updated: 2026-11-24*

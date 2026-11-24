@@ -1,11 +1,8 @@
 /**
  * Unit tests for src/lib/rfcBackend.ts
  *
- * Verifies the env-driven SOAP/native/gateway/odata switch without loading
- * node-rfc — the module under test only imports from `./soapRfc`,
- * `./nativeRfc`, `./gatewayRfc`, and `./odataRfc`. nativeRfc defers
- * `require('node-rfc')` to first use, so these tests run on any host
- * regardless of whether the NW RFC SDK is installed.
+ * Verifies the env-driven odata / soap switch and that the backends removed
+ * in 4.10.0 (native / gateway / zrfc) fail with the migration message.
  *
  * Backend resolution is lazy (per-call) since the sc4sap profile loader
  * runs after handler imports complete in the launcher. The tests below
@@ -38,45 +35,36 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     expect(mod.backend).toBe('odata');
   });
 
-  it('selects native when SAP_RFC_BACKEND=native', () => {
-    process.env.SAP_RFC_BACKEND = 'native';
+  it('is case-insensitive (SOAP → soap)', () => {
+    process.env.SAP_RFC_BACKEND = 'SOAP';
     const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('native');
-  });
-
-  it('is case-insensitive (NATIVE → native)', () => {
-    process.env.SAP_RFC_BACKEND = 'NATIVE';
-    const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('native');
+    expect(mod.backend).toBe('soap');
   });
 
   it('tolerates surrounding whitespace', () => {
-    process.env.SAP_RFC_BACKEND = '  native  ';
+    process.env.SAP_RFC_BACKEND = '  soap  ';
     const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('native');
+    expect(mod.backend).toBe('soap');
   });
 
   it('throws on unknown backend value (lazy — at call time)', () => {
     process.env.SAP_RFC_BACKEND = 'grpc';
     const mod = require('../../lib/rfcBackend');
     expect(() => mod.getBackend()).toThrow(
-      /SAP_RFC_BACKEND must be 'soap' \| 'native' \| 'gateway' \| 'odata'/,
+      /SAP_RFC_BACKEND must be 'odata' \| 'soap' \| 'nco'/,
     );
     expect(() => mod.backend).toThrow();
   });
 
-  it('selects zrfc when SAP_RFC_BACKEND=zrfc', () => {
-    process.env.SAP_RFC_BACKEND = 'zrfc';
-    const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('zrfc');
-    expect(mod.getBackend()).toBe('zrfc');
-  });
-
-  it('selects gateway when SAP_RFC_BACKEND=gateway', () => {
-    process.env.SAP_RFC_BACKEND = 'gateway';
-    const mod = require('../../lib/rfcBackend');
-    expect(mod.backend).toBe('gateway');
-  });
+  it.each(['native', 'gateway', 'zrfc', ' ZRFC '])(
+    'removed backend %p throws the migration message',
+    (v) => {
+      process.env.SAP_RFC_BACKEND = v;
+      const mod = require('../../lib/rfcBackend');
+      expect(() => mod.getBackend()).toThrow(/was removed in .*4.10.0/);
+      expect(() => mod.getBackend()).toThrow(/SAP_RFC_BACKEND=odata/);
+    },
+  );
 
   it('selects odata when SAP_RFC_BACKEND=odata', () => {
     process.env.SAP_RFC_BACKEND = 'odata';
@@ -90,6 +78,12 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     expect(mod.backend).toBe('soap');
   });
 
+  it('selects nco when SAP_RFC_BACKEND=nco', () => {
+    process.env.SAP_RFC_BACKEND = 'nco';
+    const mod = require('../../lib/rfcBackend');
+    expect(mod.backend).toBe('nco');
+  });
+
   it('resolution is lazy — `backend` reflects env at access time, not module-load', () => {
     // Module load BEFORE setting env: backend is observed under default.
     const mod = require('../../lib/rfcBackend');
@@ -99,8 +93,8 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
     process.env.SAP_RFC_BACKEND = 'soap';
     expect(mod.backend).toBe('soap');
 
-    process.env.SAP_RFC_BACKEND = 'native';
-    expect(mod.backend).toBe('native');
+    process.env.SAP_RFC_BACKEND = 'odata';
+    expect(mod.backend).toBe('odata');
 
     delete process.env.SAP_RFC_BACKEND;
     expect(mod.backend).toBe('odata');
@@ -108,7 +102,7 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
 
   describe('routing — call-time backend resolution', () => {
     /**
-     * Mock all four backend modules with sentinel callDispatch / callTextpool
+     * Mock both backend modules with sentinel callDispatch / callTextpool
      * stubs. Verifies that rfcBackend's lazy wrappers route to the module
      * matching the *current* SAP_RFC_BACKEND, even when env was unset at
      * module-load time.
@@ -146,30 +140,6 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
         callDdicDtelRead: jest.fn(async () => ({ subrc: 0 })),
         callDdicDomaRead: jest.fn(async () => ({ subrc: 0 })),
       }));
-      jest.doMock('../../lib/nativeRfc', () => ({
-        callDispatch: jest.fn(async () => ({
-          result: { backend: 'native' },
-          subrc: 0,
-          message: '',
-        })),
-        callTextpool: jest.fn(async () => ({
-          result: 'native',
-          subrc: 0,
-          message: '',
-        })),
-      }));
-      jest.doMock('../../lib/gatewayRfc', () => ({
-        callDispatch: jest.fn(async () => ({
-          result: { backend: 'gateway' },
-          subrc: 0,
-          message: '',
-        })),
-        callTextpool: jest.fn(async () => ({
-          result: 'gateway',
-          subrc: 0,
-          message: '',
-        })),
-      }));
     };
 
     it('callDispatch routes to soap when SAP_RFC_BACKEND=soap', async () => {
@@ -188,20 +158,13 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
       expect(result.result.backend).toBe('odata');
     });
 
-    it('callDispatch routes to native when SAP_RFC_BACKEND=native', async () => {
+    it('callDispatch throws for a removed backend', () => {
       setupMocks();
       process.env.SAP_RFC_BACKEND = 'native';
       const mod = require('../../lib/rfcBackend');
-      const result = await mod.callDispatch({} as any, 'PING', {});
-      expect(result.result.backend).toBe('native');
-    });
-
-    it('callDispatch routes to gateway when SAP_RFC_BACKEND=gateway', async () => {
-      setupMocks();
-      process.env.SAP_RFC_BACKEND = 'gateway';
-      const mod = require('../../lib/rfcBackend');
-      const result = await mod.callDispatch({} as any, 'PING', {});
-      expect(result.result.backend).toBe('gateway');
+      expect(() => mod.callDispatch({} as any, 'PING', {})).toThrow(
+        /was removed/,
+      );
     });
 
     it('callDispatch defaults to odata when SAP_RFC_BACKEND is unset', async () => {
@@ -228,8 +191,19 @@ describe('rfcBackend — SAP_RFC_BACKEND switch', () => {
       process.env.SAP_RFC_BACKEND = 'soap';
       const mod = require('../../lib/rfcBackend');
       expect(() => mod.callDdicTabl({} as any, 'CREATE', {})).toThrow(
-        /requires SAP_RFC_BACKEND=odata \(current='soap'\)/,
+        /requires SAP_RFC_BACKEND=odata or nco \(current='soap'\)/,
       );
+    });
+
+    it('nco routes through the odata module (transport switches inside)', async () => {
+      setupMocks();
+      process.env.SAP_RFC_BACKEND = 'nco';
+      const mod = require('../../lib/rfcBackend');
+      const result = await mod.callDispatch({} as any, 'PING', {});
+      expect(result.result.backend).toBe('odata');
+      await expect(mod.callDdicTabl({} as any, 'CREATE', {})).resolves.toEqual({
+        subrc: 0,
+      });
     });
 
     it('callDdicTabl forwards to odata when SAP_RFC_BACKEND=odata', async () => {

@@ -20,6 +20,7 @@ import {
   buildEccStructurePayload,
   handleCreateStructure,
 } from '../../handlers/structure/high/handleCreateStructure';
+import { handleDeleteStructure } from '../../handlers/structure/high/handleDeleteStructure';
 import { createAdtClient } from '../../lib/clients';
 
 const mockTabl = callDdicTabl as jest.Mock;
@@ -96,13 +97,54 @@ describe('buildEccStructurePayload', () => {
     expect(dd03p[1]).toMatchObject({ ROLLNAME: 'YSUB_T', COMPTYPE: 'L' });
   });
 
-  it('rejects includes, domains and lengthless CHAR', () => {
+  it('appends includes as .INCLUDE rows and sets enhancement category 4', () => {
+    const p = buildEccStructurePayload(
+      { ...baseArgs, includes: [{ name: 'yinc' }] } as any,
+      'YTEST_S01',
+    );
+    const last = p.dd03p[p.dd03p.length - 1];
+    expect(last).toMatchObject({
+      FIELDNAME: '.INCLUDE',
+      PRECFIELD: 'YINC',
+      COMPTYPE: 'S',
+      DATATYPE: 'STRU',
+      POSITION: String(p.dd03p.length).padStart(4, '0'),
+    });
+    expect(p.dd02v.EXCLASS).toBe('4');
+  });
+
+  it('defaults the enhancement category to 1 for flat structures, 4 with structure_ref', () => {
+    expect(
+      buildEccStructurePayload(baseArgs as any, 'YTEST_S01').dd02v.EXCLASS,
+    ).toBe('1');
+    const nested = {
+      ...baseArgs,
+      fields: [{ name: 'SUB', structure_ref: 'YSUB_S' }],
+    };
+    expect(
+      buildEccStructurePayload(nested as any, 'YTEST_S01').dd02v.EXCLASS,
+    ).toBe('4');
+    expect(
+      buildEccStructurePayload(
+        { ...nested, enhancement_category: '3' } as any,
+        'YTEST_S01',
+      ).dd02v.EXCLASS,
+    ).toBe('3');
     expect(() =>
       buildEccStructurePayload(
-        { ...baseArgs, includes: [{ name: 'YINC' }] } as any,
+        { ...baseArgs, enhancement_category: 'x' } as any,
         'YTEST_S01',
       ),
-    ).toThrow(/includes/);
+    ).toThrow(/enhancement_category/);
+  });
+
+  it('rejects include suffixes, domains and lengthless CHAR', () => {
+    expect(() =>
+      buildEccStructurePayload(
+        { ...baseArgs, includes: [{ name: 'YINC', suffix: '_X' }] } as any,
+        'YTEST_S01',
+      ),
+    ).toThrow(/suffix/);
     expect(() =>
       buildEccStructurePayload(
         { ...baseArgs, fields: [{ name: 'f1', domain: 'CHAR10' }] } as any,
@@ -153,5 +195,31 @@ describe('CreateStructure on ECC', () => {
 
     await handleCreateStructure(ctx, { ...baseArgs, activate: false } as any);
     expect(mockActivate).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleDeleteStructure on ECC', () => {
+  it('deletes through ZMCP_ADT_DDIC_TABL without ADT', async () => {
+    process.env.SAP_VERSION = 'ECC';
+    mockTabl.mockResolvedValue({ subrc: 0, message: '', result: {} });
+    const res: any = await handleDeleteStructure(ctx, {
+      structure_name: 'ytest_s01',
+    });
+    const body = JSON.parse(res.content[0].text);
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockTabl).toHaveBeenCalledWith(ctx.connection, 'DELETE', {
+      name: 'YTEST_S01',
+      transport: undefined,
+    });
+    expect(body).toMatchObject({ success: true, path: 'ecc-odata-rfc' });
+  });
+
+  it('returns an error result when the FM fails', async () => {
+    process.env.SAP_VERSION = 'ECC';
+    mockTabl.mockRejectedValue(new Error('boom'));
+    const res: any = await handleDeleteStructure(ctx, {
+      structure_name: 'YTEST_S01',
+    });
+    expect(res.isError).toBe(true);
   });
 });

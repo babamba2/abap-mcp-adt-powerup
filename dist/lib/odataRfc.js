@@ -8,7 +8,7 @@
  * ICF node but keep the modern OData Gateway active — the typical
  * shape of a "hardened" SAP Gateway install.
  *
- * Contract-compatible with soapRfc.ts / nativeRfc.ts / gatewayRfc.ts —
+ * Contract-compatible with soapRfc.ts —
  * same DispatchResult / TextpoolResult shapes. Handlers only import
  * from ./rfcBackend, never directly from here.
  *
@@ -52,6 +52,7 @@ exports.callTextpool = callTextpool;
 exports.callDdicTabl = callDdicTabl;
 exports.callDdicDtel = callDdicDtel;
 exports.callDdicDoma = callDdicDoma;
+exports.callDdicTtyp = callDdicTtyp;
 exports.callDdicActivate = callDdicActivate;
 exports.callDdicBadi = callDdicBadi;
 exports.callDdicTablRead = callDdicTablRead;
@@ -59,6 +60,7 @@ exports.callDdicDtelRead = callDdicDtelRead;
 exports.callDdicDomaRead = callDdicDomaRead;
 exports.callWlTcodeUsage = callWlTcodeUsage;
 exports.callWlJobUsage = callWlJobUsage;
+const ncoRfc_1 = require("./ncoRfc");
 const profileEvents_1 = require("./profileEvents");
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CSRF_TTL_SEC = 600;
@@ -213,6 +215,9 @@ function tryParseJson(str, fallback) {
     }
 }
 async function postFunctionImport(actionName, params) {
+    // SAP_RFC_BACKEND=nco: same FunctionImport contract, sent over RFC (NCo).
+    if ((0, ncoRfc_1.isNcoBackend)())
+        return (0, ncoRfc_1.ncoFunctionImport)(actionName, params);
     const base = normaliseBaseUrl(required('SAP_RFC_ODATA_SERVICE_URL'));
     const path = buildFunctionImportQuery(actionName, params);
     const url = withSapClient(`${base}/${path}`);
@@ -317,6 +322,10 @@ async function callDdicDtel(_connection, action, params) {
 }
 async function callDdicDoma(_connection, action, params) {
     return callDdicObject('DdicDoma', action, params);
+}
+/** Table type (TTYP) writes through ZMCP_ADT_DDIC_TTYP (FunctionImport DdicTtyp). */
+async function callDdicTtyp(_connection, action, params) {
+    return callDdicObject('DdicTtyp', action, params);
 }
 async function callDdicActivate(_connection, type, name) {
     const raw = await postFunctionImport('DdicActivate', {

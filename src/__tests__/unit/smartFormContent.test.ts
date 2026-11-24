@@ -7,6 +7,7 @@
 
 import {
   hasSymbol,
+  lineSymbols,
   parseSmartFormXml,
   symbolsOf,
   translateSmartFormContentError,
@@ -70,7 +71,10 @@ const template =
   `<item><NAME>%C1</NAME><COLUMNNR>002</COLUMNNR><CWIDTH>6.50</CWIDTH><U_CWIDTH>CM</U_CWIDTH><BORDERS><item><IDX>001</IDX><INTENSITY>000</INTENSITY>` +
   `<FILLCOLOR><RED>000</RED><GREEN>000</GREEN><BLUE>000</BLUE><USED>X</USED></FILLCOLOR></item></BORDERS></item>` +
   `<item><NAME>%C1</NAME><COLUMNNR>003</COLUMNNR><CWIDTH>3.00</CWIDTH><U_CWIDTH>CM</U_CWIDTH><BORDERS><item><IDX>001</IDX><INTENSITY>050</INTENSITY>` +
-  `<FILLCOLOR><RED>000</RED><GREEN>000</GREEN><BLUE>255</BLUE><USED>X</USED></FILLCOLOR></item></BORDERS></item></CELLS>` +
+  `<FILLCOLOR><RED>000</RED><GREEN>000</GREEN><BLUE>255</BLUE><USED>X</USED></FILLCOLOR>` +
+  // a white side (USED) next to a black one: the colours are listed
+  `<LLEFT>15.00</LLEFT><LLEFT_U>TW</LLEFT_U><LRIGHT>15.00</LRIGHT><LRIGHT_U>TW</LRIGHT_U>` +
+  `<CLEFT><RED>255</RED><GREEN>255</GREEN><BLUE>255</BLUE><USED>X</USED></CLEFT><CRIGHT><RED>0</RED><GREEN>0</GREEN><BLUE>0</BLUE><USED>X</USED></CRIGHT></item></BORDERS></item></CELLS>` +
   `</sf:SECTION></sf:OBJ>${cond('FPAGE')}<sf:SUCC>` +
   text('%TEXT7', 'AA', 'Buyer', '001/001') +
   text('%TEXT9', 'A8', '&amp;HEADER-NAME1&amp;', '002/001') +
@@ -83,7 +87,7 @@ const XML =
   `<item><IOTYPE>I</IOTYPE><NAME>HEADER</NAME><TYPING>TYPE</TYPING><TYPENAME>ZTEST_S_HEAD</TYPENAME></item>` +
   `<item><IOTYPE>X</IOTYPE><NAME>FORMATTING_ERROR</NAME><STANDARD>X</STANDARD></item>` +
   `<item><IOTYPE>T</IOTYPE><NAME>ITEM</NAME><TYPING>LIKE</TYPING><TYPENAME>ZTEST_S_ITEM</TYPENAME></item></INTERFACE>` +
-  `<GDATA><item><NAME>GS_ITEM</NAME><TYPING>TYPE</TYPING><TYPENAME>ZTEST_S_ITEM</TYPENAME></item></GDATA>` +
+  `<GDATA><item><NAME>GS_ITEM</NAME><TYPING>TYPE</TYPING><TYPENAME>ZTEST_S_ITEM</TYPENAME></item><item><NAME>G_FLAG</NAME><TYPING>TYPE</TYPING><TYPENAME>CHAR01</TYPENAME><DEFAULTVAL>&apos;X&apos;</DEFAULTVAL></item></GDATA>` +
   `<sf:VARHEADER><sf:item><PAGEFORMAT>DINA4</PAGEFORMAT><STDSTYLE>ZTEST_STYLE</STDSTYLE><CPI>10.00</CPI><LPI>6.00</LPI>` +
   `<sf:PAGETREE><sf:NODE><NODETYPE>RP</NODETYPE><sf:SUCC><sf:item><sf:NODE><NODETYPE>PA</NODETYPE><sf:OBJ><sf:PAGE>` +
   `<NAME><INAME>%PAGE1</INAME></NAME>${cap('First')}<NEXTPAGE><INAME>%PAGE1</INAME></NEXTPAGE><PAGEORTN>P</PAGEORTN></sf:PAGE></sf:OBJ>` +
@@ -190,6 +194,11 @@ describe('parseSmartFormXml', () => {
     expect(t.cells).toHaveLength(3);
     expect(t.cells[1].fill).toBeUndefined();
     expect(t.cells[2].fill).toBe('#8080ff');
+    expect(t.cells[2].borderColors).toEqual({
+      left: '#ffffff',
+      right: '#000000',
+    });
+    expect(t.cells[2].bordersUnset).toBeUndefined();
     const cell = t.cells[0];
     expect(cell).toMatchObject({
       line: '%C1',
@@ -202,6 +211,10 @@ describe('parseSmartFormXml', () => {
     expect(cell.borders.top).toBe(0);
     expect(cell.borders.right).toBe(0);
     expect(cell.borders.bottom).toBeCloseTo(0.26, 1);
+    // a side with a width but no colour prints in the pen colour of the line before (SF_TOTALS): listed apart
+    expect(cell.bordersUnset).toEqual({ right: expect.closeTo(0.26, 1) });
+    // all coloured sides black → no borderColors
+    expect(cell.borderColors).toBeUndefined();
     expect(t.children.map((c) => [c.name, c.tableCell])).toEqual([
       ['%TEXT7', { line: 1, cell: 1 }],
       ['%TEXT9', { line: 2, cell: 1 }],
@@ -233,11 +246,52 @@ describe('data declarations and symbols', () => {
         typing: 'TYPE',
         typeName: 'ZTEST_S_ITEM',
       },
+      // a global's default value is kept as written
+      {
+        name: 'G_FLAG',
+        scope: 'global',
+        typing: 'TYPE',
+        typeName: 'CHAR01',
+        defaultValue: "'X'",
+      },
     ]);
   });
 
   it('lists the printed &symbols& without formatting options', () => {
     expect(symbolsOf(parsed.pages)).toEqual(['HEADER-NAME1']);
+  });
+
+  it('reads protected text and pre / post texts the SAPscript way', () => {
+    expect(lineSymbols('A &X-Y(Z)& &&lit &SFSY-PAGE& &X-Y&')).toEqual([
+      'X-Y',
+      'SFSY-PAGE',
+    ]);
+    // <(>&<)> is a literal '&': "<(>&<)>GS_A-B&" holds no symbol
+    expect(lineSymbols('<IT><(>&<)>GS_A-B&</>')).toEqual([]);
+    expect(lineSymbols("&GS_N-NO&&'/ 'GS_N-DATE& &'('GS_N-QTY(C)')'&")).toEqual(
+      ['GS_N-NO', 'GS_N-DATE', 'GS_N-QTY'],
+    );
+    expect(lineSymbols('&GS_T-TEXT+10(5)&')).toEqual(['GS_T-TEXT']);
+  });
+
+  it('skips comment lines', () => {
+    const pages = [
+      {
+        windows: [
+          {
+            content: [
+              {
+                lines: [
+                  { format: '/*', text: '&HIDDEN&' },
+                  { format: '*', text: '&SHOWN&' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(symbolsOf(pages as any)).toEqual(['SHOWN']);
   });
 });
 
@@ -251,5 +305,93 @@ describe('helpers', () => {
     expect(
       translateSmartFormContentError(new Error('Unknown action: SSF_CONTENT')),
     ).toMatch(/ZMCP_SSF_CONTENT/);
+  });
+});
+
+describe('command nodes', () => {
+  it('keep the target page of NEWPAGE (PAGENAME is a name object)', () => {
+    const cmd =
+      `<sf:item><sf:NODE><NODETYPE>CM</NODETYPE><sf:OBJ><sf:COMMAND><NAME><INAME>%COMMAND1</INAME></NAME>${cap('Next page')}` +
+      `<NEWPAGE>X</NEWPAGE><PAGENAME><INAME>%PAGE3</INAME></PAGENAME></sf:COMMAND></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+    const xml = XML.replace(
+      rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+      rc('852', text('%TEXT1', 'BJ', 'X') + cmd),
+    );
+    const w = parseSmartFormXml(xml).pages[0].windows.find(
+      (x: { name: string }) => x.name === '%WINDOW1',
+    );
+    expect(
+      w?.content.find((n: { kind?: string }) => n.kind === 'command'),
+    ).toMatchObject({ attrs: { NEWPAGE: 'X', PAGENAME: '%PAGE3' } });
+  });
+});
+
+describe('text modules (TTYPE R)', () => {
+  const ref = (name: string, refName: string, tkey: string) =>
+    `<sf:item><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT><NAME><INAME>${name}</INAME></NAME>${cap(name)}` +
+    `<TTYPE>R</TTYPE><STYLE_NAME>ZTEST_STYLE</STYLE_NAME><REF_NAME>${refName}</REF_NAME>` +
+    `<TKEY><OBJECT>TEXT</OBJECT><NAME>${tkey}</NAME><ID>ADRS</ID></TKEY><IGNORE>X</IGNORE>` +
+    `</sf:TEXT></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+
+  it('names a text module by REF_NAME, not by a TKEY left from an include text', () => {
+    const xml = XML.replace(
+      rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+      rc('852', ref('FOOTER_INCL', 'ZTEST_TM_FOOTER', 'ZTEST_OLD_SO10')),
+    );
+    const p = parseSmartFormXml(xml);
+    const n = p.pages[0].windows.find(
+      (x: { name: string }) => x.name === '%WINDOW1',
+    )?.content[0];
+    expect(n).toMatchObject({
+      textType: 'reference',
+      include: { object: 'TEXTMODULE', name: 'ZTEST_TM_FOOTER', id: '' },
+    });
+    expect(p.textKeys).toEqual([
+      {
+        object: 'TEXTMODULE',
+        name: 'ZTEST_TM_FOOTER',
+        id: '',
+        language: '',
+        resolved: false,
+      },
+    ]);
+  });
+
+  it('reads the text of a text module (FORMTYPE T: one text node, no pages)', () => {
+    const tm =
+      `<?xml version="1.0" encoding="utf-8"?><sf:SMARTFORM xmlns:sf="urn:sap-com:SmartForms:2000:internal-structure" xmlns="urn:sap-com:sdixml-ifr:2000" sf:language="EN">` +
+      `<HEADER><FORMNAME>ZTEST_TM_FOOTER</FORMNAME><FORMTYPE>T</FORMTYPE><MASTERLANG>D</MASTERLANG></HEADER>` +
+      `<sf:VARHEADER><sf:item><PAGEFORMAT>DINA4</PAGEFORMAT><STDSTYLE>ZTEST_STYLE</STDSTYLE><sf:PAGETREE><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT>` +
+      `<NAME><INAME>%TEXT1</INAME></NAME>${cap('New Text')}<TTYPE>R</TTYPE><TEXT><item><TDFORMAT>FT</TDFORMAT><TDLINE>Sample Street 1</TDLINE></item>` +
+      `<item><TDFORMAT>/</TDFORMAT><TDLINE>Sample City</TDLINE></item></TEXT><STYLE_NAME>ZTEST_TM_STYLE</STYLE_NAME></sf:TEXT></sf:OBJ></sf:NODE></sf:PAGETREE></sf:item></sf:VARHEADER></sf:SMARTFORM>`;
+    const p = parseSmartFormXml(tm);
+    expect(p.pages).toEqual([]);
+    expect(p.textModule).toEqual({
+      lines: [
+        { format: 'FT', text: 'Sample Street 1' },
+        { format: '/', text: 'Sample City' },
+      ],
+      style: 'ZTEST_TM_STYLE',
+    });
+    // a form is no text module
+    expect(parseSmartFormXml(XML).textModule).toBeUndefined();
+  });
+});
+
+describe('text modules without REF_NAME', () => {
+  it('lists the node in dynamicReferences instead of resolving a TKEY', () => {
+    const node =
+      `<sf:item><sf:NODE><NODETYPE>TI</NODETYPE><sf:OBJ><sf:TEXT><NAME><INAME>NO_REF</INAME></NAME>${cap('NO_REF')}` +
+      `<TTYPE>R</TTYPE><TKEY><OBJECT>TEXT</OBJECT><NAME>ZTEST_OLD_SO10</NAME><ID>ST</ID></TKEY></sf:TEXT></sf:OBJ><sf:SUCC/></sf:NODE></sf:item>`;
+    const p = parseSmartFormXml(
+      XML.replace(
+        rc('852', text('%TEXT1', 'BJ', '&lt;AA&gt;PURCHASE ORDER&lt;/&gt;')),
+        rc('852', node),
+      ),
+    );
+    expect(p.textKeys).toEqual([]);
+    expect(p.dynamic).toContain(
+      'text NO_REF: text module without REF_NAME (TKEY ZTEST_OLD_SO10 ignored)',
+    );
   });
 });

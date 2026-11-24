@@ -1,4 +1,12 @@
 import {
+  TOOL_DEFINITION as CreateAdobeFormFromSmartForm_Tool,
+  handleCreateAdobeFormFromSmartForm,
+} from '../../../handlers/adobeform/high/handleCreateAdobeFormFromSmartForm';
+import {
+  TOOL_DEFINITION as DeleteAdobeForm_Tool,
+  handleDeleteAdobeForm,
+} from '../../../handlers/adobeform/high/handleDeleteAdobeForm';
+import {
   TOOL_DEFINITION as CreateBdef_Tool,
   handleCreateBehaviorDefinition,
 } from '../../../handlers/behavior_definition/high/handleCreateBehaviorDefinition';
@@ -350,6 +358,14 @@ import {
   handleUpdateTable as handleUpdateTableHigh,
   TOOL_DEFINITION as UpdateTableHigh_Tool,
 } from '../../../handlers/table/high/handleUpdateTable';
+import {
+  TOOL_DEFINITION as CreateTableType_Tool,
+  handleCreateTableType,
+} from '../../../handlers/table_type/high/handleCreateTableType';
+import {
+  TOOL_DEFINITION as DeleteTableType_Tool,
+  handleDeleteTableType,
+} from '../../../handlers/table_type/high/handleDeleteTableType';
 // Import high-level handlers - Text Element (TEXTPOOL)
 import {
   TOOL_DEFINITION as CreateTextElement_Tool,
@@ -543,6 +559,14 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: DeleteStructure_Tool,
         handler: withContext(handleDeleteStructure),
+      },
+      {
+        toolDefinition: CreateTableType_Tool,
+        handler: withContext(handleCreateTableType),
+      },
+      {
+        toolDefinition: DeleteTableType_Tool,
+        handler: withContext(handleDeleteTableType),
       },
       {
         toolDefinition: CreateView_Tool,
@@ -886,6 +910,14 @@ export class HighLevelHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: CreateSmartForm_Tool,
         handler: withContext(handleCreateSmartForm),
+      },
+      {
+        toolDefinition: CreateAdobeFormFromSmartForm_Tool,
+        handler: withContext(handleCreateAdobeFormFromSmartForm),
+      },
+      {
+        toolDefinition: DeleteAdobeForm_Tool,
+        handler: withContext(handleDeleteAdobeForm),
       },
       {
         toolDefinition: DeleteSmartForm_Tool,

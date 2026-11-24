@@ -4,13 +4,102 @@
 
 ## [Unreleased]
 
-## [4.8.20] - 2026-11-11
+## [4.14.0] - 2026-11-17
 
 ### Added
+- **`RenderAdobeXdp`** (read-only): ADS renders an XDP template with an XML data file — no SAP form object, no output. Both files must be inside the MCP output directory or `.sc4sap/work/<alias>` (`.xdp` / `.xml`, no network paths, no secret-like names, contents never echoed); external references in the template are refused before the call.
+- **`CreateAdobeFormFromSmartForm`**: optional `correction_file` (a layout correction spec, size-capped) and `strict`. The result reports every op as applied / not_found / ambiguous / refused. Ops:
+  - layout, geometry, margin, font, para, xhtml, picture, border, presence (needs a basis);
+  - `datePicture`: replaces exactly one `$.format.picture = DateFmt(n, $.locale)` in a field's initialize script with a checked `date{…}` literal;
+  - `bind` (`dataRef` with a `$record` path, `[0]` / `[*]` only, or `none`; needs a basis);
+  - `embedLead`: one blank before the value of right- / center-aligned paragraphs that hold embedded values only (ADS aligns them only then);
+  - model ops for SmartForm table-event totals: `contextDeactivate` (one program-lines node by its context path) and `initSumByKey` (a COLLECT loop in the interface initialization; names checked against the interface, no free text reaches ABAP).
+  These need the matching `ZMCP_FP_MIGRATE` helper (sc4sap `abap/`).
+- **`GetStandardText`** (read-only, DEV systems only): a SAPscript standard text (object TEXT) with its lines; refused on QA / PRD.
+- **Masking for table reads**: `GetTableContents`, `GetSqlQuery` and `GetRemoteTableContents` accept an optional `mask`. With it the server refuses personal / credential tables, accepts a strict single-table SELECT only, and returns rows masked by an allow-list (`MASK_VERSION` hmac-v2; the sc4sap plugin refuses v1 answers): a column prints in clear only when its DDIC data element / domain / type is on an explicit non-personal list and no personal shape matches (names, contacts, phone / fax / mail, address parts, URLs / IPs, birth dates — personal wins); everything else, and any column without DDIC, becomes an HMAC-SHA256 token under a per-profile, owner-only server key. Any failure returns no rows. Without `mask` the tools behave as before.
+- **`RunUnitTest`** runs program and function-group containers on S/4HANA (synchronous ADT call, result inline); a batch with any PROG / FUGR runs fully synchronous.
+
+### Changed
+- **`GetSmartFormContent`**:
+  - text-module references (TTYPE R) are read by `REF_NAME` through the form export (`FORMTYPE T`), in the form's language with a fall-back to the module's master language — not as an SO10 text through a stale `TKEY`; a text-module node without `REF_NAME` is listed in `dynamicReferences`;
+  - NEWPAGE command nodes keep their target page (`PAGENAME`).
+- **`UpdateInclude`** writes function-group includes through the group's own path (`function_group`, or a `SAPL<fg>` main program).
+- **`RunUnitTest` / `GetUnitTestResult`** report `methods: 0` and a warning when no test method ran.
+- **Legacy `TABLE_READ`** (BASIS < 7.50): with `MCP_BLOCKLIST_PROFILE=off` the dispatcher is asked for all tables (it checks the user's SE16 authority); credential tables stay closed on every profile, with clear refusal messages.
+  Known gaps under `off`: the dispatcher's credential guard is a name-prefix list (`USR*`, `UST*`, `SSF_PSE*`, `STRUST*`, `SNC*`, `TRUSTED*`, `RSAU*`, `RFCDES`, `RSECTAB`, `RSECACTB`, most `AGR_*`). It does not cover `USH*` (user change history) or database views over those tables. Keep `off` for systems where SE16 authority already restricts them.
+
+### Fixed
+- Table blocklist: the aggregate exemption covers `COUNT(*)` / `COUNT([DISTINCT] col)` only — never MIN / MAX / SUM, never personal fields, credential / HR / security tables or deny-tier tables.
+- Masking key (Windows): the key file is restricted to its owner with `icacls` and read back; anything else → no rows, with an error that names the cause.
+
+## [4.13.0] - 2026-11-17
+
+### Added
+- **Adobe forms (SFP)**. These need the DEV helper `ZMCP_FP_CONTENT` and its dispatcher actions (sc4sap `abap/`). A system without them gets an install hint.
+  - **`GetAdobeFormContent`** (read-only): the form XML, the layout XDP and the interface XML of one form, written under the MCP output directory (`adobe/<form>/`). The name is checked before any call. `include_check` (off by default) adds SAP's own form check messages (`<form>.check.json`).
+  - **`RenderAdobeForm`** (runs the form, no output): the PDF that ADS produces for given interface values, with no spool and no device. `get_xml` also returns the data XML the form hands ADS; SmartForm-type interfaces have none. It is refused on QA and PRD.
+  - **`CreateAdobeFormFromSmartForm`** (DEV write, high-level group): SAP's own SmartForm → Adobe migration (`FP_MIGRATE`) into new `ZSC4SAP_AFM_*` names in `$TMP`. It never overwrites an existing name. The result reports `complete`, SAP's messages, the context nodes it renamed (duplicate sibling names), the layout `cacheInfo`, and what it `adjusted`. An optional `sender_country` is passed through.
+- Tool docs regenerated (342 tools).
+
+### Changed
+- **`values_file`** (`RenderSmartForm`, `RenderAdobeForm`): the file must be inside the MCP output directory or `.sc4sap/work/<alias>`, checked on its real path.
+  - Links and junctions out, UNC paths and secret-like names are refused before the file is read.
+  - Only `.json` up to 1 MB is accepted.
+  - A missing file and a refused one get the same answer, so the answer does not reveal whether an outside file exists.
+- Output paths are checked on the real path of the existing parent (all output tools).
+- **`GetSmartFormContent`** symbols: `<(>…<)>` protected text is skipped, `&'pre'NAME'post'&` yields `NAME`, and comment lines are ignored.
+- **Table blocklist**: every table of a `FROM` list is checked (commas, aliases, brackets). `AGR_1016` and `AGR_TIMEB` join the role tables in the minimal blocklist.
+
+## [4.12.1] - 2026-11-16
+
+### Fixed
+- **`RuntimeListDumps`** follows the feed's time cursor (`to=`) back to `date_from` instead of stopping at the first page, so a week of dumps on S/4HANA (the feed returns about 100 per page) is complete. The answer carries `paging: { pages, complete, reached, oldest }`; `complete: false` says the page cap stopped it before `date_from`.
+
+## [4.12.0] - 2026-11-13
+
+### Added
+- **`GetRemoteTableContents`** (read-only). Reads rows of one table in another SAP system through an SM59 ABAP destination with the standard `RFC_READ_TABLE`, for realistic test data. Calls the new dispatcher action `REMOTE_READ` (sc4sap `abap/zmcp_adt_dispatch*.abap`); a system whose dispatcher lacks it gets an upload hint. The destination is never guessed: without it the tool lists the destinations saved for the active profile (`config.json` → `remoteDestinations`, most recent first, max 10); a destination is saved after its first successful read. `where` is split into 72-character option lines without cutting quoted literals; `fields`, `max_rows` (default 100, cap 5000), `skip_rows`. Business tables are allowed; the table blocklist applies, and the ABAP side refuses credential / user / authorization tables and sub-queries.
+- Tool docs regenerated (also adds `CreateTableType` / `DeleteTableType`, missing since 4.9.1).
+
+## [4.11.0] - 2026-11-11
+
+### Added
+- **NCo RFC backend `SAP_RFC_BACKEND=nco`** (Windows, SAP .NET Connector 3.x). The sc4sap helper FMs are called over RFC — no OData service, no SOAP ICF node. It reuses the OData backend's functions: their single transport point (`postFunctionImport`) sends the same FunctionImport and `IV_*` parameters to the FM over NCo (`lib/ncoRfc.ts`). Remote-enabled FMs (`ZMCP_ADT_DISPATCH`, `_TEXTPOOL`, `_DDIC_TABL` / `DTEL` / `DOMA` / `ACTIVATE`) are called directly; the others (DDIC reads, `ZMCP_ADT_DDIC_TTYP`, `_BADI`, `ZMCP_WL_*`) through the new dispatcher action `FM_PROXY` (allow list, sc4sap `abap/zmcp_adt_dispatch*.abap`). Business actions go through the dispatcher (`BIZ_EXECUTE`). DDIC writes and reads on ECC accept `nco` next to `odata`.
+- **NCo ADT connection `SAP_CONNECTION_TYPE=nco`**: ADT requests over `SADT_REST_RFC_ENDPOINT` through `@babamba2/mcp-abap-connection` 1.6.0 (`RfcAbapConnection`, now NCo-driven). Lock / write / unlock run in one RFC session. `SAP_CONNECTION_TYPE=rfc` stays removed.
+- Keys `SAP_NCO_ASHOST`, `SAP_NCO_SYSNR` (default from the `SAP_URL` port 80XX), `SAP_NCO_LANG`, `SAP_NCO_BRIDGE_EXE`; cleared on a profile switch like `SAP_RFC_*`. Open NCo connections are closed when the connection cache is invalidated (ReloadProfile).
+- ECC bridge replies report `path: "ecc-nco-rfc"` / "via NCo RFC" on the NCo backend; OData replies keep `ecc-odata-rfc` / "via OData".
+
+### Changed
+- Requires `@babamba2/mcp-abap-connection` ^1.6.0.
+
+## [4.10.0] - 2026-11-11
+
+### Removed
+- **RFC backends `native`, `gateway` and `zrfc`** (`SAP_RFC_BACKEND`). Function modules are reached through `odata` (default) or `soap`. Files removed: `lib/nativeRfc.ts`, `lib/gatewayRfc.ts`, `lib/zrfcProxy.ts`, the ZRFC ICF handler `abap/zcl_mcp_rfc_http_handler.abap`, `docs/installation/ZRFC_SETUP.md`, their tests and the native parity suite. Business actions on `native` called `ZMCP_BIZ_EXECUTE` directly; `soap` still does, `odata` goes through the dispatcher.
+- **RFC connection** `SAP_CONNECTION_TYPE=rfc` / `--connection-type=rfc` (ADT over node-rfc + SAP NW RFC SDK) and `docs/installation/RFC_SETUP.md`. The server connects over HTTP/HTTPS. `node-rfc` is no longer an optional dependency of this package.
+
+### Changed
+- A profile that still selects one of these fails at boot (exit 1) and on `ReloadProfile` with a message naming the fix (`SAP_RFC_BACKEND=odata` or `soap`; drop `SAP_CONNECTION_TYPE`), instead of running over another path (`lib/removedTransports.ts`).
+
+## [4.9.1] - 2026-11-11
+
+### Added
+- **`CreateTableType` / `DeleteTableType`**. Row type is a structure, a data element or another table type (`row_kind`); `access_type`, `key_definition`, `key_kind`. S/4 goes through ADT. ECC goes through the new FM `ZMCP_ADT_DDIC_TTYP` (OData action `DdicTtyp`, sc4sap setup Step 9a.2); only ECC takes `key_components`. A hashed table type without a unique key is refused before any call to SAP.
+- **`CreateTable` on ECC**: `fields`, `includes`, delivery class and data class are written as DD02V / DD03P / DD09L through `ZMCP_ADT_DDIC_TABL`, then activated.
+- **`CreateStructure` on ECC** takes `structure_ref` and `includes`; **`DeleteStructure`** has an ECC branch.
 - **`GetAreaMenu`** (read-only, on-premise). Reads an SE43 area menu (`TTREE` type `BMENU` → `TMENU01` / `TMENU01R` / `TMENU01T`) as a flat list: every transaction with its folder path and menu text, plus the folders and the links to other area menus. Links to customer menus (Z / Y / namespace) are followed by default (`follow_links`: `customer` | `all` | `none`). `menu_pattern` (e.g. `Z*`) lists the menus with master language and last change instead. Texts in the requested language fall back to the master language, then English; texts stored as `#` only are skipped. `output: "file"` writes the result to `<MCP output dir>/areamenu/<menu>-<time>.json`. Works on the ADT SQL path and on the legacy `TABLE_READ` path (ECC; reference rows are read in batches of 60 nodes).
 
 ### Docs
 - Tool reference regenerated (`npm run docs:tools`): `GetAreaMenu`, plus descriptions that had drifted from the source (`ReadProgram`, `GetSqlQuery` `output`, `WriteTextElementsBulk` `activate`).
+
+## [4.9.0] - 2026-11-10
+
+### Added
+- **Business-action tools** `ListBusinessActions`, `RunBusinessQuery` (QUERY or PRECHECK), `PreviewBusinessAction` (returns a one-time token) and `ExecuteBusinessAction` (token required). They call the RFC function module `ZMCP_BIZ_EXECUTE` (sc4sap `abap/biz/`): directly on the `soap` and `native` backends, through the new dispatcher action `BIZ_EXECUTE` on `odata` / `gateway` / `zrfc`. A refusal from SAP (subrc 4) is returned as content with `ok: false`, not as a tool error.
+- **`SAP_TOOL_PROFILE`** = `dev` (default, development tools) | `biz` (business-action tools) | `all`. Tools declare `tool_profile`; untagged tools are `dev`.
+
+### Security
+- `PreviewBusinessAction` / `ExecuteBusinessAction` are blocked on PRD-tier profiles (readonly guard + handler); allowed on DEV and QA. SAP also refuses a production client and enforces the preview token.
 
 ## [4.8.19] - 2026-11-06
 

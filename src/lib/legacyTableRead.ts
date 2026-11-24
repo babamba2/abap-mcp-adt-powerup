@@ -16,6 +16,7 @@
 
 import type { IAbapConnection } from '@babamba2/mcp-abap-adt-interfaces';
 import type { SqlQueryResponse } from '../handlers/system/readonly/handleGetSqlQuery';
+import { activeProfile } from './policy/tableBlocklist';
 import { callDispatch } from './rfcBackend';
 
 /** Tables the dispatcher's TABLE_READ accepts (keep in sync with the ABAP allow list). */
@@ -42,6 +43,30 @@ export const LEGACY_READABLE_TABLES = [
 
 /** Row cap of the ABAP TABLE_READ action (FORM table_read: max_rows > 5000 → 5000). */
 export const DISPATCH_MAX_ROWS = 5000;
+
+/** PFCG tables the dispatcher still reads (role design and role-user assignment). */
+const READABLE_AGR = new Set([
+  'AGR_DEFINE',
+  'AGR_TEXTS',
+  'AGR_FLAGS',
+  'AGR_AGRS',
+  'AGR_TCODES',
+  'AGR_1251',
+  'AGR_1252',
+  'AGR_USERS',
+]);
+
+/**
+ * True for the credential / user master tables TABLE_READ refuses on every
+ * profile, off included (same list as the ABAP guard in FORM table_read).
+ * @param table table name, any case
+ */
+export function isDispatcherCredentialTable(table: string): boolean {
+  const t = table.toUpperCase();
+  if (['RFCDES', 'RSECTAB', 'RSECACTB'].includes(t)) return true;
+  if (t.startsWith('AGR_')) return !READABLE_AGR.has(t);
+  return /^(USR|UST|SSF_PSE|STRUST|SNC|TRUSTED|RSAU)/.test(t);
+}
 
 /** True for the client library's "not supported on this SAP system (legacy …)" refusal. */
 export function isLegacyUnsupported(error: unknown): boolean {
@@ -105,11 +130,16 @@ export async function legacyTableRead(
   const table = req.table.toUpperCase();
   // The dispatcher decides which tables are readable: older installs accept
   // LEGACY_READABLE_TABLES only, newer ones any customizing / system table
-  // (delivery class C, G, E, S, W) except credential tables.
+  // (delivery class C, G, E, S, W) except credential tables, and since
+  // 2026-11-18 customer tables (Z*, Y*, own namespaces) of any class with the
+  // user's SE16 authority, personal-data tables excepted.
   // Ask for one row more than requested, so a full page is only reported as
   // truncated when more rows really exist. The ABAP side caps at
   // DISPATCH_MAX_ROWS; at that cap a full page still counts as truncated.
   const fetchRows = Math.min(req.maxRows + 1, DISPATCH_MAX_ROWS);
+  // Blocklist profile "off": ask the dispatcher to drop its delivery-class
+  // rule, so business tables are readable with the user's SE16 authority.
+  const allTables = activeProfile() === 'off';
   let result: any;
   try {
     ({ result } = await callDispatch(connection, 'TABLE_READ', {
@@ -117,12 +147,20 @@ export async function legacyTableRead(
       field_list: req.fields ?? [],
       condition: req.where ?? '',
       max_rows: fetchRows,
+      ...(allTables ? { all_tables: 'X' } : {}),
     }));
   } catch (e) {
     const msg = String((e as Error)?.message ?? e);
+    if (allTables && /is not allowed/i.test(msg)) {
+      throw new Error(
+        isDispatcherCredentialTable(table)
+          ? `${msg} — credential / user master tables stay closed on every blocklist profile, off included.`
+          : `${msg} — MCP_BLOCKLIST_PROFILE=off, but the ZMCP_ADT_DISPATCH installed on this system predates the all_tables flag (2026-11-17). Reinstall the dispatcher (abap/zmcp_adt_dispatch_ecc.abap or _731.abap) to read business tables.`,
+      );
+    }
     if (/is not allowed/i.test(msg)) {
       throw new Error(
-        `${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables only (delivery class C, G, E, S, W — W since the 2026-10-28 dispatcher; dispatchers installed before 2026-10 accept only ${LEGACY_READABLE_TABLES.join(', ')}).`,
+        `${msg} — table reads on this SAP release (BASIS < 7.50) go through ZMCP_ADT_DISPATCH TABLE_READ, which reads customizing / system tables (delivery class C, G, E, S, W — W since the 2026-10-28 dispatcher; dispatchers installed before 2026-10 accept only ${LEGACY_READABLE_TABLES.join(', ')}) and, since the 2026-11-18 dispatcher, customer tables (Z*, Y*, own namespaces) of any class with your SE16 authority; SAP business tables and personal-data customer tables stay closed.`,
       );
     }
     throw e;

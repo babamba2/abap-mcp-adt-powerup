@@ -6,6 +6,7 @@
  */
 
 import type { SapConfig } from '@babamba2/mcp-abap-connection';
+import { rfcConnectionTypeFromEnv } from './connectionType';
 
 // Don't import setConfigOverride from utils.ts to avoid circular dependency
 // setConfigOverride will be called lazily if needed
@@ -74,12 +75,6 @@ export function getConfig(): SapConfig {
     }
   }
 
-  // Connection type: http (default) or rfc (legacy systems)
-  const connectionType: SapConfig['connectionType'] =
-    process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-      ? 'rfc'
-      : undefined;
-
   if (!url) {
     throw new Error(
       `Missing SAP_URL in environment variables. Please check your .env file.`,
@@ -113,7 +108,7 @@ export function getConfig(): SapConfig {
   const config: SapConfig = {
     url, // Already cleaned and validated above
     authType,
-    ...(connectionType && { connectionType }),
+    ...(rfcConnectionTypeFromEnv() && { connectionType: 'rfc' as const }),
   };
 
   if (client) {

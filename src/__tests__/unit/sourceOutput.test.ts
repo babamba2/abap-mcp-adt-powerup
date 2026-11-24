@@ -113,6 +113,30 @@ describe('output directory', () => {
     expect(() => safeOutputPath('.')).toThrow(/outside/);
   });
 
+  it('refuses a link inside the root that leads out of it', () => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-outside-'));
+    try {
+      // a directory junction on Windows (no admin right needed), a symlink elsewhere
+      fs.symlinkSync(
+        outsideDir,
+        path.join(dir, 'link'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      expect(() => safeOutputPath('link/x.txt')).toThrow(/outside/);
+      expect(() => safeOutputPath('link/sub/x.txt')).toThrow(/outside/);
+      expect(safeOutputPath('real/x.txt')).toBe(
+        path.join(dir, 'real', 'x.txt'),
+      );
+    } finally {
+      try {
+        fs.unlinkSync(path.join(dir, 'link'));
+      } catch {
+        /* removed with the dir */
+      }
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
   it('writeResultToFile no longer writes outside the root', () => {
     expect(() => writeResultToFile('x', '../../evil.txt')).toThrow(/outside/);
     writeResultToFile('ok', 'sub/ok.txt');

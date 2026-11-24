@@ -7,7 +7,11 @@
 
 import { createAdtClient } from '../../../lib/clients';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
-import { callDdicTabl } from '../../../lib/rfcBackend';
+import {
+  callDdicTabl,
+  eccBridgePath,
+  eccBridgeVia,
+} from '../../../lib/rfcBackend';
 import {
   type AxiosResponse,
   return_error,
@@ -165,8 +169,8 @@ async function handleDeleteTableEcc(
           success: true,
           table_name: tableName,
           transport_request: transportRequest || null,
-          message: `Table ${tableName} deleted successfully (ECC fallback via OData).`,
-          path: 'ecc-odata-rfc',
+          message: `Table ${tableName} deleted successfully (ECC fallback via ${eccBridgeVia()}).`,
+          path: eccBridgePath(),
         },
         null,
         2,

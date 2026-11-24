@@ -4,9 +4,14 @@ exports.BaseMcpServer = void 0;
 const node_module_1 = require("node:module");
 const mcp_abap_connection_1 = require("@babamba2/mcp-abap-connection");
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
+const connectionType_js_1 = require("../lib/connectionType.js");
+const interfaces_js_1 = require("../lib/handlers/interfaces.js");
 const CompositeHandlersRegistry_js_1 = require("../lib/handlers/registry/CompositeHandlersRegistry.js");
 const schemaUtils_js_1 = require("../lib/handlers/utils/schemaUtils.js");
 const legacyLockHint_js_1 = require("../lib/legacyLockHint.js");
+const readonlyGuard_js_1 = require("../lib/readonlyGuard.js");
+const sourceFileInput_js_1 = require("../lib/sourceFileInput.js");
+const sourcePatchInput_js_1 = require("../lib/sourcePatchInput.js");
 const systemContext_js_1 = require("../lib/systemContext.js");
 const utils_js_1 = require("../lib/utils.js");
 /**
@@ -79,10 +84,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
             const reason = tokenError instanceof Error ? tokenError.message : String(tokenError);
             throw new Error(`JWT token is missing for destination "${destination}". ${reason ? `Token provider error: ${reason}. ` : ''}Provide a valid session token (or refresh token) for this destination, or use --env-path with SAP_JWT_TOKEN.`);
         }
-        // Connection type from env (http or rfc) — not stored in broker/session
-        const connectionType = process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-            ? 'rfc'
-            : undefined;
         // Resolve masterSystem/responsible early so handlers get proper context
         // Create a temporary connection to call getSystemInformation
         let masterSystem;
@@ -124,7 +125,9 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                     username: connectionConfig.username || '',
                     password: connectionConfig.password || '',
                     client: connectionConfig.sapClient || '',
-                    ...(connectionType && { connectionType }),
+                    ...((0, connectionType_js_1.rfcConnectionTypeFromEnv)() && {
+                        connectionType: 'rfc',
+                    }),
                 }
                 : {
                     url: connectionConfig.serviceUrl || '',
@@ -209,9 +212,6 @@ class BaseMcpServer extends mcp_js_1.McpServer {
         const env = loaded.envVars;
         const url = env.SAP_URL || '';
         const client = env.SAP_CLIENT || '';
-        const connectionType = env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-            ? 'rfc'
-            : undefined;
         const wantsJwt = env.SAP_AUTH_TYPE?.trim().toLowerCase() === 'jwt';
         let connectionParams;
         if (!wantsJwt && url && env.SAP_USERNAME && env.SAP_PASSWORD) {
@@ -221,7 +221,9 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                 username: env.SAP_USERNAME,
                 password: env.SAP_PASSWORD,
                 client,
-                ...(connectionType && { connectionType }),
+                ...((0, connectionType_js_1.rfcConnectionTypeFromEnv)(env) && {
+                    connectionType: 'rfc',
+                }),
             };
         }
         else if (url && env.SAP_JWT_TOKEN) {
@@ -328,21 +330,30 @@ class BaseMcpServer extends mcp_js_1.McpServer {
             for (const group of groups) {
                 const handlers = group.getHandlers();
                 for (const entry of handlers) {
-                    const wrappedHandler = async (args) => {
+                    const wrappedHandler = async (rawArgs) => {
+                        // Server-side readonly enforcement for non-DEV SAP profiles. This
+                        // is the registration path every transport uses (stdio / SSE /
+                        // HTTP), so the guard must fire here, before any SAP call.
+                        (0, readonlyGuard_js_1.guardTool)(entry.toolDefinition.name);
+                        // Patch mode: source_file → source_code (confined path, never echoed).
+                        const fileArgs = (0, sourceFileInput_js_1.resolveSourceFileArg)(entry.toolDefinition.name, entry.toolDefinition.inputSchema, rawArgs);
                         // Get connection from context (this.connectionContext)
                         // Token will be automatically refreshed via AuthBroker if needed
                         const context = {
                             connection: await this.getConnection(),
                             logger: this.logger,
                         };
+                        // Server-side patch: source_patches → full source (current source
+                        // read here, exact replacements applied; refused = nothing uploaded).
+                        const resolved = await (0, sourcePatchInput_js_1.resolveSourcePatchesArg)(entry.toolDefinition.name, entry.toolDefinition.inputSchema, fileArgs, context);
+                        const { patched } = resolved;
                         // If handler expects context+args (preferred), pass both.
                         // Otherwise, update group context and call with args only for backward compatibility.
                         // NOTE: Always await the handler result to ensure we get the resolved value for normalization
-                        let handlerPromise;
-                        if (entry.handler.length >= 2) {
-                            handlerPromise = entry.handler(context, args);
-                        }
-                        else {
+                        const invoke = (callArgs) => {
+                            if (entry.handler.length >= 2) {
+                                return Promise.resolve(entry.handler(context, callArgs));
+                            }
                             try {
                                 const contextAwareGroup = group;
                                 if (typeof contextAwareGroup.setContext === 'function') {
@@ -355,11 +366,13 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                             catch {
                                 // ignore if group doesn't expose context setter
                             }
-                            handlerPromise = entry.handler(args);
-                        }
+                            return Promise.resolve(entry.handler(callArgs));
+                        };
+                        // A failed patch never leaves its source behind (undo inside).
+                        const handlerPromise = (0, sourcePatchInput_js_1.runWithPatchRestore)(resolved, context, invoke);
                         let result;
                         try {
-                            result = await handlerPromise;
+                            result = (0, sourcePatchInput_js_1.attachPatchedInfo)(await handlerPromise, patched);
                         }
                         catch (error) {
                             if (error instanceof Error) {
@@ -400,12 +413,13 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                         return { content };
                     };
                     // Convert JSON Schema to Zod if needed, otherwise pass as-is
-                    const zodSchema = entry.toolDefinition.inputSchema &&
-                        typeof entry.toolDefinition.inputSchema === 'object' &&
-                        entry.toolDefinition.inputSchema.type === 'object' &&
-                        entry.toolDefinition.inputSchema.properties
-                        ? (0, schemaUtils_js_1.jsonSchemaToZod)(entry.toolDefinition.inputSchema)
-                        : entry.toolDefinition.inputSchema;
+                    const inputSchema = (0, sourcePatchInput_js_1.withSourcePatchesSchema)(entry.toolDefinition.name, (0, sourceFileInput_js_1.withSourceFileSchema)(entry.toolDefinition.name, entry.toolDefinition.inputSchema));
+                    const zodSchema = inputSchema &&
+                        typeof inputSchema === 'object' &&
+                        inputSchema.type === 'object' &&
+                        inputSchema.properties
+                        ? (0, schemaUtils_js_1.jsonSchemaToZod)(inputSchema)
+                        : inputSchema;
                     // Skip tools not available in the current SAP environment
                     const availableIn = entry.toolDefinition.available_in;
                     if (availableIn && availableIn.length > 0) {
@@ -419,6 +433,11 @@ class BaseMcpServer extends mcp_js_1.McpServer {
                             this.logger.debug(`[BaseMcpServer] Skipping tool ${entry.toolDefinition.name}: available_in=${JSON.stringify(availableIn)}, currentEnv=${currentEnv}, SAP_SYSTEM_TYPE=${envType || '(not set, default: cloud)'}`);
                             continue;
                         }
+                    }
+                    // Skip tools outside the active tool profile (SAP_TOOL_PROFILE)
+                    if (!(0, interfaces_js_1.isToolInProfile)(entry.toolDefinition.tool_profile, (0, interfaces_js_1.resolveToolProfile)())) {
+                        this.logger.debug(`[BaseMcpServer] Skipping tool ${entry.toolDefinition.name}: not in SAP_TOOL_PROFILE=${(0, interfaces_js_1.resolveToolProfile)()}`);
+                        continue;
                     }
                     // Register wrapped handler via SDK registerTool
                     // Note: connection is NOT part of MCP tool signature

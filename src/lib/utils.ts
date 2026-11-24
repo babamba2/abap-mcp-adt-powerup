@@ -10,6 +10,7 @@ import {
   createAbapConnection,
   getTimeout,
   getTimeoutConfig,
+  RfcAbapConnection,
   type SapConfig,
   sapConfigSignature,
 } from '@babamba2/mcp-abap-connection';
@@ -19,6 +20,7 @@ import {
   notifyConnectionResetListeners,
   registerConnectionResetHook,
 } from './connectionEvents';
+import { rfcConnectionTypeFromEnv } from './connectionType';
 import { connectionManagerLogger, logger } from './logger';
 import { loggerAdapter } from './loggerAdapter';
 
@@ -840,6 +842,13 @@ export function cleanup() {
  * This is useful when config is updated directly (e.g., token refresh in JwtAbapConnection)
  * The connection will be recreated on next getManagedConnection() call with updated signature
  */
+/** An RFC (NCo) connection owns a bridge process and an ABAP session: close it. */
+function closeIfRfc(connection: unknown): void {
+  if (connection instanceof RfcAbapConnection) {
+    void connection.close().catch(() => undefined);
+  }
+}
+
 export function invalidateConnectionCache() {
   connectionManagerLogger?.debug(
     `[DEBUG] invalidateConnectionCache - Invalidating connection cache`,
@@ -849,12 +858,21 @@ export function invalidateConnectionCache() {
     },
   );
   /* cleanup */
+  closeIfRfc(cachedConnection);
   cachedConnection = undefined;
   cachedConfigSignature = undefined;
   // Also invalidate override connection if it exists
   if (overrideConnection) {
     /* cleanup */
+    closeIfRfc(overrideConnection);
     overrideConnection = undefined;
+  }
+  // Only RFC entries: HTTP entries keep their existing cache behaviour.
+  for (const [key, entry] of connectionCache.entries()) {
+    if (entry.connection instanceof RfcAbapConnection) {
+      closeIfRfc(entry.connection);
+      connectionCache.delete(key);
+    }
   }
   notifyConnectionResetListeners();
 }
@@ -1339,7 +1357,6 @@ SAP CONNECTION (.env file):
   SAP_CLIENT                       SAP client number (required for basic auth)
                                    Example: 100
   SAP_AUTH_TYPE                    Authentication type: basic|jwt (default: basic)
-  SAP_CONNECTION_TYPE              Connection type: http|rfc (default: http)
   SAP_USERNAME                     SAP username (required for basic auth)
   SAP_PASSWORD                     SAP password (required for basic auth)
   SAP_JWT_TOKEN                    JWT token (required for jwt auth)
@@ -1907,12 +1924,6 @@ export function getConfig(): SapConfig {
     }
   }
 
-  // Connection type: http (default) or rfc (legacy systems)
-  const connectionType: SapConfig['connectionType'] =
-    process.env.SAP_CONNECTION_TYPE?.trim().toLowerCase() === 'rfc'
-      ? 'rfc'
-      : undefined;
-
   if (!url) {
     throw new Error(
       `Missing SAP_URL in environment variables. Please check your .env file.`,
@@ -1946,7 +1957,7 @@ export function getConfig(): SapConfig {
   const config: SapConfig = {
     url, // Already cleaned and validated above
     authType,
-    ...(connectionType && { connectionType }),
+    ...(rfcConnectionTypeFromEnv() && { connectionType: 'rfc' as const }),
   };
 
   if (client) {

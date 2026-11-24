@@ -41,8 +41,12 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const clients_1 = require("../../../lib/clients");
 const legacyTableRead_1 = require("../../../lib/legacyTableRead");
+const maskedRead_1 = require("../../../lib/policy/maskedRead");
+const maskSecret_1 = require("../../../lib/policy/maskSecret");
+const personalMask_1 = require("../../../lib/policy/personalMask");
 const tableBlocklist_1 = require("../../../lib/policy/tableBlocklist");
 const sourceOutput_1 = require("../../../lib/sourceOutput");
+const sqlLineWrap_1 = require("../../../lib/sqlLineWrap");
 const utils_1 = require("../../../lib/utils");
 const writeResultToFile_1 = require("../../../lib/writeResultToFile");
 const xmlEntities_1 = require("../../../lib/xmlEntities");
@@ -73,6 +77,7 @@ exports.TOOL_DEFINITION = {
                 description: "Set to true ONLY after the user has explicitly authorized row extraction from an 'ask'-tier protected table. The approval is logged to stderr for audit. Has no effect on 'deny'-tier tables.",
                 default: false,
             },
+            mask: maskedRead_1.MASK_JSON_SCHEMA,
         },
         required: ['sql_query'],
     },
@@ -215,7 +220,7 @@ async function handleGetSqlQuery(context, args) {
         const sqlQuery = args.sql_query;
         const rowNumber = args.row_number || 100; // Default to 100 rows if not specified
         const tables = (0, tableBlocklist_1.extractTablesFromSql)(sqlQuery);
-        if (tables.length > 0 && !(0, tableBlocklist_1.isAggregateOnly)(sqlQuery)) {
+        if (tables.length > 0 && !(0, tableBlocklist_1.aggregateExempt)(sqlQuery, tables)) {
             const hits = (0, tableBlocklist_1.checkTables)(tables);
             const verdict = (0, tableBlocklist_1.evaluateHits)(hits, args.acknowledge_risk === true, (0, tableBlocklist_1.activeProfile)());
             if (verdict.kind === 'deny') {
@@ -231,13 +236,38 @@ async function handleGetSqlQuery(context, args) {
                 logger?.warn(`AUDIT: user-acknowledged GetSqlQuery on ${verdict.tables.join(',')}`);
             }
         }
+        // Test-data mode: strict single-table SELECT, DDIC first, rows masked before they leave.
+        const mask = (0, personalMask_1.maskSpecFrom)(args.mask);
+        if (typeof mask === 'string')
+            throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, mask);
+        let ddic = null;
+        let secret = null;
+        let strict = null;
+        if (mask) {
+            if (args.output === 'file')
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, 'mask: output "file" is not allowed; the masked rows come inline');
+            (0, maskedRead_1.refuseMaskedTables)((0, personalMask_1.tablesInSql)(sqlQuery));
+            strict = (0, personalMask_1.parseStrictSelect)(sqlQuery);
+            if (!strict.ok)
+                throw new utils_1.McpError(utils_1.ErrorCode.InvalidParams, `mask: ${strict.why} — use one table, plain fields (optional AS), a simple WHERE`);
+            secret = (0, maskSecret_1.loadMaskSecret)();
+            ddic = await (0, maskedRead_1.resolveTableDdic)(connection, strict.table, logger);
+        }
+        const finish = (parsed) => mask && ddic && secret && strict?.ok
+            ? (0, maskedRead_1.maskPayload)(parsed, mask, ddic, strict, strict.table, secret)
+            : parsed;
         logger?.info(`Executing SQL query (rows=${rowNumber})`);
         const client = (0, clients_1.createAdtClient)(connection, logger);
         let response;
         try {
             response = await client
                 .getUtils()
-                .getSqlQuery({ sql_query: sqlQuery, row_number: rowNumber });
+                // Freestyle preview refuses lines > 255 chars (HTTP 400); the legacy
+                // fallback below keeps the original text.
+                .getSqlQuery({
+                sql_query: (0, sqlLineWrap_1.wrapSqlLines)(sqlQuery),
+                row_number: rowNumber,
+            });
         }
         catch (e) {
             // BASIS < 7.50 has no freestyle data preview: answer a single-table
@@ -259,10 +289,10 @@ async function handleGetSqlQuery(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: sqlText(args, {
+                        text: sqlText(args, finish({
                             ...parsed,
                             path: 'ecc-dispatch-table-read',
-                        }),
+                        })),
                     },
                 ],
             };
@@ -277,7 +307,7 @@ async function handleGetSqlQuery(context, args) {
                 content: [
                     {
                         type: 'text',
-                        text: sqlText(args, parsedData),
+                        text: sqlText(args, finish(parsedData)),
                     },
                 ],
             };
