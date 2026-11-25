@@ -28,6 +28,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'Lock handle from LockScreenLow.',
       },
+      transport_request: {
+        type: 'string',
+        description:
+          'Transport request for the screen (LIMU DYNP). Passed to the dispatcher; it is used only by a ZMCP_ADT_DISPATCH that records screens on a transport.',
+      },
       session_id: {
         type: 'string',
         description: 'Session ID from GetSession.',
@@ -47,6 +52,7 @@ export const TOOL_DEFINITION = {
 } as const;
 
 interface DeleteScreenArgs {
+  transport_request?: string;
   program_name: string;
   screen_number: string;
   lock_handle: string;
@@ -66,6 +72,7 @@ export async function handleDeleteScreen(
   try {
     const {
       program_name,
+      transport_request,
       screen_number,
       lock_handle,
       session_id,
@@ -91,6 +98,7 @@ export async function handleDeleteScreen(
     await callDispatch(connection, 'DYNPRO_DELETE', {
       program: programName,
       dynpro: screen_number,
+      transport: transport_request ?? '',
     });
 
     logger?.info(`✅ Screen deleted: ${programName}/${screen_number}`);

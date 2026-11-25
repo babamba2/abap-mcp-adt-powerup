@@ -42,6 +42,11 @@ export const TOOL_DEFINITION = {
         description:
           'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
       },
+      transport_request: {
+        type: 'string',
+        description:
+          'Transport request for the screen (LIMU DYNP). Passed to the dispatcher; it is used only by a ZMCP_ADT_DISPATCH that records screens on a transport.',
+      },
       session_id: {
         type: 'string',
         description: 'Session ID from GetSession.',
@@ -61,6 +66,7 @@ export const TOOL_DEFINITION = {
 } as const;
 
 interface CreateScreenArgs {
+  transport_request?: string;
   program_name: string;
   screen_number: string;
   description?: string;
@@ -82,6 +88,7 @@ export async function handleCreateScreen(
   try {
     const {
       program_name,
+      transport_request,
       screen_number,
       description,
       dynpro_data,
@@ -135,6 +142,7 @@ export async function handleCreateScreen(
     await callDispatch(connection, 'DYNPRO_INSERT', {
       program: programName,
       dynpro: screen_number,
+      transport: transport_request ?? '',
       dynpro_data: screenData,
     });
 

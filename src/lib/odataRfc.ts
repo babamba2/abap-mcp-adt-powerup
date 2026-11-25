@@ -243,15 +243,159 @@ function tryParseJson(str: string, fallback: any): any {
   }
 }
 
+/**
+ * Longest function-import URL sent as a plain POST. Gateway V2 takes
+ * FunctionImport parameters only from the query string, and the ICM drops
+ * request lines past ~8.5 KB (HKT-DEV ECC 7.40, 2026-11-25: 8,422 chars OK,
+ * 9,196 chars → connection terminated). Longer calls go through $batch,
+ * where the same request line travels in the body (200 KB verified).
+ * Override with SAP_RFC_ODATA_MAX_URL_LEN.
+ */
+const DEFAULT_MAX_URL_LEN = 7000;
+
+function maxUrlLen(): number {
+  const n = Number(process.env.SAP_RFC_ODATA_MAX_URL_LEN);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_URL_LEN;
+}
+
+/** Short form of a function-import URL for error messages. */
+function describeUrl(url: string): string {
+  if (url.length <= 300) return url;
+  return `${url.substring(0, 160)}… (${url.length} chars)`;
+}
+
+/**
+ * Pulls the single inner HTTP response out of a $batch reply.
+ * @param text whole multipart/mixed body of the $batch response
+ * @returns inner status code and body text
+ */
+export function parseBatchResponse(text: string): {
+  status: number;
+  body: string;
+} {
+  const statusLine = /HTTP\/1\.[01] (\d{3})[^\r\n]*\r?\n/.exec(text);
+  if (!statusLine) {
+    throw new Error(
+      `OData $batch response has no inner HTTP status line: ${text.substring(0, 256)}`,
+    );
+  }
+  const rest = text.substring(statusLine.index + statusLine[0].length);
+  const headerEnd = /^\r?\n|\r?\n\r?\n/.exec(rest);
+  let body = headerEnd
+    ? rest.substring(headerEnd.index + headerEnd[0].length)
+    : '';
+  const boundary = body.search(/\r?\n--/);
+  if (boundary >= 0) body = body.substring(0, boundary);
+  return { status: Number(statusLine[1]), body: body.trim() };
+}
+
+/**
+ * Sends one function import inside an OData $batch changeset, so its
+ * query string travels in the request body instead of the request line.
+ */
+async function postViaBatch(
+  base: string,
+  path: string,
+  actionName: string,
+  params: Record<string, string>,
+  csrfRetried: boolean,
+): Promise<any> {
+  const session = await getSession();
+  const batchId = `batch_${Date.now().toString(36)}`;
+  const changeId = `changeset_${Date.now().toString(36)}`;
+  const inner = withSapClient(path);
+  const body = [
+    `--${batchId}`,
+    `Content-Type: multipart/mixed; boundary=${changeId}`,
+    '',
+    `--${changeId}`,
+    'Content-Type: application/http',
+    'Content-Transfer-Encoding: binary',
+    '',
+    `POST ${inner} HTTP/1.1`,
+    'Accept: application/json',
+    'Content-Length: 0',
+    '',
+    '',
+    `--${changeId}--`,
+    `--${batchId}--`,
+    '',
+  ].join('\r\n');
+  const url = withSapClient(`${base}/$batch`);
+  const what = `$batch ${actionName}, ${inner.length}-char request`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': session.token,
+        Authorization: buildBasicAuth(),
+        Accept: 'application/json',
+        'Content-Type': `multipart/mixed; boundary=${batchId}`,
+        ...(session.cookie ? { Cookie: session.cookie } : {}),
+      },
+      body,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    throw new Error(
+      `OData function import failed (${what}): ${(e as Error).message}`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const text = await res.text().catch(() => '');
+  if (res.status === 403) {
+    const header = res.headers.get('x-csrf-token');
+    if (!csrfRetried && header && header.toLowerCase() === 'required') {
+      cachedSession = null;
+      return await postFunctionImport(actionName, params, true);
+    }
+    throw new Error(
+      `OData function import returned HTTP 403 (${what}): ${text.substring(0, 1024)}`,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(
+      `OData function import returned HTTP ${res.status} (${what}): ${text.substring(0, 1024)}`,
+    );
+  }
+
+  const innerRes = parseBatchResponse(text);
+  if (innerRes.status < 200 || innerRes.status >= 300) {
+    throw new Error(
+      `OData function import returned HTTP ${innerRes.status} (${what}): ${innerRes.body.substring(0, 1024)}`,
+    );
+  }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(innerRes.body);
+  } catch (e) {
+    throw new Error(
+      `OData function import returned non-JSON body (${what}): ${(e as Error).message}: ${innerRes.body.substring(0, 256)}`,
+    );
+  }
+  return extractODataResult(parsed, actionName);
+}
+
 async function postFunctionImport(
   actionName: string,
   params: Record<string, string>,
+  csrfRetried = false,
 ): Promise<any> {
   // SAP_RFC_BACKEND=nco: same FunctionImport contract, sent over RFC (NCo).
   if (isNcoBackend()) return ncoFunctionImport(actionName, params);
   const base = normaliseBaseUrl(required('SAP_RFC_ODATA_SERVICE_URL'));
   const path = buildFunctionImportQuery(actionName, params);
   const url = withSapClient(`${base}/${path}`);
+
+  if (url.length > maxUrlLen()) {
+    return postViaBatch(base, path, actionName, params, csrfRetried);
+  }
 
   const session = await getSession();
 
@@ -272,7 +416,7 @@ async function postFunctionImport(
     });
   } catch (e) {
     throw new Error(
-      `OData function import failed (POST ${url}): ${(e as Error).message}`,
+      `OData function import failed (POST ${describeUrl(url)}): ${(e as Error).message}`,
     );
   } finally {
     clearTimeout(timer);
@@ -281,26 +425,29 @@ async function postFunctionImport(
   if (res.status === 403) {
     // CSRF token expired — clear cache and retry once
     const header = res.headers.get('x-csrf-token');
-    if (header && header.toLowerCase() === 'required') {
+    if (!csrfRetried && header && header.toLowerCase() === 'required') {
       cachedSession = null;
-      return await postFunctionImport(actionName, params);
+      return await postFunctionImport(actionName, params, true);
     }
     const text = await res.text().catch(() => '');
+    const why = csrfRetried
+      ? 'after one CSRF token refresh'
+      : 'without CSRF refresh signal';
     throw new Error(
-      `OData function import returned HTTP 403 without CSRF refresh signal: ${text.substring(0, 256)}`,
+      `OData function import returned HTTP 403 ${why} (POST ${describeUrl(url)}): ${text.substring(0, 256)}`,
     );
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(
-      `OData function import returned HTTP ${res.status} (POST ${url}): ${text.substring(0, 256)}`,
+      `OData function import returned HTTP ${res.status} (POST ${describeUrl(url)}): ${text.substring(0, 1024) || '(empty body)'}`,
     );
   }
 
   const body = await res.json().catch((e) => {
     throw new Error(
-      `OData function import returned non-JSON body (POST ${url}): ${(e as Error).message}`,
+      `OData function import returned non-JSON body (POST ${describeUrl(url)}): ${(e as Error).message}`,
     );
   });
 

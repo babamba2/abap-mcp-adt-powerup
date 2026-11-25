@@ -60,6 +60,7 @@ async function handleDeleteScreen(context, params) {
         await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
             program: programName,
             dynpro: args.screen_number,
+            transport: args.transport_request ?? '',
         });
         // Unlock
         if (lockHandle) {

@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_DEFINITION = void 0;
 exports.handleCreateProgram = handleCreateProgram;
+exports.describeCreateError = describeCreateError;
 const clients_1 = require("../../../lib/clients");
 const preCheckBeforeActivation_1 = require("../../../lib/preCheckBeforeActivation");
 const utils_1 = require("../../../lib/utils");
@@ -75,6 +76,8 @@ async function handleCreateProgram(context, params) {
     }
     const programName = args.program_name.toUpperCase();
     logger?.info(`Starting program creation: ${programName}`);
+    // Which ADT request was running when an error came back.
+    let step = 'validate';
     try {
         const client = (0, clients_1.createAdtClient)(connection);
         // Validate
@@ -95,6 +98,7 @@ async function handleCreateProgram(context, params) {
         logger?.debug(`Program validation passed: ${programName}`);
         // Create
         logger?.debug(`Creating program: ${programName}`);
+        step = 'create';
         await client.getProgram().create({
             programName,
             description: args.description || programName,
@@ -148,9 +152,65 @@ async function handleCreateProgram(context, params) {
         });
     }
     catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = describeCreateError(error, step);
         logger?.error(`Error creating program ${programName}: ${errorMessage}`);
         return (0, utils_1.return_error)(new Error(`Failed to create program ${programName}: ${errorMessage}`));
     }
+}
+/**
+ * Error text for a failed CreateProgram request: the ADT step, the HTTP
+ * status and SAP's own message (exception XML or body), so a bare
+ * "status code 403" no longer hides the reason.
+ * @param error error thrown by the ADT client
+ * @param step ADT request that was running
+ * @returns one-line description
+ */
+function describeCreateError(error, step) {
+    const response = error?.response;
+    if (!response) {
+        // The client library wraps validate 4xx errors ("Validation failed: …")
+        // without the HTTP response; keep its text and name the step.
+        let plain = error instanceof Error ? error.message : String(error);
+        // It may carry the ADT exception XML: keep only SAP's message text.
+        const excMsg = /<exc:exception[\s\S]*?<message[^>]*>([\s\S]*?)<\/message>/.exec(plain);
+        const sapText = excMsg ? decodeXmlEntities(excMsg[1]).trim() : '';
+        if (sapText) {
+            plain = `${plain.slice(0, plain.indexOf('<')).trim()} SAP Error: ${sapText}`;
+        }
+        return `[${step}] ${plain.trim().slice(0, 2000)}`;
+    }
+    const status = response.status;
+    let text = (0, utils_1.extractAdtErrorMessage)(error, error?.message || String(error));
+    if (/<html[\s>]/i.test(text)) {
+        // ICM / web dispatcher error pages: keep the readable text only.
+        text = text
+            .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 500);
+    }
+    const csrf = String(response.headers?.['x-csrf-token'] ?? '');
+    if (status === 403 && csrf.toLowerCase() === 'required') {
+        text +=
+            ' (CSRF token rejected by SAP: x-csrf-token: Required)';
+    }
+    return `[${step}] HTTP ${status ?? '?'}: ${text}`;
+}
+/**
+ * Decodes the five predefined XML entities and numeric character references.
+ * @param s text taken from an XML element
+ * @returns decoded text
+ */
+function decodeXmlEntities(s) {
+    const cp = (n, raw) => Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : raw;
+    return s
+        .replace(/&#x([0-9a-f]+);/gi, (raw, h) => cp(parseInt(h, 16), raw))
+        .replace(/&#(\d+);/g, (raw, d) => cp(Number(d), raw))
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
 }
 //# sourceMappingURL=handleCreateProgram.js.map

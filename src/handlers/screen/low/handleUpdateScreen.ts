@@ -46,6 +46,11 @@ export const TOOL_DEFINITION = {
         description:
           'Skip post-write syntax check. Default: false. When false, runs a program-tree syntax check on the parent program after DYNPRO_INSERT and surfaces any flow-logic errors with line numbers.',
       },
+      transport_request: {
+        type: 'string',
+        description:
+          'Transport request for the screen (LIMU DYNP). Passed to the dispatcher; it is used only by a ZMCP_ADT_DISPATCH that records screens on a transport.',
+      },
       session_id: {
         type: 'string',
         description: 'Session ID from GetSession.',
@@ -65,6 +70,7 @@ export const TOOL_DEFINITION = {
 } as const;
 
 interface UpdateScreenArgs {
+  transport_request?: string;
   program_name: string;
   screen_number: string;
   dynpro_data: string;
@@ -86,6 +92,7 @@ export async function handleUpdateScreen(
   try {
     const {
       program_name,
+      transport_request,
       screen_number,
       dynpro_data,
       lock_handle,
@@ -112,19 +119,13 @@ export async function handleUpdateScreen(
     const programName = program_name.toUpperCase();
     logger?.info(`Updating screen: ${programName} / ${screen_number}`);
 
-    // Delete existing screen first, then re-insert with new data
-    try {
-      await callDispatch(connection, 'DYNPRO_DELETE', {
-        program: programName,
-        dynpro: screen_number,
-      });
-    } catch {
-      // Screen might not exist yet - that's ok for insert
-    }
-
+    // RPY_DYNPRO_INSERT runs with SUPPRESS_EXIST_CHECKS = 'X' and overwrites
+    // the screen in place. No delete first: a delete that succeeds followed
+    // by a failed insert would lose the screen.
     await callDispatch(connection, 'DYNPRO_INSERT', {
       program: programName,
       dynpro: screen_number,
+      transport: transport_request ?? '',
       dynpro_data: dynpro_data,
     });
 

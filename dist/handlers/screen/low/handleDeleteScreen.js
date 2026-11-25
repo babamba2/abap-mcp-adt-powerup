@@ -23,6 +23,10 @@ exports.TOOL_DEFINITION = {
                 type: 'string',
                 description: 'Lock handle from LockScreenLow.',
             },
+            transport_request: {
+                type: 'string',
+                description: 'Transport request for the screen (LIMU DYNP). Passed to the dispatcher; it is used only by a ZMCP_ADT_DISPATCH that records screens on a transport.',
+            },
             session_id: {
                 type: 'string',
                 description: 'Session ID from GetSession.',
@@ -43,7 +47,7 @@ exports.TOOL_DEFINITION = {
 async function handleDeleteScreen(context, args) {
     const { connection, logger } = context;
     try {
-        const { program_name, screen_number, lock_handle, session_id, session_state, } = args;
+        const { program_name, transport_request, screen_number, lock_handle, session_id, session_state, } = args;
         if (!program_name || !screen_number || !lock_handle) {
             return (0, utils_1.return_error)(new Error('program_name, screen_number, and lock_handle are required'));
         }
@@ -58,6 +62,7 @@ async function handleDeleteScreen(context, args) {
         await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
             program: programName,
             dynpro: screen_number,
+            transport: transport_request ?? '',
         });
         logger?.info(`✅ Screen deleted: ${programName}/${screen_number}`);
         return (0, utils_1.return_response)({

@@ -110,6 +110,7 @@ export async function handleCreateScreen(context: HandlerContext, params: any) {
     await callDispatch(connection, 'DYNPRO_INSERT', {
       program: programName,
       dynpro: args.screen_number,
+      transport: args.transport_request ?? '',
       dynpro_data: screenData,
     });
 

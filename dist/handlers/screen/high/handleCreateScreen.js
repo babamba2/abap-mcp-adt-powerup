@@ -80,6 +80,7 @@ async function handleCreateScreen(context, params) {
         await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_INSERT', {
             program: programName,
             dynpro: args.screen_number,
+            transport: args.transport_request ?? '',
             dynpro_data: screenData,
         });
         logger?.info(`Screen created: ${programName}/${args.screen_number}`);

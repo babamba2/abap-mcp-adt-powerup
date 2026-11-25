@@ -95,6 +95,7 @@ export async function handleDeleteScreen(context: HandlerContext, params: any) {
     await callDispatch(connection, 'DYNPRO_DELETE', {
       program: programName,
       dynpro: args.screen_number,
+      transport: args.transport_request ?? '',
     });
 
     // Unlock

@@ -67,20 +67,14 @@ async function handleUpdateScreen(context, params) {
         lockHandle =
             parsed?.['asx:abap']?.['asx:values']?.DATA?.LOCK_HANDLE ||
                 lockResponse.headers?.['x-sap-adt-lock-handle'];
-        // Delete + re-insert screen via RFC
-        try {
-            await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_DELETE', {
-                program: programName,
-                dynpro: args.screen_number,
-            });
-        }
-        catch {
-            /* screen might not exist */
-        }
+        // RPY_DYNPRO_INSERT runs with SUPPRESS_EXIST_CHECKS = 'X' and overwrites
+        // the screen in place. No delete first: a delete that succeeds followed
+        // by a failed insert would lose the screen.
         const normalizedData = (0, normalizeDynproData_1.normalizeDynproData)(args.dynpro_data, programName, args.screen_number);
         await (0, rfcBackend_1.callDispatch)(connection, 'DYNPRO_INSERT', {
             program: programName,
             dynpro: args.screen_number,
+            transport: args.transport_request ?? '',
             dynpro_data: normalizedData,
         });
         // Post-write syntax check on the parent program tree. Dynpros

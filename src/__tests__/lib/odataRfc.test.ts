@@ -433,6 +433,194 @@ describe('odataRfc — OData v2 FunctionImport backend', () => {
       expect(out.result).toEqual([]);
     });
 
+    describe('long requests go through $batch', () => {
+      const bigPayload = JSON.stringify(
+        Array.from({ length: 120 }, (_, i) => ({
+          ID: 'I',
+          KEY: String(i).padStart(3, '0'),
+          ENTRY: `Text symbol number ${i} with some words`,
+          LENGTH: 40,
+        })),
+      );
+
+      function batchReply(innerStatus: string, innerBody: string) {
+        return [
+          '--ejjeeffe0',
+          'Content-Type: multipart/mixed; boundary=ejjeeffe1',
+          '',
+          '--ejjeeffe1',
+          'Content-Type: application/http',
+          'Content-Transfer-Encoding: binary',
+          '',
+          `HTTP/1.1 ${innerStatus}`,
+          'Content-Type: application/json',
+          '',
+          innerBody,
+          '--ejjeeffe1--',
+          '',
+          '--ejjeeffe0--',
+          '',
+        ].join('\r\n');
+      }
+
+      it('sends the whole query in the $batch body and parses the reply', async () => {
+        nextResponse({
+          status: 202,
+          body: batchReply(
+            '200 OK',
+            JSON.stringify({
+              d: {
+                Textpool: { EV_RESULT: '[]', EV_SUBRC: 0, EV_MESSAGE: 'ok' },
+              },
+            }),
+          ),
+          bodyIsJson: false,
+        });
+        const { callTextpool } = require('../../lib/odataRfc');
+        const out = await callTextpool(FAKE_CONNECTION, 'WRITE', {
+          program: 'Z_FOO',
+          textpool_json: bigPayload,
+        });
+
+        expect(fetchCalls).toHaveLength(2);
+        const call = fetchCalls[1];
+        expect(call.url).toMatch(/\/ZMCP_ADT_SRV\/\$batch\?sap-client=100$/);
+        const headers = call.init?.headers as Record<string, string>;
+        expect(headers['Content-Type']).toMatch(
+          /^multipart\/mixed; boundary=batch_/,
+        );
+        expect(headers['X-CSRF-Token']).toBe('csrf-ABC123');
+        const body = String(call.init?.body);
+        expect(body).toContain(
+          `IV_TEXTPOOL_JSON='${encodeURIComponent(bigPayload)}'`,
+        );
+        expect(body).toMatch(
+          /\r\nPOST Textpool\?IV_ACTION='WRITE'.* HTTP\/1\.1\r\n/,
+        );
+        expect(out.message).toBe('ok');
+      });
+
+      it('keeps short calls on the plain POST', async () => {
+        queuePostDispatch({
+          d: { Textpool: { EV_RESULT: '[]', EV_SUBRC: 0, EV_MESSAGE: '' } },
+        });
+        const { callTextpool } = require('../../lib/odataRfc');
+        await callTextpool(FAKE_CONNECTION, 'READ', { program: 'Z_FOO' });
+        expect(fetchCalls[1].url).toContain('/Textpool?');
+        expect(fetchCalls[1].init?.body).toBeUndefined();
+      });
+
+      it('honours SAP_RFC_ODATA_MAX_URL_LEN', async () => {
+        process.env.SAP_RFC_ODATA_MAX_URL_LEN = '50';
+        nextResponse({
+          status: 202,
+          body: batchReply(
+            '200 OK',
+            JSON.stringify({
+              d: { Textpool: { EV_RESULT: '[]', EV_SUBRC: 0 } },
+            }),
+          ),
+          bodyIsJson: false,
+        });
+        const { callTextpool } = require('../../lib/odataRfc');
+        await callTextpool(FAKE_CONNECTION, 'READ', { program: 'Z_FOO' });
+        expect(fetchCalls[1].url).toContain('/$batch');
+      });
+
+      it('surfaces the inner SAP error text', async () => {
+        nextResponse({
+          status: 202,
+          body: batchReply(
+            '400 Bad Request',
+            '{"error":{"message":{"value":"Malformed URI literal syntax"}}}',
+          ),
+          bodyIsJson: false,
+        });
+        const { callTextpool } = require('../../lib/odataRfc');
+        await expect(
+          callTextpool(FAKE_CONNECTION, 'WRITE', {
+            program: 'Z_FOO',
+            textpool_json: bigPayload,
+          }),
+        ).rejects.toThrow(/HTTP 400 .*Malformed URI literal syntax/);
+      });
+
+      it('refreshes an expired CSRF token once, then fails', async () => {
+        nextResponse({
+          status: 403,
+          headers: { 'x-csrf-token': 'Required' },
+          body: '',
+          bodyIsJson: false,
+        });
+        queueCsrfFetch('csrf-NEW');
+        nextResponse({
+          status: 403,
+          headers: { 'x-csrf-token': 'Required' },
+          body: 'still expired',
+          bodyIsJson: false,
+        });
+        const { callTextpool } = require('../../lib/odataRfc');
+        await expect(
+          callTextpool(FAKE_CONNECTION, 'WRITE', {
+            program: 'Z_FOO',
+            textpool_json: bigPayload,
+          }),
+        ).rejects.toThrow(/HTTP 403 .*still expired/);
+        expect(fetchCalls).toHaveLength(4);
+        const retry = fetchCalls[3].init?.headers as Record<string, string>;
+        expect(retry['X-CSRF-Token']).toBe('csrf-NEW');
+      });
+    });
+
+    it('parseBatchResponse handles an inner part without headers and LF endings', () => {
+      const { parseBatchResponse } = require('../../lib/odataRfc');
+      const bare = parseBatchResponse(
+        '--b\r\nContent-Type: application/http\r\n\r\nHTTP/1.1 200 OK\r\n\r\n{"d":{}}\r\n--b--\r\n',
+      );
+      expect(bare).toEqual({ status: 200, body: '{"d":{}}' });
+      const lf = parseBatchResponse(
+        '--b\nContent-Type: application/http\n\nHTTP/1.1 500 Error\nContent-Type: text/plain\n\nboom\n--b--\n',
+      );
+      expect(lf).toEqual({ status: 500, body: 'boom' });
+    });
+
+    it('$batch: refreshes the CSRF token once and succeeds', async () => {
+      process.env.SAP_RFC_ODATA_MAX_URL_LEN = '50';
+      nextResponse({
+        status: 403,
+        headers: { 'x-csrf-token': 'Required' },
+        body: '',
+        bodyIsJson: false,
+      });
+      queueCsrfFetch('csrf-NEW');
+      nextResponse({
+        status: 202,
+        body: '--x\r\nContent-Type: application/http\r\n\r\nHTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{"d":{"Textpool":{"EV_RESULT":"[]","EV_SUBRC":0,"EV_MESSAGE":"ok"}}}\r\n--x--\r\n',
+        bodyIsJson: false,
+      });
+      const { callTextpool } = require('../../lib/odataRfc');
+      const out = await callTextpool(FAKE_CONNECTION, 'READ', {
+        program: 'Z_FOO',
+      });
+      expect(out.message).toBe('ok');
+      expect(fetchCalls).toHaveLength(4);
+      expect(fetchCalls[3].url).toContain('/$batch');
+    });
+
+    it('error on a long plain POST shows the body, not the whole URL', async () => {
+      process.env.SAP_RFC_ODATA_MAX_URL_LEN = '100000';
+      nextResponse({ status: 400, body: '', bodyIsJson: false });
+      const { callTextpool } = require('../../lib/odataRfc');
+      const err = await callTextpool(FAKE_CONNECTION, 'WRITE', {
+        program: 'Z_FOO',
+        textpool_json: 'x'.repeat(5000),
+      }).catch((e: Error) => e);
+      expect(err.message).toMatch(
+        /HTTP 400 .*\(5156 chars\)\): \(empty body\)$/,
+      );
+      expect(err.message.length).toBeLessThan(400);
+    });
+
     it('throws on non-zero subrc', async () => {
       queuePostDispatch({
         d: {
