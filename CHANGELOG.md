@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [4.16.0] - 2026-11-25
+
+### Added
+- **`GetObjectVersions`** (read-only): the source versions of a program, include, class part (main / definitions / implementations / macros / testclasses), interface or function module — version number, date, author, transport request, title and the `content_uri` of each version — from the ADT revision feed (`<source>/versions`), newest first (`max_versions`, default 50). On a system without the feed (HTTP 404 / 405 / 501) the list comes from the version directory VRSD (no `content_uri`, so `GetObjectVersionSource` cannot read those versions; for a class VRSD lists the class definition versions whatever `class_include` says); other errors are reported, not hidden by the fallback. Live-checked on ECC 7.40 and S/4HANA (both have the feed).
+- **`GetObjectVersionSource`** (read-only): the source of one version, by `content_uri` or by object + version number. Only version content URIs of the fixed object roots are read (one name segment per level, no dot segments, no encoded bytes other than the namespace `%2f`), so the tool is not a general ADT GET.
+
+### Fixed
+- Function imports whose URL exceeds `SAP_RFC_ODATA_MAX_URL_LEN` (default 7000) go inside an OData `$batch` changeset; the ICM drops URLs over ~8.5 KB (text pool writes answered HTTP 400).
+- Screen create / update / delete pass the transport request to the dispatcher; update no longer deletes before re-inserting.
+- `CreateProgram` failures name the step and HTTP status with SAP's own message; an empty-body 403 with `x-csrf-token: Required` is flagged.
+
 ## [4.15.0] - 2026-11-24
 
 ### Added
