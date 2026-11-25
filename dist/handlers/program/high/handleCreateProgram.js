@@ -192,8 +192,7 @@ function describeCreateError(error, step) {
     }
     const csrf = String(response.headers?.['x-csrf-token'] ?? '');
     if (status === 403 && csrf.toLowerCase() === 'required') {
-        text +=
-            ' (CSRF token rejected by SAP: x-csrf-token: Required)';
+        text += ' (CSRF token rejected by SAP: x-csrf-token: Required)';
     }
     return `[${step}] HTTP ${status ?? '?'}: ${text}`;
 }
@@ -203,7 +202,9 @@ function describeCreateError(error, step) {
  * @returns decoded text
  */
 function decodeXmlEntities(s) {
-    const cp = (n, raw) => Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : raw;
+    const cp = (n, raw) => Number.isInteger(n) && n >= 0 && n <= 0x10ffff
+        ? String.fromCodePoint(n)
+        : raw;
     return s
         .replace(/&#x([0-9a-f]+);/gi, (raw, h) => cp(parseInt(h, 16), raw))
         .replace(/&#(\d+);/g, (raw, d) => cp(Number(d), raw))

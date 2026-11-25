@@ -32,6 +32,8 @@ const handleReadStructure_1 = require("../../../handlers/structure/readonly/hand
 const handleGetAdobeFormContent_1 = require("../../../handlers/system/readonly/handleGetAdobeFormContent");
 const handleGetAreaMenu_1 = require("../../../handlers/system/readonly/handleGetAreaMenu");
 const handleGetJobUsage_1 = require("../../../handlers/system/readonly/handleGetJobUsage");
+const handleGetObjectVersionSource_1 = require("../../../handlers/system/readonly/handleGetObjectVersionSource");
+const handleGetObjectVersions_1 = require("../../../handlers/system/readonly/handleGetObjectVersions");
 const handleGetSmartFormContent_1 = require("../../../handlers/system/readonly/handleGetSmartFormContent");
 const handleGetSmartFormLayout_1 = require("../../../handlers/system/readonly/handleGetSmartFormLayout");
 const handleGetStandardText_1 = require("../../../handlers/system/readonly/handleGetStandardText");
@@ -97,6 +99,14 @@ class ReadOnlyHandlersGroup extends BaseHandlerGroup_js_1.BaseHandlerGroup {
             {
                 toolDefinition: handleGetTcodeUsage_1.TOOL_DEFINITION,
                 handler: (args) => (0, handleGetTcodeUsage_1.handleGetTcodeUsage)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetObjectVersions_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetObjectVersions_1.handleGetObjectVersions)(this.context, args),
+            },
+            {
+                toolDefinition: handleGetObjectVersionSource_1.TOOL_DEFINITION,
+                handler: (args) => (0, handleGetObjectVersionSource_1.handleGetObjectVersionSource)(this.context, args),
             },
             {
                 toolDefinition: handleGetJobUsage_1.TOOL_DEFINITION,

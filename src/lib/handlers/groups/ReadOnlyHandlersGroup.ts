@@ -117,6 +117,14 @@ import {
   handleGetJobUsage,
 } from '../../../handlers/system/readonly/handleGetJobUsage';
 import {
+  TOOL_DEFINITION as GetObjectVersionSource_Tool,
+  handleGetObjectVersionSource,
+} from '../../../handlers/system/readonly/handleGetObjectVersionSource';
+import {
+  TOOL_DEFINITION as GetObjectVersions_Tool,
+  handleGetObjectVersions,
+} from '../../../handlers/system/readonly/handleGetObjectVersions';
+import {
   TOOL_DEFINITION as GetSmartFormContent_Tool,
   handleGetSmartFormContent,
 } from '../../../handlers/system/readonly/handleGetSmartFormContent';
@@ -225,6 +233,15 @@ export class ReadOnlyHandlersGroup extends BaseHandlerGroup {
       {
         toolDefinition: GetTcodeUsage_Tool,
         handler: (args: any) => handleGetTcodeUsage(this.context, args),
+      },
+      {
+        toolDefinition: GetObjectVersions_Tool,
+        handler: (args: any) => handleGetObjectVersions(this.context, args),
+      },
+      {
+        toolDefinition: GetObjectVersionSource_Tool,
+        handler: (args: any) =>
+          handleGetObjectVersionSource(this.context, args),
       },
       {
         toolDefinition: GetJobUsage_Tool,
