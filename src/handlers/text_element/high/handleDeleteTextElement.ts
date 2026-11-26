@@ -9,6 +9,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { callTextpool } from '../../../lib/rfcBackend';
+import { recordTextpoolTransport } from '../../../lib/textpoolTransport';
 import {
   type AxiosResponse,
   encodeSapObjectName,
@@ -47,7 +48,8 @@ export const TOOL_DEFINITION = {
       },
       transport_request: {
         type: 'string',
-        description: 'Transport request number.',
+        description:
+          'Transport request that records the text pool (LIMU REPT) before it is written. Required unless the program is in a local ($) package; the request must be modifiable and hold a task of the SAP user.',
       },
       activate: {
         type: 'boolean',
@@ -181,6 +183,13 @@ export async function handleDeleteTextElement(
       );
     }
 
+    // LIMU REPT on the request first — INSERT TEXTPOOL records nothing.
+    const transport = await recordTextpoolTransport(
+      connection,
+      programName,
+      args.transport_request,
+    );
+
     await callTextpool(connection, 'WRITE', {
       program: programName,
       language,
@@ -227,6 +236,7 @@ export async function handleDeleteTextElement(
           rows_removed: removed,
           rows_remaining: kept.length,
           activated: shouldActivate,
+          transport,
           message: shouldActivate
             ? `Text element ${programName} ${textType}/${rowKey || '(wipe)'} deleted and activated.`
             : `Text element ${programName} ${textType}/${rowKey || '(wipe)'} deleted (not activated).`,

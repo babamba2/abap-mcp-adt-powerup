@@ -12,6 +12,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleCreateTextElement = handleCreateTextElement;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const rfcBackend_1 = require("../../../lib/rfcBackend");
+const textpoolTransport_1 = require("../../../lib/textpoolTransport");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 const MAX_ENTRY_LEN = 132;
@@ -45,7 +46,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number.',
+                description: 'Transport request that records the text pool (LIMU REPT) before it is written. Required unless the program is in a local ($) package; the request must be modifiable and hold a task of the SAP user.',
             },
             activate: {
                 type: 'boolean',
@@ -127,6 +128,8 @@ async function handleCreateTextElement(context, params) {
             ENTRY: args.text,
             LENGTH: args.text.length,
         });
+        // LIMU REPT on the request first — INSERT TEXTPOOL records nothing.
+        const transport = await (0, textpoolTransport_1.recordTextpoolTransport)(connection, programName, args.transport_request);
         await (0, rfcBackend_1.callTextpool)(connection, 'WRITE', {
             program: programName,
             language,
@@ -152,6 +155,7 @@ async function handleCreateTextElement(context, params) {
                 length: args.text.length,
                 language: language || null,
                 activated: shouldActivate,
+                transport,
                 message: shouldActivate
                     ? `Text element ${programName} ${textType}/${rowKey} created and activated.`
                     : `Text element ${programName} ${textType}/${rowKey} created (not activated).`,

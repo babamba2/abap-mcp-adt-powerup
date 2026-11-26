@@ -11,6 +11,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.handleDeleteTextElement = handleDeleteTextElement;
 const fast_xml_parser_1 = require("fast-xml-parser");
 const rfcBackend_1 = require("../../../lib/rfcBackend");
+const textpoolTransport_1 = require("../../../lib/textpoolTransport");
 const utils_1 = require("../../../lib/utils");
 const ACCEPT_LOCK = 'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.8, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result2;q=0.9';
 exports.TOOL_DEFINITION = {
@@ -36,7 +37,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number.',
+                description: 'Transport request that records the text pool (LIMU REPT) before it is written. Required unless the program is in a local ($) package; the request must be modifiable and hold a task of the SAP user.',
             },
             activate: {
                 type: 'boolean',
@@ -117,6 +118,8 @@ async function handleDeleteTextElement(context, params) {
         if (removed === 0) {
             throw new Error(`Text element not found: ${programName} ${textType}/${rowKey || '(wipe)'}`);
         }
+        // LIMU REPT on the request first — INSERT TEXTPOOL records nothing.
+        const transport = await (0, textpoolTransport_1.recordTextpoolTransport)(connection, programName, args.transport_request);
         await (0, rfcBackend_1.callTextpool)(connection, 'WRITE', {
             program: programName,
             language,
@@ -141,6 +144,7 @@ async function handleDeleteTextElement(context, params) {
                 rows_removed: removed,
                 rows_remaining: kept.length,
                 activated: shouldActivate,
+                transport,
                 message: shouldActivate
                     ? `Text element ${programName} ${textType}/${rowKey || '(wipe)'} deleted and activated.`
                     : `Text element ${programName} ${textType}/${rowKey || '(wipe)'} deleted (not activated).`,

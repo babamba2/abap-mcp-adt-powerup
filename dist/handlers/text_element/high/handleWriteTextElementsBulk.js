@@ -30,6 +30,7 @@ exports.TOOL_DEFINITION = void 0;
 exports.restoreSelectionPrefix = restoreSelectionPrefix;
 exports.handleWriteTextElementsBulk = handleWriteTextElementsBulk;
 const rfcBackend_1 = require("../../../lib/rfcBackend");
+const textpoolTransport_1 = require("../../../lib/textpoolTransport");
 const utils_1 = require("../../../lib/utils");
 const MAX_ENTRY_LEN = 132;
 // TPOOL selection-text rows reserve ENTRY(8) before the visible text.
@@ -69,7 +70,7 @@ exports.TOOL_DEFINITION = {
             },
             transport_request: {
                 type: 'string',
-                description: 'Transport request number (informational).',
+                description: 'Transport request that records the text pool (LIMU REPT) before it is written. Required unless the program is in a local ($) package; the request must be modifiable and hold a task of the SAP user.',
             },
             activate: {
                 type: 'boolean',
@@ -195,6 +196,10 @@ async function handleWriteTextElementsBulk(context, params) {
             finalRows = [...map.values()];
             steps.push('read_existing_for_merge');
         }
+        // LIMU REPT on the request first — INSERT TEXTPOOL records nothing.
+        const transport = await (0, textpoolTransport_1.recordTextpoolTransport)(connection, programName, args.transport_request);
+        if (transport.recorded)
+            steps.push('record_limu_rept');
         // Single RFC write — regardless of entry count.
         await (0, rfcBackend_1.callTextpool)(connection, action, {
             program: programName,
@@ -213,6 +218,7 @@ async function handleWriteTextElementsBulk(context, params) {
                 language_used: language || null,
                 activate: shouldActivate,
                 rfc_action: action,
+                transport,
                 steps_completed: steps,
                 message: shouldActivate
                     ? `Wrote ${finalRows.length} active text element row(s) for ${programName}.`

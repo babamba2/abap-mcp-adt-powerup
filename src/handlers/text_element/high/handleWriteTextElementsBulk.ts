@@ -27,6 +27,7 @@
 
 import type { HandlerContext } from '../../../lib/handlers/interfaces';
 import { callTextpool } from '../../../lib/rfcBackend';
+import { recordTextpoolTransport } from '../../../lib/textpoolTransport';
 import {
   type AxiosResponse,
   isCloudConnection,
@@ -77,7 +78,8 @@ export const TOOL_DEFINITION = {
       },
       transport_request: {
         type: 'string',
-        description: 'Transport request number (informational).',
+        description:
+          'Transport request that records the text pool (LIMU REPT) before it is written. Required unless the program is in a local ($) package; the request must be modifiable and hold a task of the SAP user.',
       },
       activate: {
         type: 'boolean',
@@ -265,6 +267,14 @@ export async function handleWriteTextElementsBulk(
       steps.push('read_existing_for_merge');
     }
 
+    // LIMU REPT on the request first — INSERT TEXTPOOL records nothing.
+    const transport = await recordTextpoolTransport(
+      connection,
+      programName,
+      args.transport_request,
+    );
+    if (transport.recorded) steps.push('record_limu_rept');
+
     // Single RFC write — regardless of entry count.
     await callTextpool(connection, action, {
       program: programName,
@@ -285,6 +295,7 @@ export async function handleWriteTextElementsBulk(
           language_used: language || null,
           activate: shouldActivate,
           rfc_action: action,
+          transport,
           steps_completed: steps,
           message: shouldActivate
             ? `Wrote ${finalRows.length} active text element row(s) for ${programName}.`
